@@ -96,3 +96,7 @@ WebSocket client verified every message sequence and confirmed block origins
 from (0,0) through (176,176), covering all 192 × 192 tiles. Its join-to-complete
 time was 88.8 seconds (not a full-sweep timing). Browser console had no errors;
 settled mesh statistics and screenshot were inspected locally.
+
+Measured full sweep: 108,926 ms (about 109 seconds), bridge heap 15 MB.
+Settled live browser: 432 blocks, 216,130 triangles, zero queued mesh rebuilds.
+Browser/GPU memory and game frame-time impact remain unmeasured.
