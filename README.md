@@ -123,6 +123,6 @@ Shrubs and saplings use species sprites that face the camera. Building/plant
 updates arrive with the terrain sweep; the plant position cache refreshes every
 five seconds. Unknown workshop art uses a neutral footprint. Construction stages,
 exact furniture variants/material palettes and plant seasonal growth are approximate.
-Mature trees retain voxel terrain geometry. Ramps, stairs, trees and
+Revealed tree trunks, branches and mushroom caps now use species billboard tiles when available; unmatched tree tiles retain voxel geometry. Ramps, stairs, trees and
 fortifications are approximate; liquids are omitted. No external accounts,
 telemetry, uploads or cloud services are required.

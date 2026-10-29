@@ -6,7 +6,18 @@ function integer(v: unknown, name: string): number {
     throw Error(`Invalid ${name}`);
   return v;
 }
+export function treeGraphicName(name: string) {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([a-z])([0-9])/g, "$1_$2")
+    .toUpperCase()
+    .replace(
+      /(_CAP_WALL_)([NSWE]+)$/,
+      (_m, p: string, d: string) => p + d.split("").join("_"),
+    );
+}
 interface TileDefinition {
+  treeGraphic?: string;
   shape: number;
   material: number;
   name: string;
@@ -51,6 +62,7 @@ export function convertBlock(
         shape: shapeFromDf(d.shape),
         material: d.material,
         name: d.name,
+        ...(d.treeGraphic ? { treeGraphic: d.treeGraphic } : {}),
       };
     }),
   };
@@ -106,6 +118,11 @@ export class FortressAdapter {
         shape: integer(d.shape, "shape"),
         material: integer(d.material, "material"),
         name: String(d.caption ?? d.name ?? "Terrain").slice(0, 120),
+        ...([23, 24].includes(Number(d.material)) &&
+        typeof d.name === "string" &&
+        /^Tree[A-Z]/.test(d.name)
+          ? { treeGraphic: treeGraphicName(d.name) }
+          : {}),
       });
     }
     return version;

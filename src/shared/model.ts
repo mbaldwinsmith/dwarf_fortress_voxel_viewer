@@ -24,6 +24,7 @@ export interface Creature {
 }
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
+  treeGraphic?: string;
   shape: Shape;
   material: number;
   name: string;

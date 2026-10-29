@@ -238,9 +238,8 @@ in Z. A read-only query aligned outward to these columns covers the bounded loca
 map and its full height. Results are cached for five seconds, capped at 32,768
 positions, and filtered against each revealed terrain block. Species resolve from
 live PlantRaw indices. Shrubs/dead shrubs and saplings/dead saplings use matching
-art where available, otherwise vanilla generic vegetation. Mature tree wall tiles
-retain their existing voxel meshes; grass, growth seasons and full tree canopies
-are not rebuilt as billboards.
+art where available, otherwise vanilla generic vegetation. Revealed tree tiles now use the species billboards described below; grass and
+growth seasons remain approximate.
 
 Chunk.objects is authoritative, including an empty array after removal. Refreshing
 a block replaces all its object geometry, so harvested plants and dismantled
@@ -250,3 +249,26 @@ door axes to update when adjacent terrain arrives. Ground and door quads batch
 by atlas per block; plants face the camera each frame. Alpha testing, depth testing
 and the cutaway apply to all objects. Reset removes objects and disposes geometry;
 full disposal also releases atlas textures and materials.
+
+## Yak and fungal-tree visibility correction
+
+Vanilla yak art uses DEFAULT layer sets rather than simple DEFAULT sprites.
+Only the default BODY/CBODY layers with a sole NOT_CHILD/CHILD condition are
+accepted as yak body references; saddlebag, animated and corpse layers are excluded.
+Vanilla YAK CHILD:1 selects calf art below age one, adult art otherwise. Unit
+position, discovery and flag filtering remain unchanged.
+
+MapBlock.materials field 5 now provides each tile's plant material species index
+(PLANT_1 material range 419�618). Revealed shrubs and saplings resolve species
+directly from their tile material, with the position list retained as a fallback.
+This avoids depending on plant-root discovery and the five-second position cache.
+TREE_TILE graphics are parsed per species. Revealed tree/mushroom material tiles
+carry a bounded treeGraphic key derived from the native tile identifier; hidden
+tiles never include this metadata. Trunks, branches and cap tiles can now billboard
+at their actual loaded X/Y/Z even when the plant root is on a different level.
+Cap direction suffixes and numbered floor variants map to the native token form.
+
+A tree voxel is replaced by a thin base only when that exact tile has usable
+plant art. Missing mappings keep their voxel fallback. Adjacent stone faces remain
+visible next to billboard vegetation. No full tree silhouette or unseen canopy is
+invented; the cutaway displays only the revealed tile slices that were streamed.

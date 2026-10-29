@@ -177,8 +177,44 @@ export function plantObjects(
   plants: unknown,
   definitions: Map<number, { id: string; name: string }>,
   graphics: Pick<SceneryGraphics, "get">,
+  materials?: unknown,
 ): SceneryObject[] {
   const out: SceneryObject[] = [];
+  const mats = Array.isArray(materials) ? materials : [];
+  const occupied = new Set<number>();
+  for (let i = 0; i < 256; i++) {
+    const tile = chunk.tiles[i],
+      mat = mats[i];
+    const young = tile?.material === 12 && /sapling|shrub/i.test(tile.name);
+    if (
+      (!tile?.treeGraphic && !young) ||
+      tile.shape === "unknown" ||
+      !mat ||
+      Number(mat.matType) < 419 ||
+      Number(mat.matType) >= 619
+    )
+      continue;
+    const d = definitions.get(Number(mat.matIndex));
+    if (!d) continue;
+    const token =
+      tile.treeGraphic ??
+      `${/sapling/i.test(tile.name) ? "SAPLING" : "SHRUB"}${/dead/i.test(tile.name) ? "_DEAD" : ""}`;
+    const sprite =
+      graphics.get(`PLANT:${d.id}:${token}`) ?? graphics.get(token);
+    if (!sprite) continue;
+    const x = chunk.x + (i % 16),
+      y = chunk.y + Math.floor(i / 16);
+    out.push({
+      id: `p:${x}:${y}:${chunk.z}`,
+      x,
+      y,
+      z: chunk.z,
+      name: d.name,
+      kind: "plant",
+      sprite,
+    });
+    occupied.add(i);
+  }
   for (const p of records(plants)) {
     const x = Number(p.posX),
       y = Number(p.posY),
@@ -193,7 +229,8 @@ export function plantObjects(
     )
       continue;
     const tile = chunk.tiles[(y - chunk.y) * 16 + x - chunk.x];
-    // Mature tree voxels retain their terrain geometry; shrubs and saplings billboard.
+    if (occupied.has((y - chunk.y) * 16 + x - chunk.x)) continue;
+    // Position records are a fallback for plants without usable tile material data.
     if (
       !tile ||
       tile.shape === "unknown" ||
@@ -271,7 +308,13 @@ export class SceneryReader {
         this.definitions,
         this.graphics,
       ),
-      ...plantObjects(chunk, this.plants, this.plantDefinitions, this.graphics),
+      ...plantObjects(
+        chunk,
+        this.plants,
+        this.plantDefinitions,
+        this.graphics,
+        raw?.materials,
+      ),
     ];
   }
 }

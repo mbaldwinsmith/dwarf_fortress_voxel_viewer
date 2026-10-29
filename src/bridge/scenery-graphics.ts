@@ -11,6 +11,19 @@ export function sceneryMappings(text: string) {
     const [tag, ...a] = m[1].split(":");
     if (tag === "PLANT_GRAPHICS") plant = a[0];
     if (
+      plant &&
+      tag === "TREE_TILE" &&
+      a.length === 4 &&
+      /^\d+$/.test(a[2]) &&
+      /^\d+$/.test(a[3])
+    )
+      entries.push({
+        key: `PLANT:${plant}:${a[0]}`,
+        page: a[1],
+        x: Number(a[2]),
+        y: Number(a[3]),
+      });
+    if (
       tag === "TILE_GRAPHICS" &&
       a.length >= 4 &&
       /^\d+$/.test(a[1]) &&

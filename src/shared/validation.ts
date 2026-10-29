@@ -119,7 +119,11 @@ export function parseServerMessage(value: unknown): ServerMessage {
           !object(t) ||
           !shapes.includes(t.shape as Shape) ||
           !int(t.material) ||
-          !text(t.name)
+          !text(t.name) ||
+          (t.treeGraphic !== undefined &&
+            (typeof t.treeGraphic !== "string" ||
+              !/^TREE_[A-Z0-9_]{1,80}$/.test(t.treeGraphic) ||
+              t.shape === "unknown"))
         )
           throw Error("Invalid tile");
       if (c.objects !== undefined) {

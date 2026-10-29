@@ -141,6 +141,7 @@ export class CreatureReader {
           ? this.graphics.resolve(
               raw.id,
               raw.castes.get(Number(race.matIndex)) ?? "",
+              typeof u.age === "number" ? u.age : undefined,
             )
           : undefined;
       let layers: ReturnType<Graphics["dwarf"]> | undefined;

@@ -18,7 +18,7 @@ const palette: Record<number, number[]> = {
   23: [0.39, 0.27, 0.16],
 };
 function solid(t: Tile | undefined) {
-  return t?.shape === "wall" || t?.shape === "unknown";
+  return (t?.shape === "wall" && !t.treeGraphic) || t?.shape === "unknown";
 }
 export function buildMesh(
   c: Chunk,
@@ -26,6 +26,11 @@ export function buildMesh(
   cut: number,
 ): MeshData {
   const out: MeshData = { positions: [], colors: [] };
+  const treeSprites = new Set(
+    (c.objects ?? [])
+      .filter((o) => o.kind === "plant" && o.sprite)
+      .map((o) => (o.y - c.y) * 16 + o.x - c.x),
+  );
   if (c.z > cut) return out;
   function quad(v: number[][], color: number[]) {
     for (const i of [0, 1, 2, 0, 2, 3]) {
@@ -119,7 +124,9 @@ export function buildMesh(
           color,
         );
     }
-    if (solid(t)) box(1, 0, 0, 1, 1, 0, true);
+    if (t.treeGraphic && treeSprites.has(i)) box(0.12);
+    else if (t.shape === "wall" || t.shape === "unknown")
+      box(1, 0, 0, 1, 1, 0, true);
     else if (t.shape === "stairs") {
       box(0.12);
       for (let s = 0; s < 4; s++)

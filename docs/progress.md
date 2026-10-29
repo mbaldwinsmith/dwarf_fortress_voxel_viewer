@@ -228,3 +228,21 @@ geometry orientation, wire limits, deletion, plant cache expiry, camera followin
 and resource disposal. Strict TypeScript and production builds pass. No gameplay,
 save, installation or DFHack configuration changes. Limits include approximate
 material/default variants, construction stages, ambiguous door axes and seasons.
+
+## Missing yak and fungal-tree sprites � 29 October 2026
+
+Fixed layered yak body loading, including the separate calf sprite. Read-only
+live verification found yaks 6769 and 6770 at X23/Y124/Z128 and X21/Y117/Z128;
+both now resolve the native CREATURES_DOMESTIC row 21 body sprite.
+
+Young fungiwood and other visible saplings now resolve from per-tile plant
+materials as well as position records. Added species TREE_TILE mappings and
+revealed tile billboard rendering for tree trunks and mushroom caps. A live
+fungiwood sapling at X9/Y9/Z128 and tower-cap tiles including X29/Y24/Z128 resolve
+their local artwork. Root-only filtering no longer excludes mature tree art.
+Unmapped tree tiles retain their voxel fallback; hidden tiles remain redacted.
+
+67 tests pass, including adult/calf choice, unsafe-layer rejection, species
+material lookup without root records, duplicate suppression, native token naming,
+hidden metadata redaction, and removal of occluding cubes only when art exists.
+Strict TypeScript and production build pass.

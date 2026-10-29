@@ -61,6 +61,32 @@ export function parseGraphics(text: string) {
   }
   return { pages, sprites };
 }
+export function parseYakBodies(text: string) {
+  const block = text.match(
+    /\[CREATURE_GRAPHICS:YAK\]([\s\S]*?)(?=\[CREATURE(?:_CASTE)?_GRAPHICS:|$)/,
+  )?.[1];
+  const out = new Map<string, { page: string; x: number; y: number }>();
+  if (!block) return out;
+  const set = parseDwarfLayers(block).find((s) => s.state === "DEFAULT");
+  for (const l of set?.groups.flat() ?? []) {
+    const child = l.name === "CBODY";
+    if (
+      (!child && l.name !== "BODY") ||
+      l.width !== 1 ||
+      l.height !== 1 ||
+      l.conditions.length !== 1 ||
+      l.conditions[0].length !== 1 ||
+      l.conditions[0][0] !== (child ? "CONDITION_CHILD" : "CONDITION_NOT_CHILD")
+    )
+      continue;
+    out.set(`YAK:${child ? "CHILD" : "ADULT"}`, {
+      page: l.page,
+      x: l.x,
+      y: l.y,
+    });
+  }
+  return out;
+}
 export async function permittedImage(root: string, relative: string) {
   if (
     !relative.startsWith("images/") ||
@@ -93,9 +119,10 @@ export class Graphics {
       duplicateSprites = new Set<string>();
     for (const file of await readdir(root)) {
       if (!file.endsWith(".txt")) continue;
-      const parsed = parseGraphics(
-        await readFile(path.join(root, file), "utf8"),
-      );
+      const source = await readFile(path.join(root, file), "utf8");
+      const parsed = parseGraphics(source);
+      for (const [id, body] of parseYakBodies(source))
+        parsed.sprites.set(id, body);
       for (const [id, p] of parsed.pages) {
         if (pages.has(id)) duplicatePages.add(id);
         pages.set(id, p);
@@ -188,7 +215,12 @@ export class Graphics {
       (file) => this.paletteAssets.get(file),
     );
   }
-  resolve(race: string, caste: string) {
+  resolve(race: string, caste: string, age?: number) {
+    // Vanilla yak CHILD:1; pack equipment is not part of this body fallback.
+    if (race === "YAK")
+      return this.refs.get(
+        `YAK:${age !== undefined && age < 1 ? "CHILD" : "ADULT"}`,
+      );
     return this.refs.get(`${race}:${caste}`) ?? this.refs.get(race);
   }
 }
