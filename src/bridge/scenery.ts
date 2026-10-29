@@ -1,6 +1,7 @@
 import type { Bounds, Chunk, SceneryObject } from "../shared/model.js";
 import type { Rpc } from "./rpc.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
+import { textureTerrain } from "./terrain-art.js";
 const records = (v: unknown): Record<string, unknown>[] =>
   Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : [];
 export const buildingKey = (t: Record<string, unknown>) =>
@@ -286,6 +287,7 @@ export class SceneryReader {
         });
   }
   async decorate(chunk: Chunk, raw?: Record<string, unknown>) {
+    textureTerrain(chunk, this.graphics, raw?.materials);
     if (performance.now() - this.lastPlants >= 5000) {
       const b = this.bounds;
       // GetPlantList iterates 3x3-block columns and requires whole tree bounds in Z.

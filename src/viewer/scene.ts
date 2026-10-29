@@ -8,6 +8,7 @@ import {
 } from "../shared/model.js";
 import { CreatureSprites } from "./creatures.js";
 import { ScenerySprites } from "./scenery.js";
+import { TerrainAtlas } from "./terrain-atlas.js";
 import { buildMesh } from "./mesh.js";
 export class FortressScene {
   creatures = new CreatureSprites();
@@ -20,7 +21,11 @@ export class FortressScene {
   dirty = new Set<string>();
   cut = 0;
   bounds?: Bounds;
-  material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  terrainAtlas = new TerrainAtlas();
+  material = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    map: this.terrainAtlas.texture,
+  });
   observer: ResizeObserver;
   frameId = 0;
   onSelect?: (x: number, y: number, z: number) => void;
@@ -146,7 +151,12 @@ export class FortressScene {
       const c = this.state.chunks.get(k);
       if (!c) continue;
       this.scenery.update([c], this.state.chunks);
-      const data = buildMesh(c, this.state.chunks, this.cut);
+      const data = buildMesh(
+        c,
+        this.state.chunks,
+        this.cut,
+        this.terrainAtlas.uv,
+      );
       if (!data.positions.length) continue;
       const g = new THREE.BufferGeometry();
       g.setAttribute(
@@ -154,6 +164,7 @@ export class FortressScene {
         new THREE.Float32BufferAttribute(data.positions, 3),
       );
       g.setAttribute("color", new THREE.Float32BufferAttribute(data.colors, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(data.uvs, 2));
       g.computeVertexNormals();
       const m = new THREE.Mesh(g, this.material);
       this.meshes.set(k, m);
@@ -174,6 +185,7 @@ export class FortressScene {
     this.scenery.dispose();
     for (const m of this.meshes.values()) m.geometry.dispose();
     this.material.dispose();
+    this.terrainAtlas.dispose();
     this.renderer.dispose();
   }
 }

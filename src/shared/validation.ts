@@ -126,6 +126,19 @@ export function parseServerMessage(value: unknown): ServerMessage {
               t.shape === "unknown"))
         )
           throw Error("Invalid tile");
+      for (const t of c.tiles) {
+        if (
+          t.smooth !== undefined &&
+          (t.smooth !== true || t.shape === "unknown")
+        )
+          throw Error("Invalid smooth terrain");
+        if (t.surfaces !== undefined) {
+          if (!object(t.surfaces) || t.shape === "unknown")
+            throw Error("Invalid terrain surfaces");
+          validateSprite(t.surfaces.top);
+          validateSprite(t.surfaces.side);
+        }
+      }
       if (c.objects !== undefined) {
         if (!Array.isArray(c.objects) || c.objects.length > 768)
           throw Error("Invalid scenery count");

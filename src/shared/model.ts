@@ -24,6 +24,8 @@ export interface Creature {
 }
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
+  smooth?: boolean;
+  surfaces?: { top: SpriteRef; side: SpriteRef };
   treeGraphic?: string;
   shape: Shape;
   material: number;

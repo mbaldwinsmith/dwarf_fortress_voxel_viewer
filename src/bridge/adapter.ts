@@ -17,6 +17,7 @@ export function treeGraphicName(name: string) {
     );
 }
 interface TileDefinition {
+  smooth?: boolean;
   treeGraphic?: string;
   shape: number;
   material: number;
@@ -62,6 +63,7 @@ export function convertBlock(
         shape: shapeFromDf(d.shape),
         material: d.material,
         name: d.name,
+        ...(d.smooth ? { smooth: true } : {}),
         ...(d.treeGraphic ? { treeGraphic: d.treeGraphic } : {}),
       };
     }),
@@ -118,6 +120,7 @@ export class FortressAdapter {
         shape: integer(d.shape, "shape"),
         material: integer(d.material, "material"),
         name: String(d.caption ?? d.name ?? "Terrain").slice(0, 120),
+        ...([3, 11].includes(Number(d.special)) ? { smooth: true } : {}),
         ...([23, 24].includes(Number(d.material)) &&
         typeof d.name === "string" &&
         /^Tree[A-Z]/.test(d.name)

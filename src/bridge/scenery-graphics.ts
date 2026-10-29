@@ -59,6 +59,7 @@ export class SceneryGraphics {
       "vanilla_buildings_graphics",
       "vanilla_items_graphics",
       "vanilla_plants_graphics",
+      "vanilla_environment",
     ]) {
       const root = path.join(installation, "data/vanilla", module, "graphics");
       const names = (await readdir(root))
@@ -71,10 +72,13 @@ export class SceneryGraphics {
       ).join("\n");
       const pages = parseGraphics(text).pages;
       const ambiguous = new Set<string>();
+      const assets = new Map<string, { file: string; asset: string }>();
       for (const e of sceneryMappings(text)) {
         if (ambiguous.has(e.key)) continue;
         const p = pages.get(e.page);
         if (!p) continue;
+        // Some optional environment variants use BMP; the asset endpoint serves PNG only.
+        if (!p.file.endsWith(".png")) continue;
         if (
           ![p.width, p.height, p.tileWidth, p.tileHeight].every(
             (n) => Number.isInteger(n) && n > 0 && n <= 16384,
@@ -84,8 +88,16 @@ export class SceneryGraphics {
         const x = e.x * p.tileWidth,
           y = e.y * p.tileHeight;
         if (x + p.tileWidth > p.width || y + p.tileHeight > p.height) continue;
-        const file = await permittedImage(root, p.file),
-          asset = createHash("sha256").update(file).digest("hex").slice(0, 24);
+        let location = assets.get(e.page);
+        if (!location) {
+          const file = await permittedImage(root, p.file);
+          location = {
+            file,
+            asset: createHash("sha256").update(file).digest("hex").slice(0, 24),
+          };
+          assets.set(e.page, location);
+        }
+        const { file, asset } = location;
         const ref = {
           asset,
           x,

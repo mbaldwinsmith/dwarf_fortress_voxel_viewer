@@ -126,3 +126,9 @@ exact furniture variants/material palettes and plant seasonal growth are approxi
 Revealed tree trunks, branches and mushroom caps now use species billboard tiles when available; unmatched tree tiles retain voxel geometry. Ramps, stairs, trees and
 fortifications are approximate; liquids are omitted. No external accounts,
 telemetry, uploads or cloud services are required.
+
+Wall and floor textures use installed vanilla terrain PNGs on all exposed faces,
+with rough/smoothed stone, soil, grass, ice and constructed wood families.
+The shared browser atlas retains one terrain material and per-block meshes.
+Material colours, mineral-specific art, engraved designs and adjacency variants
+are approximate; hidden terrain and unavailable art retain flat colours.

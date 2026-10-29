@@ -246,3 +246,19 @@ Unmapped tree tiles retain their voxel fallback; hidden tiles remain redacted.
 material lookup without root records, duplicate suppression, native token naming,
 hidden metadata redaction, and removal of occluding cubes only when art exists.
 Strict TypeScript and production build pass.
+
+## Wall and floor textures � 29 October 2026
+
+Added native vanilla environment PNG mappings for exposed terrain surfaces.
+Rough/smooth stone, soil, grass, ice and constructed wood choose texture families.
+Wall sides, cutaway tops and floor faces use UVs in one padded browser atlas;
+hidden terrain remains opaque and flat. Terrain geometry and face counts are
+unchanged. Native optional BMP variants are skipped safely.
+
+Read-only live preview sampled four fortress blocks at Z128: 993 textured tiles
+using six distinct rectangles, with existing workshop/furniture sprites intact.
+Browser preview reported no warnings/errors. All 71 tests pass, including family
+selection, hidden metadata rejection, unavailable-art fallback, UV counts without
+geometry changes and atlas bounds/gutters. Strict TypeScript and production build
+pass. Mineral-specific palettes, exact wall adjacency and engravings remain
+approximate; no installed assets are edited or copied into the repository.

@@ -272,3 +272,33 @@ A tree voxel is replaced by a thin base only when that exact tile has usable
 plant art. Missing mappings keep their voxel fallback. Adjacent stone faces remain
 visible next to billboard vegetation. No full tree silhouette or unseen canopy is
 invented; the cutaway displays only the revealed tile slices that were streamed.
+
+## Wall and floor textures
+
+The vanilla_environment graphics module supplies TILE_GRAPHICS mappings and
+PNG sheets through the existing asset allowlist. Optional BMP pages are skipped,
+without aborting other mappings. Permitted file resolution is cached per page,
+avoiding repeated realpath work across thousands of tile tokens.
+
+RFR tile special 3/11 marks smooth terrain. Revealed tiles receive validated
+surfaces.top and surfaces.side references from coarse material/finish families:
+rough or smoothed stone, soil, grass, ice, and plant-material constructed wood.
+Four rough-wall variants use a stable world-coordinate hash. Missing artwork
+leaves the tile flat. Empty, hidden and tree-billboard tiles get no terrain art;
+hidden smooth/texture metadata is rejected by message validation. This does not
+reproduce individual mineral palettes, engravings or the game's adjacency art.
+
+TerrainAtlas packs requested 32px rectangles into one 2048px browser canvas,
+with 34px cells and extruded gutters. Cell zero is opaque white for the existing
+vertex-colour fallback; up to 1,023 additional rectangles are allocated. Transparent
+source art is composited onto white, preserving opaque walls. Image dimensions
+are checked; failed loads leave flat colour. Asynchronous uploads update the
+atlas without rebuilding geometry. Nearest filtering and half-pixel UV insets
+avoid neighbouring-cell bleed; mipmaps are disabled.
+
+Each exposed mesh vertex now has UVs. Horizontal faces use top references and
+vertical faces use side references, including walls, floor edges and cutaway
+caps. Existing ramp/stair geometry receives the same family textures. Face culling,
+chunk ownership and vertex counts are unchanged: one MeshLambertMaterial and
+one shared atlas retain existing per-block draw calls. The atlas has bounded
+allocation, survives world resets and disposes with the renderer.

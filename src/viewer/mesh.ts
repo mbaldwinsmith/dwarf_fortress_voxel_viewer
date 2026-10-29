@@ -1,8 +1,15 @@
-import { tileAt, type Chunk, type Tile } from "../shared/model.js";
+import {
+  tileAt,
+  type Chunk,
+  type Tile,
+  type SpriteRef,
+} from "../shared/model.js";
+import type { TerrainUV } from "./terrain-atlas.js";
 import { rampSurface } from "./ramps.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
+  uvs: number[];
 }
 const palette: Record<number, number[]> = {
   1: [0.44, 0.32, 0.22],
@@ -24,8 +31,10 @@ export function buildMesh(
   c: Chunk,
   chunks: Map<string, Chunk>,
   cut: number,
+  textureUV: (ref?: SpriteRef) => TerrainUV = () => [0, 0, 1, 1],
 ): MeshData {
-  const out: MeshData = { positions: [], colors: [] };
+  const out: MeshData = { positions: [], colors: [], uvs: [] };
+  let surfaces: Tile["surfaces"];
   const treeSprites = new Set(
     (c.objects ?? [])
       .filter((o) => o.kind === "plant" && o.sprite)
@@ -33,14 +42,33 @@ export function buildMesh(
   );
   if (c.z > cut) return out;
   function quad(v: number[][], color: number[]) {
+    const horizontal = v.every((p) => p[1] === v[0][1]);
+    const [left, bottom, right, top] = textureUV(
+      horizontal ? surfaces?.top : surfaces?.side,
+    );
+    const uv = horizontal
+      ? [
+          [left, bottom],
+          [right, bottom],
+          [right, top],
+          [left, top],
+        ]
+      : [
+          [left, bottom],
+          [left, top],
+          [right, top],
+          [right, bottom],
+        ];
     for (const i of [0, 1, 2, 0, 2, 3]) {
       out.positions.push(...v[i]);
       out.colors.push(...color);
+      out.uvs.push(...uv[i]);
     }
   }
   for (let i = 0; i < 256; i++) {
     const t = c.tiles[i];
     if (!t || t.shape === "empty") continue;
+    surfaces = t.shape === "unknown" ? undefined : t.surfaces;
     const x = c.x + (i % 16),
       y = c.y + Math.floor(i / 16),
       z = c.z;
