@@ -443,3 +443,30 @@ still uses revealed lower-tile stone art for sealed/unknown rock.
 A fresh live view ray from eye height 128.76 hit the actual Z129 wall at height
 129.4267 through the staircase, then live stair/ramp/input checks passed again.
 Final validation: 109 tests, strict TypeScript, production build and formatter.
+
+## Packaged Windows app - 29 October 2026
+
+Added an Electron desktop launcher and electron-builder installer/ZIP targets.
+The app starts the read-only companion on an OS-assigned loopback port, discovers
+or remembers a DF installation, supplies packaged UI paths independent of working
+directory, and terminates its child when closing. File-menu controls change the
+installation or restart the companion. Native game files remain read-only.
+
+The renderer has sandboxing, context isolation and no Node integration. Navigation,
+new windows and permissions are restricted to the app's private companion origin;
+pointer lock is the sole granted permission. The desktop server sends a CSP. The
+packaging allowlist excludes machine configuration, game assets, saves and ignored
+reference files. Archive inspection found 177 entries and only the original app
+icon as PNG artwork; the unused Three.js runtime dependency is excluded.
+
+Node 22.12+ is required for building (tested with bundled Node 24). Commands:
+npm run desktop, npm run pack:win, npm run dist:win, npm run desktop:smoke.
+Windows app workflow supports manual build artifacts and matching v-version tags
+that produce draft GitHub Releases, with checksums and a packaged executable smoke
+check. No tag/release was published as part of setup. Packages are currently unsigned.
+
+Validation: all 111 tests, strict TypeScript/build, formatting and zero npm audit
+findings. Both installer and portable ZIP targets built locally. The actual ASAR
+packaged executable passed startup/WebGL/no-Node-exposure checks and connected to
+its bundled companion at an ephemeral port. An isolated smoke profile also passed.
+The CI-only smoke path permits software WebGL on GPU-less runners.

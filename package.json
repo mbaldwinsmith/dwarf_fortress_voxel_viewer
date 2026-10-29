@@ -10,8 +10,12 @@
     "check": "tsc --noEmit",
     "test": "vitest run",
     "inspect": "tsx src/bridge/inspect.ts",
-    "format": "prettier --write src tests *.ts *.json docs/*.md README.md",
-    "format:check": "prettier --check src tests *.ts *.json docs/*.md README.md"
+    "format": "prettier --write src tests desktop scripts *.ts *.json *.cjs .github/workflows/*.yml docs/*.md README.md",
+    "format:check": "prettier --check src tests desktop scripts *.ts *.json *.cjs .github/workflows/*.yml docs/*.md README.md",
+    "desktop": "npm run build && install-electron && electron .",
+    "desktop:smoke": "npm run build && install-electron && electron . --smoke-test",
+    "pack:win": "npm run build && electron-builder --config electron-builder.config.cjs --win dir --x64 --publish never",
+    "dist:win": "npm run build && electron-builder --config electron-builder.config.cjs --win nsis zip --x64 --publish never && node scripts/checksums.mjs"
   },
   "dependencies": {
     "dotenv": "^18.0.9",
@@ -24,6 +28,8 @@
     "@types/three": "^0.186.0",
     "@types/ws": "^8.18.2",
     "concurrently": "^9.2.5",
+    "electron": "45.1.0",
+    "electron-builder": "26.18.0",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
@@ -31,6 +37,15 @@
     "vitest": "^4.1.12"
   },
   "engines": {
-    "node": ">=20.15"
-  }
+    "node": ">=22.12.0"
+  },
+  "description": "A read-only live voxel viewer for Dwarf Fortress and DFHack",
+  "author": "Mark Baldwin-Smith",
+  "license": "MIT",
+  "homepage": "https://github.com/mbaldwinsmith/dwarf_fortress_voxel_viewer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbaldwinsmith/dwarf_fortress_voxel_viewer.git"
+  },
+  "main": "desktop/main.cjs"
 }

@@ -1,0 +1,63 @@
+name: Windows app
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = node -p "require('./package.json').version"
+          if ($env:RELEASE_TAG -ne "v$version") { throw "Tag must match package.json version v$version" }
+      - run: npm ci
+      - run: npm test
+      - run: npm run format:check
+      - name: Build installer and portable ZIP
+        run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Smoke test the packaged app
+        shell: pwsh
+        run: |
+          $env:DEEPWATCH_SMOKE_USER_DATA = Join-Path $env:RUNNER_TEMP "deepwatch-smoke"
+          $env:DEEPWATCH_SMOKE_REPORT = Join-Path $env:GITHUB_WORKSPACE "release/desktop-smoke.json"
+          $process = Start-Process -FilePath "release/win-unpacked/Deepwatch.exe" -ArgumentList "--smoke-test" -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Desktop smoke test failed: $($process.ExitCode)" }
+          Get-Content $env:DEEPWATCH_SMOKE_REPORT
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: Deepwatch-Windows-x64
+          path: |
+            release/*.exe
+            release/*.zip
+            release/SHA256SUMS.txt
+            release/desktop-smoke.json
+          if-no-files-found: error
+      - name: Create a draft GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $files = Get-ChildItem release -File | Where-Object { $_.Extension -in ".exe", ".zip" -or $_.Name -eq "SHA256SUMS.txt" } | ForEach-Object FullName
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -eq 0) { gh release upload $env:RELEASE_TAG @files --clobber }
+          else { gh release create $env:RELEASE_TAG @files --draft --verify-tag --generate-notes --title "Deepwatch $env:RELEASE_TAG" }
+          if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }

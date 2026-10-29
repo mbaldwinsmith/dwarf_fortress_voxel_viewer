@@ -1,0 +1,31 @@
+module.exports = {
+  appId: "com.mbaldwinsmith.deepwatch",
+  productName: "Deepwatch",
+  directories: { output: "release", buildResources: "build" },
+  asar: true,
+  npmRebuild: false,
+  files: [
+    "dist/viewer/**/*",
+    "dist/bridge/**/*",
+    "desktop/**/*",
+    "package.json",
+    "LICENSE",
+    "!node_modules/three/**/*",
+  ],
+  win: {
+    target: ["nsis", "zip"],
+    icon: "build/icon.ico",
+    artifactName: "Deepwatch-${version}-${arch}.${ext}",
+  },
+  nsis: {
+    artifactName: "Deepwatch-Setup-${version}-${arch}.${ext}",
+    oneClick: false,
+    perMachine: false,
+    allowElevation: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    deleteAppDataOnUninstall: false,
+  },
+  publish: null,
+};

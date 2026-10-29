@@ -6,9 +6,53 @@ Deepwatch is a local, read-only WebGL companion. This first milestone renders
 actual terrain from a running fortress, polls changes and supports orbit, pan,
 zoom, Z cutaways and tile inspection. It does not issue gameplay commands.
 
+## Windows app
+
+Use the **Deepwatch Setup** installer, or extract the portable **Deepwatch ZIP**
+and run `Deepwatch.exe` from the extracted folder. Node.js and a dev server are
+not needed on the viewer PC. Dwarf Fortress and DFHack must still be installed
+and running with a fortress loaded.
+
+The app finds the standard Steam installation, or asks you to choose the folder
+containing `Dwarf Fortress.exe`. **File > Choose Dwarf Fortress folder** changes
+and remembers that choice. Cancelling opens the viewer without local artwork;
+you can choose the folder later. **File > Restart companion** retries startup,
+and **Help > Open log folder** opens diagnostics. Closing the app stops its
+companion. Game files and saves stay read-only.
+
+Current Windows packages are unsigned; Windows may display an unrecognized-app
+warning. The installer is per-user and does not request administrator privileges.
+
+### Build Windows packages
+
+Requires Windows x64 and Node.js **22.12+** (Node 24 is used by CI):
+
+```powershell
+npm ci
+npm run dist:win
+```
+
+The `release/` folder contains `Deepwatch-Setup-0.1.0-x64.exe`,
+`Deepwatch-0.1.0-x64.zip` and `SHA256SUMS.txt` (names follow `package.json`'s
+version). `npm run pack:win` produces an unpacked app for testing;
+`npm run desktop` builds and runs the desktop app from source.
+`npm run desktop:smoke` checks startup, WebGL, renderer isolation and connection
+to the bundled companion, then exits.
+
+### Build releases on GitHub
+
+Run **Actions > Windows app > Run workflow** to download tested packages as a
+workflow artifact. To prepare a GitHub Release, push a `v` tag matching the
+version in `package.json`, for example `v0.1.0` for the initial package. The
+workflow builds and smoke-tests the packaged executable, uploads the installer,
+ZIP and checksums, and creates a **draft** release for you to review and publish.
+No signing credentials or release token beyond GitHub's built-in token are required.
+No game installation, saves, local configuration or proprietary game images are
+included in the app or release artifacts.
+
 ## Run
 
-Requires Node.js 20.15+ and DF 53.16 with DFHack 53.16-r3 / RemoteFortressReader
+Requires Node.js 22.12+ and DF 53.16 with DFHack 53.16-r3 / RemoteFortressReader
 0.21.0. Other versions are rejected until verified. DFHack must already be
 installed and its local remote server available. Load a fortress in DF.
 

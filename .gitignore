@@ -6,3 +6,5 @@ dist/
 coverage/
 artifacts/
 cache/
+.vite/
+release/

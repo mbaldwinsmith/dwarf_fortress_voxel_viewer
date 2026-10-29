@@ -23,8 +23,12 @@ if (installation)
 const port = Number(process.env.VIEWER_PORT ?? 4174),
   dfPort = Number(process.env.DFHACK_PORT ?? installation?.remotePort ?? 5000),
   pollMs = Math.max(100, Number(process.env.POLL_MS ?? 200));
-for (const n of [port, dfPort, pollMs])
-  if (!Number.isSafeInteger(n) || n < 1 || n > 65535)
+for (const [name, n] of Object.entries({ port, dfPort, pollMs }))
+  if (
+    !Number.isSafeInteger(n) ||
+    n < (name === "port" && process.env.VIEWER_DESKTOP === "1" ? 0 : 1) ||
+    n > 65535
+  )
     throw Error("Invalid port or polling configuration");
 const graphics = new Graphics();
 const sceneryGraphics = new SceneryGraphics(graphics.files);
@@ -40,9 +44,18 @@ if (installation) {
   }
   console.log(`Vanilla simple sprite profile: ${graphics.refs.size} mappings`);
 }
-const root = path.resolve("dist/viewer");
+const root = path.resolve(process.env.VIEWER_DIST ?? "dist/viewer");
 const server = http.createServer(async (req, res) => {
   try {
+    if (process.env.VIEWER_DESKTOP === "1") {
+      const address = server.address();
+      const actualPort =
+        address && typeof address === "object" ? address.port : port;
+      res.setHeader(
+        "Content-Security-Policy",
+        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:${actualPort}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'`,
+      );
+    }
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname === "/health") {
       res.setHeader("Content-Type", "application/json");
@@ -361,7 +374,20 @@ async function run() {
   }
 }
 server.listen(port, "127.0.0.1", () => {
-  console.log(`Viewer bridge: http://127.0.0.1:${port}`);
+  const address = server.address();
+  const actualPort =
+    address && typeof address === "object" ? address.port : port;
+  origins.add(`http://127.0.0.1:${actualPort}`);
+  origins.add(`http://localhost:${actualPort}`);
+  if (process.env.VIEWER_DESKTOP === "1") {
+    const parent = (
+      process as NodeJS.Process & {
+        parentPort?: { postMessage: (message: unknown) => void };
+      }
+    ).parentPort;
+    parent?.postMessage({ type: "ready", port: actualPort });
+  }
+  console.log(`Viewer bridge: http://127.0.0.1:${actualPort}`);
   void run();
 });
 function stop() {
