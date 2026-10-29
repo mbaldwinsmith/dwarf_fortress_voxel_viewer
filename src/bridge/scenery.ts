@@ -1,7 +1,7 @@
 import type { Bounds, Chunk, SceneryObject } from "../shared/model.js";
 import type { Rpc } from "./rpc.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
-import { textureTerrain } from "./terrain-art.js";
+import { textureTerrain, terrainMaterials } from "./terrain-art.js";
 const records = (v: unknown): Record<string, unknown>[] =>
   Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : [];
 export const buildingKey = (t: Record<string, unknown>) =>
@@ -261,6 +261,7 @@ export function plantObjects(
   return out;
 }
 export class SceneryReader {
+  private materialDefinitions = terrainMaterials([]);
   private definitions = new Map<string, string>();
   private plantDefinitions = new Map<number, { id: string; name: string }>();
   private plants: Record<string, unknown>[] = [];
@@ -271,6 +272,8 @@ export class SceneryReader {
     private bounds: Bounds,
   ) {}
   async initialize() {
+    const materialList = await this.rpc.call("GetMaterialList");
+    this.materialDefinitions = terrainMaterials(materialList.materialList);
     const defs = await this.rpc.call("GetBuildingDefList");
     for (const d of records(defs.buildingList))
       if (d.buildingType && typeof d.id === "string")
@@ -287,7 +290,12 @@ export class SceneryReader {
         });
   }
   async decorate(chunk: Chunk, raw?: Record<string, unknown>) {
-    textureTerrain(chunk, this.graphics, raw?.materials);
+    textureTerrain(chunk, this.graphics, raw?.materials, {
+      definitions: this.materialDefinitions,
+      plants: this.plantDefinitions,
+      layerMaterials: raw?.layerMaterials,
+      baseMaterials: raw?.baseMaterials,
+    });
     if (performance.now() - this.lastPlants >= 5000) {
       const b = this.bounds;
       // GetPlantList iterates 3x3-block columns and requires whole tree bounds in Z.

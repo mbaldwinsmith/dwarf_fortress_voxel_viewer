@@ -302,3 +302,32 @@ caps. Existing ramp/stair geometry receives the same family textures. Face culli
 chunk ownership and vertex counts are unchanged: one MeshLambertMaterial and
 one shared atlas retain existing per-block draw calls. The atlas has bounded
 allocation, survives world resets and disposes with the renderer.
+
+## Actual terrain material colours and cavern grass
+
+SceneryReader now caches GetMaterialList definitions once per connection, including
+material names and RGB state colours. Native MapBlock.materials (field 5) is the
+static material, including actual construction material; this takes priority over
+base_materials (field 8). Revealed terrain receives RGB and material-name metadata,
+with strict 0�255 validation. Missing/invalid RGB preserves the class-colour
+fallback. Unknown tiles receive neither colours nor material names. Inspection
+shows the resolved material name. The browser converts sRGB material channels
+to linear vertex colours before applying the existing textured Lambert lighting.
+These are source RGB tints, not a promise of pixel-identical game lighting.
+
+Pinned DFHack MapCache.cpp confirms grass static material selects the dominant
+block grass event's plant basic material. Its index resolves through PlantRaw
+to the exact PLANT_GRAPHICS identifier, including spaces in FLOOR FUNGI and CAVE
+MOSS. Graphics parsing now supports GRASS_1�4; floor fungus, cave moss and
+underlichen select native CAVERN_GRASS rows, while surface grasses use their
+species art. Four variants are stable by world coordinate. Grass-percent field
+29 is decoded, but density fading and CUSTOM_EDGE transitions are not implemented.
+
+Authored grass textures preserve their native colours using a white top tint;
+they are not multiplied by the plant structural material RGB. Ground side faces
+use layer_materials (field 6) where available and dirt artwork. Plant-covered
+tiles also prefer layer colour for their ground tint. Sloping ramp tops now
+select top artwork/tint instead of wall-side artwork. Constructed plant-material
+wood uses the native wooden-wall and wood-floor families with its actual RGB.
+Only the revealed tile metadata crosses the bridge; no raw hidden material or
+grass identifiers are exposed.

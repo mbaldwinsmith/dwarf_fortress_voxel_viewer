@@ -19,7 +19,7 @@ message PlantDef {required int32 pos_x=1;required int32 pos_y=2;required int32 p
 message PlantList {repeated PlantDef plant_list=1;}
 message PlantRaw {optional int32 index=1;optional string id=2;optional string name=3;optional int32 tile=5;}
 message PlantRawList {repeated PlantRaw plant_raws=1;}
-message MapBlock {required int32 map_x=1;required int32 map_y=2;required int32 map_z=3;repeated int32 tiles=4;repeated MatPair materials=5;repeated bool hidden=11;repeated BuildingInstance buildings=19;}
+message MapBlock {required int32 map_x=1;required int32 map_y=2;required int32 map_z=3;repeated int32 tiles=4;repeated MatPair materials=5;repeated MatPair layer_materials=6;repeated MatPair base_materials=8;repeated bool hidden=11;repeated BuildingInstance buildings=19;repeated int32 grass_percent=29;}
 message BlockList {repeated MapBlock map_blocks=1;}
 message MatPair {required int32 mat_type=1;required int32 mat_index=2;}
 message UnitDefinition {required int32 id=1;optional int32 pos_x=3;optional int32 pos_y=4;optional int32 pos_z=5;optional MatPair race=6;optional uint32 flags1=8;optional string name=13;optional ColorDefinition profession_color=7;optional UnitAppearance appearance=16;repeated InventoryItem inventory=20;optional int32 age=25;}
@@ -30,7 +30,7 @@ message Hair {optional int32 length=1;optional int32 style=2;}
 message UnitAppearance {repeated int32 bp_modifiers=2;repeated int32 colors=4;optional Hair hair=5;optional Hair beard=6;optional Hair moustache=7;optional Hair sideburns=8;}
 message Item {optional int32 id=1;optional uint32 flags1=3;optional MatPair type=5;optional MatPair material=6;optional ColorDefinition dye=7;}
 message InventoryItem {optional int32 mode=1;optional Item item=2;optional int32 body_part_id=3;}
-message MaterialDefinition {required MatPair mat_pair=1;optional string id=2;optional ColorDefinition state_color=4;}
+message MaterialDefinition {required MatPair mat_pair=1;optional string id=2;optional string name=3;optional ColorDefinition state_color=4;}
 message MaterialList {repeated MaterialDefinition material_list=1;}
 message BodyPartLayerRaw {optional string layer_name=1;repeated int32 bp_modifiers=4;}
 message BodyPartRaw {optional string token=1;optional string category=2;repeated BodyPartLayerRaw layers=5;}

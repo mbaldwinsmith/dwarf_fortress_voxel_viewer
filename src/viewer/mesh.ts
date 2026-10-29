@@ -24,6 +24,12 @@ const palette: Record<number, number[]> = {
   10: [0.53, 0.47, 0.26],
   23: [0.39, 0.27, 0.16],
 };
+export function linearMaterialColor(rgb: number[]) {
+  return rgb.map((v) => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+}
 function solid(t: Tile | undefined) {
   return (t?.shape === "wall" && !t.treeGraphic) || t?.shape === "unknown";
 }
@@ -42,7 +48,13 @@ export function buildMesh(
   );
   if (c.z > cut) return out;
   function quad(v: number[][], color: number[]) {
-    const horizontal = v.every((p) => p[1] === v[0][1]);
+    const horizontal =
+      v.every((p) => p[1] === v[0][1]) ||
+      !(v.every((p) => p[0] === v[0][0]) || v.every((p) => p[2] === v[0][2]));
+    const faceColor =
+      horizontal && surfaces?.topTint
+        ? linearMaterialColor(surfaces.topTint)
+        : color;
     const [left, bottom, right, top] = textureUV(
       horizontal ? surfaces?.top : surfaces?.side,
     );
@@ -61,7 +73,7 @@ export function buildMesh(
         ];
     for (const i of [0, 1, 2, 0, 2, 3]) {
       out.positions.push(...v[i]);
-      out.colors.push(...color);
+      out.colors.push(...faceColor);
       out.uvs.push(...uv[i]);
     }
   }
@@ -75,7 +87,9 @@ export function buildMesh(
     const color =
       t.shape === "unknown"
         ? [0.09, 0.105, 0.12]
-        : (palette[t.material] ?? [0.53, 0.52, 0.46]);
+        : t.color
+          ? linearMaterialColor(t.color)
+          : (palette[t.material] ?? [0.53, 0.52, 0.46]);
     function box(
       h: number,
       dx = 0,

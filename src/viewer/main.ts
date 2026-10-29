@@ -37,7 +37,7 @@ scene.onSelect = (x, y, z) => {
     t?.shape === "unknown"
       ? "Undiscovered tile"
       : t
-        ? `${t.name} · ${t.shape} · X ${x}, Y ${y}, Z ${z}`
+        ? `${t.name}${t.materialName ? ` · ${t.materialName}` : ""} · ${t.shape} · X ${x}, Y ${y}, Z ${z}`
         : "No tile at this position";
 };
 const keydown = (e: KeyboardEvent) => {

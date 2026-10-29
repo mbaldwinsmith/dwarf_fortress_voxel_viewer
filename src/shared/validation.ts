@@ -128,6 +128,13 @@ export function parseServerMessage(value: unknown): ServerMessage {
           throw Error("Invalid tile");
       for (const t of c.tiles) {
         if (
+          t.materialName !== undefined &&
+          (!text(t.materialName) || t.shape === "unknown")
+        )
+          throw Error("Invalid terrain material name");
+        if (t.color !== undefined && (t.shape === "unknown" || !rgb(t.color)))
+          throw Error("Invalid terrain colour");
+        if (
           t.smooth !== undefined &&
           (t.smooth !== true || t.shape === "unknown")
         )
@@ -137,6 +144,8 @@ export function parseServerMessage(value: unknown): ServerMessage {
             throw Error("Invalid terrain surfaces");
           validateSprite(t.surfaces.top);
           validateSprite(t.surfaces.side);
+          if (t.surfaces.topTint !== undefined && !rgb(t.surfaces.topTint))
+            throw Error("Invalid surface colour");
         }
       }
       if (c.objects !== undefined) {
@@ -193,4 +202,11 @@ function validateSprite(r: unknown) {
     Number(r.y) + Number(r.height) > Number(r.pageHeight)
   )
     throw Error("Invalid sprite reference");
+}
+function rgb(v: unknown) {
+  return (
+    Array.isArray(v) &&
+    v.length === 3 &&
+    v.every((n) => int(n) && n >= 0 && n <= 255)
+  );
 }

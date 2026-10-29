@@ -262,3 +262,25 @@ selection, hidden metadata rejection, unavailable-art fallback, UV counts withou
 geometry changes and atlas bounds/gutters. Strict TypeScript and production build
 pass. Mineral-specific palettes, exact wall adjacency and engravings remain
 approximate; no installed assets are edited or copied into the repository.
+
+## Actual material colours and cavern grass � 29 October 2026
+
+Added material-name/RGB caching and per-tile tinting from actual static material
+pairs, with construction material taking precedence over underlying geology.
+RGB is converted from sRGB to linear vertex colour. Tile inspection reports
+material names; absent metadata retains fallback colours and hidden data stays
+redacted. Wooden construction walls use their native wall family.
+
+Parsed GRASS_1�4 for species artwork, including native cavern floor fungus, cave
+moss and underlichen. Grass species comes from the native static plant material,
+verified against pinned DFHack MapCache.cpp. Authored grass colours are preserved
+without a second plant-material tint; side faces use underlying layer colours.
+Ramp top surfaces also use grass art. Grass density fading/edge transitions
+remain approximate.
+
+Live read-only snapshots of four Z128 blocks contained 994 coloured tiles and
+18 native floor-fungus grass tiles. Materials included mica, schist, granite,
+gabbro, sphalerite, native silver/gold and microcline. Browser preview had no
+console warnings/errors. No constructed terrain was present in these samples;
+construction precedence/wood tinting is covered by regression tests and native
+static-material semantics. All 76 tests and production build pass.

@@ -37,7 +37,16 @@ export function sceneryMappings(text: string) {
       });
     if (
       plant &&
-      ["SHRUB", "SHRUB_DEAD", "SAPLING", "SAPLING_DEAD"].includes(tag) &&
+      [
+        "SHRUB",
+        "SHRUB_DEAD",
+        "SAPLING",
+        "SAPLING_DEAD",
+        "GRASS_1",
+        "GRASS_2",
+        "GRASS_3",
+        "GRASS_4",
+      ].includes(tag) &&
       a.length === 3 &&
       /^\d+$/.test(a[1]) &&
       /^\d+$/.test(a[2])

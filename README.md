@@ -130,5 +130,8 @@ telemetry, uploads or cloud services are required.
 Wall and floor textures use installed vanilla terrain PNGs on all exposed faces,
 with rough/smoothed stone, soil, grass, ice and constructed wood families.
 The shared browser atlas retains one terrain material and per-block meshes.
-Material colours, mineral-specific art, engraved designs and adjacency variants
-are approximate; hidden terrain and unavailable art retain flat colours.
+Terrain tints now use actual per-tile DFHack material RGB, including construction
+materials, with sRGB-to-linear conversion. Native species grass artwork includes
+floor fungus, cave moss and underlichen. Tile inspection shows material names.
+Lighting, engraved designs and adjacency variants remain approximate; hidden
+terrain and unavailable material data retain safe fallback colours.
