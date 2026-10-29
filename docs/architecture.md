@@ -30,12 +30,19 @@ terrain and designations. A missing block replaces the old block with air;
 missing visibility on a returned block is an error, never interpreted as visible.
 No global cache reset, commands, suspend, pause or gameplay calls are used.
 
-The fixed region is at most 3 × 3 blocks and five Z-levels ending at the DF
-viewport Z at connection. Polling sleeps at least 100 ms between blocks (200 ms
-default), with one request in flight. A 45-block sweep takes about ten seconds
-on the observed machine. Initial blocks stream immediately. Unchanged chunks
-are not broadcast. Polling stops when no viewers remain. There is no update queue
-in front of DF; slow WebSocket clients are disconnected and resynchronise.
+The full XY map footprint is streamed at the selected Z and two levels below.
+The slider spans the map's entire Z range, initially using DF's viewport Z.
+Requests visit the selected layer first, centre outward, then the lower layers.
+At most 4096 blocks can be resident; larger footprints are rejected explicitly.
+Polling sleeps at least 100 ms between blocks (200 ms default), with one RPC in
+flight. Changing Z cancels the old scan after its current RPC and resets the
+session/cache. All clients share the latest requested cutaway. Frame timing
+is independent of polling. Camera X/Y and viewing angle survive level changes.
+
+Late join snapshots stream as individual chunks with bounded socket buffering,
+reading the latest cached block at send time. Replays stop on session changes.
+Incoming WebSocket operations accept only a validated integer level within the
+loaded map bounds; no gameplay operation is available.
 
 Map identity (save, world, embark position and size) is checked before and after
 each block. Map errors, TCP reconnects and identity changes clear state and create
@@ -70,7 +77,7 @@ preserve the camera. Frame/reset deliberately repositions it.
 ## Local boundaries and assets
 
 HTTP binds only to 127.0.0.1; WebSocket upgrades require a local viewer origin and
-the exact `/live` route. Incoming WebSocket messages are rejected: there is no
+the exact `/live` route. Incoming WebSocket messages accept only bounded cutaway selection; there is no
 DFHack proxy. HTTP serves only index.html and flat generated asset identifiers
 under the built viewer directory; no arbitrary filesystem route exists.
 

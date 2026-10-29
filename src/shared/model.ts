@@ -20,7 +20,13 @@ export interface Bounds {
 }
 export type ServerMessage =
   | { type: "status"; message: string }
-  | { type: "reset"; session: string; bounds: Bounds; world: string }
+  | {
+      type: "reset";
+      session: string;
+      bounds: Bounds;
+      world: string;
+      level?: number;
+    }
   | {
       type: "chunks";
       session: string;

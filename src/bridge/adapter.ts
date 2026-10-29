@@ -60,6 +60,7 @@ export class FortressAdapter {
   identity = "";
   bounds!: Bounds;
   world = "";
+  initialLevel = 0;
   constructor(port: number) {
     this.rpc = new Rpc(port);
   }
@@ -83,39 +84,17 @@ export class FortressAdapter {
       sz = integer(map.blockSizeZ, "map height");
     if (sx < 1 || sy < 1 || sz < 1 || sx > 1000 || sy > 1000 || sz > 1000)
       throw Error("Invalid map dimensions");
-    const bx = Math.max(
-      0,
-      Math.min(
-        sx - 1,
-        Math.floor(
-          (integer(view.viewPosX, "viewport X") +
-            Number(view.viewSizeX ?? 0) / 2) /
-            16,
-        ),
-      ),
-    );
-    const by = Math.max(
-      0,
-      Math.min(
-        sy - 1,
-        Math.floor(
-          (integer(view.viewPosY, "viewport Y") +
-            Number(view.viewSizeY ?? 0) / 2) /
-            16,
-        ),
-      ),
-    );
-    const top = Math.max(
+    this.initialLevel = Math.max(
       0,
       Math.min(sz - 1, integer(view.viewPosZ, "viewport Z")),
     );
     this.bounds = {
-      x: Math.max(0, bx - 1) * 16,
-      y: Math.max(0, by - 1) * 16,
-      z: Math.max(0, top - 4),
-      width: Math.min(3, sx - Math.max(0, bx - 1)) * 16,
-      depth: Math.min(3, sy - Math.max(0, by - 1)) * 16,
-      height: Math.min(5, top + 1),
+      x: 0,
+      y: 0,
+      z: 0,
+      width: sx * 16,
+      depth: sy * 16,
+      height: sz,
     };
     const list = await this.rpc.call("GetTiletypeList");
     if (!Array.isArray(list.tiletypeList))

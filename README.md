@@ -20,9 +20,10 @@ npm run dev
 ```
 
 Open [the development viewer](http://127.0.0.1:5173).
-One command runs Vite and the bridge. The initial region is at most 48 × 48
-tiles, covering the current DF viewport Z and four levels beneath it. The first
-full load takes roughly ten seconds at default polling settings.
+One command runs Vite and the bridge. The viewer streams the full local map
+footprint, showing the selected Z-level and two beneath it. The slider spans
+every map Z-level. Terrain arrives progressively, centre first; changing Z
+cancels the old scan and starts a fresh session.
 
 For production:
 
@@ -49,12 +50,14 @@ uses original geometry and fallback colours; no DF artwork is bundled or served.
 
 - Left-drag: orbit. Right-drag: pan. Wheel: zoom.
 - Cutaway slider or `[` / `]`: change the highest visible Z-level.
-- Frame terrain or `F`: reset camera and frame the bounded region.
+- Frame terrain or `F`: reset camera and frame the local map.
 - Click terrain: inspect tile below the viewer. Hidden tiles stay undiscovered.
 - Touch: one finger orbits; two fingers pan and zoom.
 
-Routine terrain changes preserve the camera. To sample a different region, close
-all viewer tabs, move the viewport in DF, then reopen the viewer.
+Routine terrain changes preserve the camera. Changing Z keeps horizontal camera
+position and shifts its height with the cutaway. All open viewer tabs share one
+cutaway; the latest level selection wins. Only three levels are resident, so this
+is full-footprint exploration, not a simultaneous 199-level volume.
 
 ## Verify
 
@@ -80,11 +83,12 @@ means no playable local map is loaded.
 before supporting another version. Do not bypass the version gate blindly.
 
 **Empty region:** the sampled Z-levels may be open sky or undiscovered. Try the
-cutaway and reconnect around a useful viewport. A black opaque region represents
+cutaway to select a useful level. A black opaque region represents
 undiscovered tiles, whose real shapes and materials never reach the browser.
 
 **Changes appear slowly:** the bridge polls individual blocks conservatively;
-a full sweep is approximately ten seconds. Render frames run independently.
+a 192 × 192 × 3 sweep takes roughly two minutes at default settings. The
+selected layer arrives first; subsequent layers follow. Render frames run independently.
 No changes may be happening if the game is paused.
 
 **WebGL unavailable:** enable a working hardware-accelerated browser. The viewer

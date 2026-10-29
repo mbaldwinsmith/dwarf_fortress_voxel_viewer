@@ -18,9 +18,13 @@ export function parseServerMessage(value: unknown): ServerMessage {
       Number(b.width) >= 0 &&
       Number(b.depth) >= 0 &&
       Number(b.height) >= 0 &&
-      Number(b.width) <= 48 &&
-      Number(b.depth) <= 48 &&
-      Number(b.height) <= 5
+      Number(b.width) <= 16000 &&
+      Number(b.depth) <= 16000 &&
+      Number(b.height) <= 1000 &&
+      (value.level === undefined ||
+        (int(value.level) &&
+          value.level >= Number(b.z) &&
+          value.level < Number(b.z) + Number(b.height)))
     )
       return value as ServerMessage;
   }

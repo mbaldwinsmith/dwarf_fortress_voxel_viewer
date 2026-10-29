@@ -7,6 +7,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { FortressAdapter } from "./adapter.js";
 import { chunkKey, type Chunk, type ServerMessage } from "../shared/model.js";
 import { inspectInstallation } from "./installation.js";
+import { blockOrder, parseLevel } from "./region.js";
 import { publicFile } from "./public-files.js";
 const installation = process.env.DF_PATH
   ? await inspectInstallation(process.env.DF_PATH)
@@ -110,19 +111,36 @@ wss.on("connection", (ws) => {
   send(ws, { type: "status", message: status });
   if (reset) {
     send(ws, reset);
-    send(ws, {
-      type: "chunks",
-      session,
-      sequence: 1,
-      chunks: [...chunks.values()],
-      pollMs,
-    });
+    void replay(ws, session);
   }
-  ws.on("message", () => ws.close(1008, "Viewer protocol is receive-only"));
+  ws.on("message", (data) => {
+    const level = parseLevel(data.toString(), reset?.bounds);
+    if (level === undefined) {
+      ws.close(1008, "Invalid viewer operation");
+      return;
+    }
+    requestedLevel = level;
+  });
   ws.on("error", (e) => console.warn(e.message));
 });
 function publish(m: ServerMessage) {
   broadcast(m);
+}
+let requestedLevel = 0;
+async function replay(ws: WebSocket, replaySession: string) {
+  for (const k of [...chunks.keys()]) {
+    while (
+      ws.bufferedAmount > 256 * 1024 &&
+      ws.readyState === WebSocket.OPEN &&
+      replaySession === session
+    )
+      await pause(20);
+    if (ws.readyState !== WebSocket.OPEN || replaySession !== session) return;
+    const c = chunks.get(k);
+    if (c)
+      send(ws, { type: "chunks", session, sequence: 0, chunks: [c], pollMs });
+    await pause(0);
+  }
 }
 let stopping = false,
   adapter: FortressAdapter | undefined;
@@ -145,38 +163,55 @@ async function run() {
         type: "reset",
         session,
         bounds: adapter.bounds,
+        level: adapter.initialLevel,
         world: adapter.world,
       };
       publish(reset);
       setStatus("Loading actual fortress terrain…");
       const b = adapter.bounds;
+      requestedLevel = adapter.initialLevel;
       let sweep = 0;
       while (!stopping && wss.clients.size) {
+        const level = requestedLevel;
+        if (reset.level !== level) {
+          session = randomUUID();
+          chunks.clear();
+          sequence = 0;
+          reset = { ...reset, session, level };
+          publish(reset);
+        }
         const started = performance.now();
         await adapter.checkWorld();
-        let changed = 0;
-        for (let z = b.z + b.height - 1; z >= b.z; z--)
-          for (let y = b.y; y < b.y + b.depth; y += 16)
-            for (let x = b.x; x < b.x + b.width; x += 16) {
-              if (stopping || !wss.clients.size) break;
-              await adapter.checkWorld();
-              const t = performance.now(),
-                chunk = await adapter.block(x, y, z),
-                k = chunkKey(chunk);
-              await adapter.checkWorld();
-              if (JSON.stringify(chunks.get(k)) !== JSON.stringify(chunk)) {
-                chunks.set(k, chunk);
-                publish({
-                  type: "chunks",
-                  session,
-                  sequence: ++sequence,
-                  chunks: [chunk],
-                  pollMs: Math.round(performance.now() - t),
-                });
-                changed++;
-              }
-              await pause(pollMs);
-            }
+        let changed = 0,
+          completed = 0;
+        const order = blockOrder(b, level);
+        for (const [x, y, z] of order) {
+          if (stopping || !wss.clients.size || requestedLevel !== level) break;
+          await adapter.checkWorld();
+          const t = performance.now(),
+            chunk = await adapter.block(x, y, z),
+            k = chunkKey(chunk);
+          await adapter.checkWorld();
+          if (requestedLevel !== level) break;
+          if (JSON.stringify(chunks.get(k)) !== JSON.stringify(chunk)) {
+            chunks.set(k, chunk);
+            publish({
+              type: "chunks",
+              session,
+              sequence: ++sequence,
+              chunks: [chunk],
+              pollMs: Math.round(performance.now() - t),
+            });
+            changed++;
+          }
+          completed++;
+          if (completed % 12 === 0)
+            setStatus(
+              `Streaming Z ${level} · ${completed}/${order.length} blocks · sweep ${sweep + 1}`,
+            );
+          await pause(pollMs);
+        }
+        if (requestedLevel !== level) continue;
         setStatus(
           `Live · ${adapter.world} · ${chunks.size} blocks · sweep ${++sweep}`,
         );

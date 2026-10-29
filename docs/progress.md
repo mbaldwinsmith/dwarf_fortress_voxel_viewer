@@ -41,8 +41,7 @@ floors, generic ramps/stairs, orbit/pan/zoom, cutaway controls and tile inspecti
 
 - This is the terrain vertical slice. Live units, buildings, liquids, exact
   material identities, local sprites and layered graphics remain unimplemented.
-- Terrain covers a fixed viewport-centred 48 × 48 × 5 region. Reconnect with all
-  viewer tabs closed to sample another region. No whole-fortress browsing yet.
+- The initial fixed region was superseded by full-footprint streaming (see below).
 - Ramp direction follows neighbouring walls; trees and fortifications use coarse wall geometry.
   Stair types share a marker geometry. Fluid depths are currently omitted.
 - Active world mod order is unresolved. Available module metadata can be inspected,
@@ -69,3 +68,31 @@ visual approximation and does not evaluate upper-level pathability.
 Verified 21 tests, including four compass directions, diagonal chunk boundaries,
 support removal and multiple exits; strict type checking and production build
 passed. Live browser smoke verified separately.
+
+## Whole-footprint streaming — 29 October 2026
+
+Live GetMapInfo reports 12 × 12 blocks and 199 levels: 192 × 192 tiles,
+28,656 blocks across the entire volume. RFR accepts arbitrary bounded block
+coordinates within that map. It does not require a viewport-limited region.
+
+The viewer now streams all XY blocks for the selected Z and two beneath it.
+All map levels are selectable. This deliberately limits resident memory and
+rendering work; it does not render the full vertical volume simultaneously.
+Selected-level changes cancel the previous scan, clear state and create a new
+session. Latest selection is shared by all viewer tabs. Snapshots to late joiners
+are paced one block at a time instead of one giant message.
+
+25 tests pass, including complete block coverage, ordering, lower-map boundaries,
+level-operation validation and full-map reset validation. Strict TypeScript and
+production build pass. Browser slider switched live streaming from Z 182 to 181.
+The current map requires 432 blocks per complete three-level sweep, versus the
+original 45. Update latency consequently increases; no game-FPS claim is made.
+
+Next: profile before increasing polling speed; prioritise changes near the camera
+and consider compact block storage for larger vertical volumes.
+
+Live verification completed a 432-block sweep at Z 181–179. A separate late-join
+WebSocket client verified every message sequence and confirmed block origins
+from (0,0) through (176,176), covering all 192 × 192 tiles. Its join-to-complete
+time was 88.8 seconds (not a full-sweep timing). Browser console had no errors;
+settled mesh statistics and screenshot were inspected locally.

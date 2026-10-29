@@ -21,10 +21,13 @@ try {
 const setStatus = (s: string) => {
   status.textContent = s;
 };
+let levelTimer: ReturnType<typeof setTimeout>;
 function cut() {
   const z = Number(slider.value);
   scene.setCut(z);
   level.textContent = `Z ${z}`;
+  clearTimeout(levelTimer);
+  levelTimer = setTimeout(() => disconnect.setLevel(z), 200);
 }
 slider.addEventListener("input", cut);
 el("frame").addEventListener("click", () => scene.frame());
@@ -53,11 +56,11 @@ const disconnect = connect((m) => {
   }
   if (m.type === "reset") {
     state.reset(m.session);
-    scene.reset(m.bounds);
+    scene.reset(m.bounds, m.level);
     world.textContent = m.world || "Awaiting a fortress";
     slider.min = String(m.bounds.z);
     slider.max = String(m.bounds.z + Math.max(0, m.bounds.height - 1));
-    slider.value = slider.max;
+    slider.value = String(m.level ?? slider.max);
     slider.disabled = !m.bounds.height;
     level.textContent = m.bounds.height ? `Z ${slider.value}` : "—";
     empty.hidden = false;
@@ -75,6 +78,7 @@ const disconnect = connect((m) => {
 window.addEventListener(
   "pagehide",
   () => {
+    clearTimeout(levelTimer);
     disconnect();
     scene.dispose();
     window.removeEventListener("keydown", keydown);

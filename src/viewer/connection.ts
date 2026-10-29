@@ -28,9 +28,17 @@ export function connect(
     };
   }
   open();
-  return () => {
-    closed = true;
-    clearTimeout(timer);
-    socket.close();
-  };
+  return Object.assign(
+    () => {
+      closed = true;
+      clearTimeout(timer);
+      socket.close();
+    },
+    {
+      setLevel: (z: number) => {
+        if (socket.readyState === WebSocket.OPEN)
+          socket.send(JSON.stringify({ type: "level", z }));
+      },
+    },
+  );
 }

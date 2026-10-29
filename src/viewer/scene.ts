@@ -71,7 +71,12 @@ export class FortressScene {
       this.onSelect?.(Math.floor(p.x), Math.floor(p.z), Math.floor(p.y));
     }
   };
-  reset(bounds: Bounds) {
+  reset(bounds: Bounds, level = bounds.z + bounds.height - 1) {
+    const preserve =
+      this.bounds?.width === bounds.width &&
+      this.bounds?.depth === bounds.depth &&
+      bounds.height > 0;
+    const delta = level - this.cut;
     for (const mesh of this.meshes.values()) {
       this.scene.remove(mesh);
       mesh.geometry.dispose();
@@ -79,17 +84,16 @@ export class FortressScene {
     this.meshes.clear();
     this.dirty.clear();
     this.bounds = bounds;
-    this.cut = bounds.z + bounds.height - 1;
-    if (bounds.height) this.frame();
+    this.cut = level;
+    if (preserve) {
+      this.camera.position.y += delta;
+      this.controls.target.y += delta;
+    } else if (bounds.height) this.frame();
   }
   frame() {
     if (!this.bounds) return;
     const b = this.bounds,
-      t = new THREE.Vector3(
-        b.x + b.width / 2,
-        b.z + b.height / 2,
-        b.y + b.depth / 2,
-      );
+      t = new THREE.Vector3(b.x + b.width / 2, this.cut - 1, b.y + b.depth / 2);
     this.controls.target.copy(t);
     this.camera.position
       .copy(t)
@@ -106,6 +110,9 @@ export class FortressScene {
     for (const c of chunks) for (const k of affected(c)) this.dirty.add(k);
   }
   setCut(z: number) {
+    const delta = z - this.cut;
+    this.camera.position.y += delta;
+    this.controls.target.y += delta;
     this.cut = z;
     for (const k of this.state.chunks.keys()) this.dirty.add(k);
   }
