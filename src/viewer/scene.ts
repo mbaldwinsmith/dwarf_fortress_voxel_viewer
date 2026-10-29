@@ -33,6 +33,7 @@ export class FortressScene {
   frameId = 0;
   onSelect?: (x: number, y: number, z: number) => void;
   onNavigationChange?: (mode: "orbit" | "select" | "firstPerson") => void;
+  onWalkLevel?: (level: number) => void;
   navigation: "orbit" | "select" | "firstPerson" = "orbit";
   firstPerson: FirstPersonControls;
   private lastFrame = performance.now();
@@ -84,6 +85,11 @@ export class FortressScene {
       () => this.state.chunks,
       () => (this.bounds ? this.bounds.z + this.bounds.height - 1 : Infinity),
     );
+    this.firstPerson.onLevelChange = (z) => {
+      this.followWalkingCut(z);
+      this.firstPerson.waitingForTerrain = !!this.onWalkLevel;
+      this.onWalkLevel?.(z);
+    };
     this.selector.rotation.x = -Math.PI / 2;
     this.selector.add(this.selectorBorder);
     this.selector.visible = false;
@@ -221,8 +227,24 @@ export class FortressScene {
       }
     }
   }
-  reset(bounds: Bounds, level = bounds.z + bounds.height - 1) {
-    if (this.navigation === "firstPerson") this.setFirstPerson(true);
+  private followWalkingCut(z: number) {
+    if (z === this.cut) return;
+    this.cut = z;
+    for (const m of this.meshes.values()) {
+      this.scene.remove(m);
+      m.geometry.dispose();
+    }
+    this.meshes.clear();
+    this.update([...this.state.chunks.values()]);
+    this.refreshRoofs();
+  }
+  reset(
+    bounds: Bounds,
+    level = bounds.z + bounds.height - 1,
+    keepWalking = false,
+  ) {
+    if (this.navigation === "firstPerson" && !keepWalking)
+      this.setFirstPerson(true);
     this.leave();
     this.creatures.clear();
     this.scenery.clear();
@@ -241,6 +263,10 @@ export class FortressScene {
     this.dirty.clear();
     this.bounds = bounds;
     this.cut = level;
+    if (keepWalking) {
+      this.firstPerson.waitingForTerrain = false;
+      return;
+    }
     if (preserve) {
       this.camera.position.x += dx;
       this.controls.target.x += dx;
@@ -282,6 +308,8 @@ export class FortressScene {
     this.frameId = requestAnimationFrame(this.animate);
     const start = performance.now();
     this.firstPerson.update((start - this.lastFrame) / 1000);
+    if (this.navigation === "firstPerson")
+      this.followWalkingCut(Math.floor(this.camera.position.y));
     this.lastFrame = start;
     if (this.selector.visible)
       this.selector.material.opacity = 0.3 + Math.sin(start / 180) * 0.12;

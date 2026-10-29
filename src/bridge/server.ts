@@ -167,6 +167,17 @@ wss.on("connection", (ws) => {
       return;
     }
     requestedLevel = level;
+    const m = JSON.parse(data.toString());
+    requestedFocus =
+      Number.isInteger(m.x) &&
+      Number.isInteger(m.y) &&
+      reset &&
+      m.x >= reset.bounds.x &&
+      m.y >= reset.bounds.y &&
+      m.x < reset.bounds.x + reset.bounds.width &&
+      m.y < reset.bounds.y + reset.bounds.depth
+        ? { x: m.x, y: m.y }
+        : undefined;
   });
   ws.on("error", (e) => console.warn(e.message));
 });
@@ -178,6 +189,7 @@ function publish(m: ServerMessage) {
 }
 let requestedMode: "screen" | "map" = "map";
 let requestedLevel = 0;
+let requestedFocus: { x: number; y: number } | undefined;
 async function replay(ws: WebSocket, replaySession: string) {
   for (const k of [...chunks.keys()]) {
     while (
@@ -259,7 +271,7 @@ async function run() {
         await adapter.checkWorld();
         let changed = 0,
           completed = 0;
-        const order = blockOrder(b, level);
+        const order = blockOrder(b, level, requestedFocus);
         for (const [x, y, z] of order) {
           if (
             stopping ||

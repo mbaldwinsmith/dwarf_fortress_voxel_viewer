@@ -22,6 +22,21 @@ const setStatus = (s: string) => {
   status.textContent = s;
 };
 let levelTimer: ReturnType<typeof setTimeout>;
+let walkingRequest: number | undefined;
+scene.onWalkLevel = (z) => {
+  walkingRequest = z;
+  slider.value = String(z);
+  level.textContent = `Z ${z}`;
+  clearTimeout(levelTimer);
+  disconnect.setLevel(
+    z,
+    Math.floor(scene.camera.position.x),
+    Math.floor(scene.camera.position.z),
+  );
+};
+scene.firstPerson.onCaptureChange = (message) => {
+  if (scene.navigation === "firstPerson") el("walk-help").textContent = message;
+};
 function cut() {
   const z = Number(slider.value);
   scene.setCut(z);
@@ -41,7 +56,7 @@ scene.onNavigationChange = (mode) => {
   el("walk-help").textContent =
     mode === "select"
       ? "Choose a camera point: click a glowing green floor tile. Red means blocked or still loading."
-      : "WASD to walk · Mouse to look · Esc releases the mouse · Click the view to resume";
+      : "WASD to walk · Mouse to look · On stairs: W up, S down · Esc pauses · Click the view to resume";
 };
 el("first-person").addEventListener("click", () => {
   const enabled = scene.navigation === "orbit";
@@ -74,8 +89,14 @@ const disconnect = connect((m) => {
     return;
   }
   if (m.type === "reset") {
+    const keepWalking =
+      scene.navigation === "firstPerson" &&
+      walkingRequest === m.level &&
+      m.world === world.textContent &&
+      JSON.stringify(m.bounds) === JSON.stringify(scene.bounds);
+    walkingRequest = undefined;
     state.reset(m.session);
-    scene.reset(m.bounds, m.level);
+    scene.reset(m.bounds, m.level, keepWalking);
     world.textContent = m.world || "Awaiting a fortress";
     slider.min = String(m.bounds.z);
     slider.max = String(m.bounds.z + Math.max(0, m.bounds.height - 1));
@@ -85,10 +106,10 @@ const disconnect = connect((m) => {
     el<HTMLInputElement>("mode-map").checked = m.mode !== "screen";
     el("scope").textContent =
       m.mode === "screen"
-        ? "Read-only · Following DF screen and Z · Three terrain levels plus overhead"
-        : "Read-only · Full local map · Three terrain levels plus overhead";
+        ? "Read-only · Following DF screen and Z · Five neighbouring levels"
+        : "Read-only · Full local map · Five neighbouring levels";
     level.textContent = m.bounds.height ? `Z ${slider.value}` : "—";
-    empty.hidden = false;
+    empty.hidden = keepWalking;
     selection.textContent = "Click a visible tile to inspect it.";
     return;
   }

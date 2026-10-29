@@ -387,3 +387,33 @@ selection, click-to-spawn, pointer capture, WASD displacement, mouse look, Escap
 pause, recapture, and return to selection, with no page errors. Screenshots show
 actual ceiling geometry and installed textures. Production build and formatter
 checks pass; the existing Three.js bundle-size advisory remains.
+
+## Stair/ramp travel and embedded-browser controls - 29 October 2026
+
+Click capture now explicitly focuses the canvas and enables a fallback input mode
+when pointer lock is denied/unavailable. WASD works while the view has focus; free
+mouse look uses successive client coordinates while hovering the view, avoiding
+large jumps when entering from toolbar controls. Escape and focus loss pause and
+clear held keys. The banner reports capture/fallback/paused state; failures no
+longer silently disable all input.
+
+Ramp foot heights sample the exact four-triangle terrain surface. Movement may
+cross a one-level boundary only via a ramp and a nearby-height revealed landing;
+footprint checks span both levels. Connected stair columns require up/down support
+at both ends: W ascends, S descends, with a half-second interpolated step. Unknown,
+unloaded, disconnected and low-clearance destinations remain blocked.
+
+The stream spans cut +/-2, pairs local blocks with both overhead layers, and
+accepts bounded optional camera XY coordinates on the existing read-only level
+request to prioritize the walking neighbourhood. The 4096-block cap is unchanged.
+The cut follows camera height while climbing. Completed level changes request new
+terrain and pause further travel until the matching reset; that expected reset
+preserves first-person camera/input, while other resets still exit safely.
+
+Regression tests cover ramp sampling/ascent/descent, ledges, stair direction
+matching and hidden destinations, focus ordering and map bounds. Browser fixtures
+with pointer lock deliberately rejected verify focused WASD, mouse look, both
+stair directions, ramp ascent/descent, Escape and recapture. A renderer fixture
+verifies that a simulated level/terrain reset preserves active walking. The local
+dev server was restarted after the user's connection interruption; DFHack port
+5000 was unavailable afterward, so fresh live-game traversal remains unverified.

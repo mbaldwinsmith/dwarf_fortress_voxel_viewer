@@ -52,8 +52,8 @@ it("aligns the DF viewport to blocks and clips at map edges", () => {
 });
 it("covers neighbouring blocks with paired overhead chunks and two lower levels", () => {
   const order = blockOrder(bounds, 128);
-  expect(order).toHaveLength(576);
-  expect(new Set(order.map((p) => p.join(","))).size).toBe(576);
+  expect(order).toHaveLength(720);
+  expect(new Set(order.map((p) => p.join(","))).size).toBe(720);
   expect(order[0][2]).toBe(128);
   expect(order[1]).toEqual([order[0][0], order[0][1], 129]);
   expect(order).toContainEqual([0, 0, 128]);
@@ -61,10 +61,21 @@ it("covers neighbouring blocks with paired overhead chunks and two lower levels"
   expect(order[0][0]).toBeGreaterThan(0);
 });
 it("clamps streaming depth at map bottom", () => {
-  expect(blockOrder(bounds, 0)).toHaveLength(288);
-  expect(blockOrder(bounds, 1)).toHaveLength(432);
+  expect(blockOrder(bounds, 0)).toHaveLength(432);
+  expect(blockOrder(bounds, 1)).toHaveLength(576);
   expect(blockOrder(bounds, 198)).toHaveLength(432);
   expect(blockOrder(bounds, 198).every((p) => p[2] < 199)).toBe(true);
+});
+it("prioritizes the walking camera and both overhead levels within the resident limit", () => {
+  const order = blockOrder(bounds, 128, { x: 36, y: 137 });
+  expect(order.slice(0, 3)).toEqual([
+    [32, 128, 128],
+    [32, 128, 129],
+    [32, 128, 130],
+  ]);
+  expect(() => blockOrder({ ...bounds, width: 512, depth: 512 }, 128)).toThrow(
+    /resident limit/,
+  );
 });
 it("accepts only bounded read-only integer level operations", () => {
   expect(parseLevel('{"type":"level","z":198}', bounds)).toBe(198);

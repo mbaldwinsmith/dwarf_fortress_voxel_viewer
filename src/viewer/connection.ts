@@ -39,9 +39,9 @@ export function connect(
         if (socket.readyState === WebSocket.OPEN)
           socket.send(JSON.stringify({ type: "mode", mode }));
       },
-      setLevel: (z: number) => {
+      setLevel: (z: number, x?: number, y?: number) => {
         if (socket.readyState === WebSocket.OPEN)
-          socket.send(JSON.stringify({ type: "level", z }));
+          socket.send(JSON.stringify({ type: "level", z, x, y }));
       },
     },
   );

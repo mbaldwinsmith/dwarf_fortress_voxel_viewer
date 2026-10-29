@@ -24,3 +24,36 @@ export function rampSurface(
   const center = Math.min(0.56, corners.reduce((sum, h) => sum + h, 0) / 4);
   return { corners, center };
 }
+
+// Sample the same four triangles used by the terrain mesh.
+export function rampHeight(
+  chunks: Map<string, Chunk>,
+  x: number,
+  y: number,
+  z: number,
+) {
+  const { corners, center } = rampSurface(
+    chunks,
+    Math.floor(x),
+    Math.floor(y),
+    z,
+  );
+  const u = x - Math.floor(x),
+    v = y - Math.floor(y);
+  const points = [
+    [0, 0],
+    [0, 1],
+    [1, 1],
+    [1, 0],
+  ];
+  for (let i = 0; i < 4; i++) {
+    const [ax, ay] = points[i],
+      [bx, by] = points[(i + 1) % 4];
+    const det = (by - 0.5) * (ax - 0.5) + (0.5 - bx) * (ay - 0.5);
+    const a = ((by - 0.5) * (u - 0.5) + (0.5 - bx) * (v - 0.5)) / det;
+    const b = ((0.5 - ay) * (u - 0.5) + (ax - 0.5) * (v - 0.5)) / det;
+    if (a >= -1e-8 && b >= -1e-8 && a + b <= 1 + 1e-8)
+      return a * corners[i] + b * corners[(i + 1) % 4] + (1 - a - b) * center;
+  }
+  return center;
+}

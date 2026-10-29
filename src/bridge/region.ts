@@ -60,8 +60,9 @@ export function parseLevel(
 export function blockOrder(
   b: Bounds,
   level: number,
+  focus?: { x: number; y: number },
 ): [number, number, number][] {
-  const levels = [level, level + 1, level - 1, level - 2].filter(
+  const levels = [level, level + 1, level + 2, level - 1, level - 2].filter(
     (z) => z >= b.z && z < b.z + b.height,
   );
   if (Math.ceil(b.width / 16) * Math.ceil(b.depth / 16) * levels.length > 4096)
@@ -71,7 +72,8 @@ export function blockOrder(
     for (let x = b.x; x < b.x + b.width; x += 16) xy.push([x, y]);
   // Useful terrain appears first instead of streaming a corner of empty sky.
   const distance = ([x, y]: number[]) =>
-    Math.abs(x + 8 - b.x - b.width / 2) + Math.abs(y + 8 - b.y - b.depth / 2);
+    Math.abs(x + 8 - (focus?.x ?? b.x + b.width / 2)) +
+    Math.abs(y + 8 - (focus?.y ?? b.y + b.depth / 2));
   xy.sort((a, b) => distance(a) - distance(b));
   const order: [number, number, number][] = [];
   // Pair each visible block with its roof so neighbouring rooms are walkable

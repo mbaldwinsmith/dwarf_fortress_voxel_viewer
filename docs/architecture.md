@@ -436,3 +436,22 @@ pointer lock. Escape releases capture; clicking the viewport recaptures it.
 Changing Z, reconnecting or choosing another point returns to selection. No game
 commands are used. Stair travel between levels and furniture collision remain
 outside this first-person navigation implementation.
+
+## Traversal update
+
+The original same-Z restriction above is superseded by traversal.ts and rampHeight.
+Ramp sampling uses barycentric interpolation of the same mesh triangle fan.
+Adjacent-level movement requires a ramp and a height-continuous landing; footprint
+support may straddle the ramp/landing boundary. Stair connections match the native
+up/down captions and interpolate one level per half-second (W up, S down).
+
+The resident stream is now five levels (cut +/-2). Level operations may include
+validated in-bounds integer XY focus coordinates; blockOrder sorts nearby chunks
+first. No game commands or unbounded volumes are exposed. Expected walking-level
+resets clear terrain and sequences while preserving camera and input; movement
+waits for the reset and then for revealed support/clearance data to arrive.
+
+Controls explicitly focus the canvas. Pointer lock is optional: on failure,
+focused WASD and hover mouse look stay active. Free mouse deltas reset on capture
+and pointer leave; Escape, blur and lost lock pause/clear keys. Capture failures
+are surfaced in the control banner rather than silently disabling input.
