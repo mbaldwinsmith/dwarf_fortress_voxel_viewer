@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { parseGraphics, permittedImage } from "./graphics.js";
-import type { SpriteRef } from "../shared/model.js";
+import type { SpriteRef, SpriteLayer } from "../shared/model.js";
 
 export function sceneryMappings(text: string) {
   const entries: { key: string; page: string; x: number; y: number }[] = [];
@@ -10,6 +10,20 @@ export function sceneryMappings(text: string) {
   for (const m of text.matchAll(/\[([^\]\r\n]+)\]/g)) {
     const [tag, ...a] = m[1].split(":");
     if (tag === "PLANT_GRAPHICS") plant = a[0];
+    if (
+      ["BOULDER_GRAPHICS", "ROUGH_GEM_GRAPHICS", "BARS_GRAPHICS"].includes(
+        tag,
+      ) &&
+      a.length >= 4 &&
+      /^\d+$/.test(a[1]) &&
+      /^\d+$/.test(a[2])
+    )
+      entries.push({
+        key: `${tag}:${a.slice(3).join(":")}`,
+        page: a[0],
+        x: Number(a[1]),
+        y: Number(a[2]),
+      });
     if (
       plant &&
       tag === "TREE_TILE" &&
@@ -61,11 +75,34 @@ export function sceneryMappings(text: string) {
   return entries;
 }
 export class SceneryGraphics {
+  materialPalettes = new Map<string, NonNullable<SpriteLayer["palette"]>>();
   gemIds = new Set<string>();
   oreIds = new Set<string>();
   refs = new Map<string, SpriteRef>();
   constructor(private files: Map<string, string>) {}
   async load(installation: string) {
+    const paletteRoot = path.join(
+      installation,
+      "data/vanilla/vanilla_descriptors_graphics/graphics",
+    );
+    const paletteText = (
+      await readFile(path.join(paletteRoot, "palette_default.txt"), "utf8")
+    ).split("[PALETTE:NEX_BODY]")[0];
+    const paletteFile = await permittedImage(
+      paletteRoot,
+      "images/palettes.png",
+    );
+    const asset = createHash("sha256")
+      .update(paletteFile)
+      .digest("hex")
+      .slice(0, 24);
+    this.files.set(asset, paletteFile);
+    const rows = new Map(
+      [...paletteText.matchAll(/\[PALETTE_COLOR:([^:]+):(\d+)\]/g)].map((m) => [
+        m[1],
+        Number(m[2]),
+      ]),
+    );
     const rawRoot = path.join(
       installation,
       "data/vanilla/vanilla_materials/objects",
@@ -77,6 +114,16 @@ export class SceneryGraphics {
       for (const m of source.matchAll(
         /\[INORGANIC:([^\]]+)\]([\s\S]*?)(?=\[INORGANIC:|$)/g,
       )) {
+        const color = /\[STATE_COLOR:(?:ALL_SOLID|ALL):([^\]]+)\]/.exec(
+          m[2],
+        )?.[1];
+        const row = color && rows.get(color);
+        if (typeof row === "number")
+          this.materialPalettes.set(`INORGANIC:${m[1]}`, {
+            asset,
+            sourceRow: 0,
+            row,
+          });
         if (/\[IS_GEM:/.test(m[2])) this.gemIds.add(`INORGANIC:${m[1]}`);
         if (/\[METAL_ORE:/.test(m[2])) this.oreIds.add(`INORGANIC:${m[1]}`);
       }

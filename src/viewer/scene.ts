@@ -175,7 +175,7 @@ export class FortressScene {
     this.controls.update();
     this.scenery.frame(this.camera, this.cut);
     this.renderer.render(this.scene, this.camera);
-    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
+    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
   };
   dispose() {
     cancelAnimationFrame(this.frameId);

@@ -2,6 +2,7 @@ import type { Bounds, Chunk, SceneryObject } from "../shared/model.js";
 import type { Rpc } from "./rpc.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
 import { textureTerrain, terrainMaterials } from "./terrain-art.js";
+import { groundItems } from "./ground-items.js";
 const records = (v: unknown): Record<string, unknown>[] =>
   Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : [];
 export const buildingKey = (t: Record<string, unknown>) =>
@@ -163,6 +164,12 @@ export function buildingObjects(
           isShop && mat
             ? materialDefinitions?.get(`${mat.matType},${mat.matIndex}`)?.color
             : undefined;
+        const matDef =
+          mat && materialDefinitions?.get(`${mat.matType},${mat.matIndex}`);
+        const palette =
+          ["Table", "Chair"].includes(category) && matDef
+            ? (graphics as SceneryGraphics).materialPalettes?.get(matDef.id)
+            : undefined;
         const details: NonNullable<SceneryObject["details"]> = [];
         if (category === "Bed") {
           const item = records(b.items)
@@ -203,6 +210,7 @@ export function buildingObjects(
           ...(sprite ? { sprite } : {}),
           ...(overlay ? { overlay } : {}),
           ...(tint ? { tint } : {}),
+          ...(palette ? { palette } : {}),
           ...(details.length ? { details } : {}),
         });
         if (out.length >= 512) return out;
@@ -298,6 +306,7 @@ export function plantObjects(
   return out;
 }
 export class SceneryReader {
+  private itemDefinitions = new Map<string, string>();
   private materialDefinitions = terrainMaterials([]);
   private definitions = new Map<string, string>();
   private plantDefinitions = new Map<number, { id: string; name: string }>();
@@ -309,6 +318,12 @@ export class SceneryReader {
     private bounds: Bounds,
   ) {}
   async initialize() {
+    const items = await this.rpc.call("GetItemList");
+    for (const d of records(items.materialList)) {
+      const p = d.matPair as Record<string, unknown> | undefined;
+      if (p && typeof d.id === "string")
+        this.itemDefinitions.set(`${p.matType},${p.matIndex}`, d.id);
+    }
     const materialList = await this.rpc.call("GetMaterialList");
     this.materialDefinitions = terrainMaterials(materialList.materialList);
     const defs = await this.rpc.call("GetBuildingDefList");
@@ -366,6 +381,15 @@ export class SceneryReader {
         raw?.materials,
       ),
     ];
+    chunk.objects.push(
+      ...groundItems(
+        chunk,
+        raw?.items,
+        this.itemDefinitions,
+        this.materialDefinitions,
+        this.graphics,
+      ).slice(0, Math.max(0, 512 - chunk.objects.length)),
+    );
     for (let i = 0; i < 256; i++)
       if (chunk.tiles[i].shape === "stairs") {
         const t = chunk.tiles[i],

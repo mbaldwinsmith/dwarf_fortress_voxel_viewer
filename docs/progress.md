@@ -333,3 +333,25 @@ The final rated image is a genuine read-only live snapshot, not a screenshot
 composite or reference pixels inserted into the viewer.
 
 Final validation: all 93 tests, strict TypeScript, production build and formatting checks pass. The existing Three.js bundle-size advisory remains.
+
+## Loose items and furniture colours - 29 October 2026
+
+Decode MapBlock.items and Item.pos/stack_size/projectile from the pinned native
+schema. Ground objects share the existing batched scenery renderer and asset
+allowlist. Filter explicit on_ground plus inventory/container, removed, building,
+construction, encased, garbage_collect and interface-hidden flags; reject off-block,
+wrong-Z, hidden terrain and projectiles. Reserve at most one supported sprite per
+tile, chosen by stable item ID, with no stale item cache. Item stacks remain one
+sprite; unsupported art is omitted. Live pickup removal is not game-mutated for QA.
+
+Load material-specific boulder/gem/bar mappings and the installed default descriptor
+palette. Match inorganic solid STATE_COLOR to native palette rows and perform exact
+source-colour replacement in cached scenery sheets (bounded to 512 materials).
+Use these palettes for boulders and installed tables/thrones; keep terrain palette
+behaviour unchanged. Schist now uses DARK_CHESTNUT, orthoclase CHESTNUT. Current
+furniture variants remain approximate because RFR does not supply graphic seeds.
+
+Verified 53 loose item sprites in the live area, with actual material palette rows;
+inspected a genuine snapshot through the WebGL renderer. Added regression coverage
+for flag exclusions, coordinate/redaction boundaries, stack/duplicate stability,
+pickup/removal snapshots, native wire fields, overrides and furniture palettes.

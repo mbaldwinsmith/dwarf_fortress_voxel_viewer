@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { linearMaterialColor } from "./mesh.js";
+import { recolor } from "./composite-sprites.js";
 import {
   chunkKey,
   tileAt,
@@ -9,7 +10,7 @@ import {
 } from "../shared/model.js";
 export function objectQuad(o: SceneryObject, axisZ = false) {
   const x = o.x,
-    y = o.z + 0.135,
+    y = o.z + 0.135 + (o.id.startsWith("i:") ? 0.015 : 0),
     z = o.y;
   if (o.kind === "ground")
     return [x, y, z, x, y, z + 1, x + 1, y, z + 1, x + 1, y, z];
@@ -80,10 +81,14 @@ export class ScenerySprites {
     this.marker.magFilter = THREE.NearestFilter;
     this.marker.needsUpdate = true;
   }
-  private material(asset?: string) {
-    const key = asset ?? "marker";
+  private material(
+    asset?: string,
+    palette?: SceneryObject["palette"],
+  ): THREE.MeshBasicMaterial {
+    const key = JSON.stringify([asset ?? "marker", palette]);
     let m = this.materials.get(key);
     if (m) return m;
+    if (asset && this.materials.size >= 512) return this.material();
     m = new THREE.MeshBasicMaterial({
       vertexColors: true,
       map: this.marker,
@@ -94,7 +99,43 @@ export class ScenerySprites {
     if (asset) {
       const texture = new THREE.TextureLoader().load(
         `/local-art/${asset}`,
-        () => {
+        async () => {
+          if (palette) {
+            try {
+              const img = await new Promise<HTMLImageElement>(
+                (resolve, reject) => {
+                  const i = new Image();
+                  i.onload = () => resolve(i);
+                  i.onerror = reject;
+                  i.src = `/local-art/${palette.asset}`;
+                },
+              );
+              if (palette.row >= img.height || palette.sourceRow >= img.height)
+                throw Error("Scenery palette row out of bounds");
+              const pc = document.createElement("canvas");
+              pc.width = img.width;
+              pc.height = img.height;
+              const p = pc.getContext("2d", { willReadFrequently: true })!;
+              p.drawImage(img, 0, 0);
+              const canvas = document.createElement("canvas");
+              const source = texture.image as HTMLImageElement;
+              canvas.width = source.width;
+              canvas.height = source.height;
+              const c = canvas.getContext("2d", { willReadFrequently: true })!;
+              c.drawImage(source, 0, 0);
+              const pixels = c.getImageData(0, 0, canvas.width, canvas.height);
+              recolor(
+                pixels.data,
+                p.getImageData(0, palette.sourceRow, img.width, 1).data,
+                p.getImageData(0, palette.row, img.width, 1).data,
+              );
+              c.putImageData(pixels, 0, 0);
+              (texture as THREE.Texture).image = canvas;
+              texture.needsUpdate = true;
+            } catch (e) {
+              console.warn("Scenery palette unavailable", String(e));
+            }
+          }
           if (!this.disposed) {
             m!.map = texture;
             m!.needsUpdate = true;
@@ -111,7 +152,7 @@ export class ScenerySprites {
       texture.magFilter = THREE.NearestFilter;
       texture.minFilter = THREE.NearestFilter;
       texture.generateMipmaps = false;
-      this.sheets.set(asset, texture);
+      this.sheets.set(key, texture);
     }
     return m;
   }
@@ -146,9 +187,9 @@ export class ScenerySprites {
       for (const o of chunk.objects ?? []) {
         const tile = tileAt(all, o.x, o.y, o.z);
         if (!tile || tile.shape === "unknown") continue;
-        const coords = o.sprite ? uv(o.sprite) : [0, 1, 0, 0, 1, 0, 1, 1],
-          material = this.material(o.sprite?.asset);
+        const coords = o.sprite ? uv(o.sprite) : [0, 1, 0, 0, 1, 0, 1, 1];
         if (o.kind === "plant") {
+          const material = this.material(o.sprite?.asset);
           const geometry = new THREE.BufferGeometry();
           geometry.setAttribute(
             "position",
@@ -174,12 +215,18 @@ export class ScenerySprites {
           group.add(mesh);
         } else {
           for (const [layerIndex, layer] of [
-            { sprite: o.sprite, tint: o.tint, brightness: 1.4 },
+            {
+              sprite: o.sprite,
+              tint: o.tint,
+              palette: o.palette,
+              brightness: 1.4,
+            },
             ...(o.overlay ? [{ sprite: o.overlay }] : []),
             ...(o.details ?? []),
           ].entries()) {
             const ref = layer.sprite;
-            const k = ref?.asset ?? "marker";
+            const palette = "palette" in layer ? layer.palette : undefined;
+            const k = JSON.stringify([ref?.asset ?? "marker", palette]);
             let batch = batches.get(k);
             if (!batch) {
               batch = {
@@ -187,7 +234,7 @@ export class ScenerySprites {
                 colors: [],
                 uvs: [],
                 indices: [],
-                material: this.material(ref?.asset),
+                material: this.material(ref?.asset, palette),
               };
               batches.set(k, batch);
             }
@@ -199,7 +246,11 @@ export class ScenerySprites {
               !(wall(o.x - 1, o.y) || wall(o.x + 1, o.y));
             batch.positions.push(
               ...objectQuad(o, axisZ).map((v, i) =>
-                i % 3 === 1 ? v + layerIndex * 0.003 : v,
+                i % 3 === 1
+                  ? v +
+                    layerIndex * 0.003 +
+                    (o.id.startsWith("i:") && tile.shape === "ramp" ? 0.5 : 0)
+                  : v,
               ),
             );
             batch.uvs.push(...(ref ? uv(ref) : coords));

@@ -149,3 +149,11 @@ material RGB into already-coloured floors. Native ore/crystal borders, stair
 sprites and grass tile variants improve agreement with DF. Material names remain
 available in inspection. Bed sheet/pillow layers use stable approximate styles
 because RFR omits the game's graphic seed. See docs/texture-fidelity-review.md.
+
+Loose ground items now use installed item artwork, including material-specific
+boulders, rough gems, logs, bars, containers and supported equipment. Only revealed
+on-ground items are streamed; carried items, container contents, installed building
+components, hidden/encased/deleted items and projectiles are excluded. One stable
+item sprite is shown per occupied tile, with authoritative replacement on each
+terrain update. Unsupported item artwork is omitted. Native inorganic material
+palettes recolour boulders and installed tables/thrones without losing shading.

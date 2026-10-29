@@ -222,6 +222,21 @@ export function parseServerMessage(value: unknown): ServerMessage {
           ids.add(o.id);
           if (o.tint !== undefined && !rgb(o.tint))
             throw Error("Invalid scenery tint");
+          if (o.palette !== undefined) {
+            const p = o.palette;
+            if (
+              !object(p) ||
+              typeof p.asset !== "string" ||
+              !/^[a-f0-9]{24}$/.test(p.asset) ||
+              !int(p.row) ||
+              !int(p.sourceRow) ||
+              p.row < 0 ||
+              p.row > 16384 ||
+              p.sourceRow < 0 ||
+              p.sourceRow > 16384
+            )
+              throw Error("Invalid scenery palette");
+          }
           if (o.details !== undefined) {
             if (
               !Array.isArray(o.details) ||

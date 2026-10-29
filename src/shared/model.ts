@@ -51,6 +51,7 @@ export interface Chunk {
   objects?: SceneryObject[];
 }
 export interface SceneryObject {
+  palette?: SpriteLayer["palette"];
   tint?: [number, number, number];
   details?: {
     sprite: SpriteRef;
