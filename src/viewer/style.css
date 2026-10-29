@@ -247,3 +247,36 @@ footer {
   color: #9caeba;
   margin: 12px 0 0;
 }
+#walk-help {
+  position: absolute;
+  z-index: 3;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 85%;
+  padding: 10px 16px;
+  border: 1px solid #62ffe380;
+  border-radius: 6px;
+  background: #10252deb;
+  color: #ddfff6;
+  font-size: 12px;
+  pointer-events: none;
+}
+#crosshair {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #c5fff2;
+  text-shadow: 0 0 7px #62ffe3;
+  pointer-events: none;
+}
+#first-person[aria-pressed="true"] {
+  border-color: #62ffe3;
+  color: #c5fff2;
+}
+[hidden] {
+  display: none !important;
+}

@@ -49,8 +49,16 @@
           ><input id="level" type="range" min="0" max="0" value="0" disabled />
         </div>
         <button id="frame" type="button">Frame terrain <kbd>F</kbd></button>
+        <button id="first-person" type="button" aria-pressed="false">
+          1st person
+        </button>
+        <button id="choose-spawn" type="button" hidden>
+          Choose another point
+        </button>
       </section>
       <section id="viewport" aria-label="Fortress viewer">
+        <div id="walk-help" role="status" hidden></div>
+        <div id="crosshair" aria-hidden="true" hidden>+</div>
         <div id="empty">
           <span class="sigil">◇</span>
           <h2>Your fortress, another perspective.</h2>
@@ -77,8 +85,7 @@
           <kbd>]</kbd> Z-level · Touch: one finger orbit, two fingers pan / zoom
         </p>
         <p id="scope">
-          Read-only · Full local map · Three levels streamed at the selected
-          cutaway
+          Read-only · Full local map · Three terrain levels plus overhead
         </p>
       </footer>
     </main>

@@ -413,3 +413,26 @@ layers, RGB and brightness are bounded and validated.
 
 See texture-fidelity-review.md for the fixed critic rubric, comparison crop,
 iteration scores and remaining coverage/geometry differences.
+
+## First-person view and overhead streaming
+
+The navigation state machine in scene.ts keeps orbit, camera-point selection and
+walking separate. first-person.ts owns pointer lock, yaw/pitch and WASD movement;
+all listeners and held-key state are cleaned up on exit/disposal. Movement stays
+on the selected Z and treats unknown/unloaded ground as blocked. The player has a
+0.18-tile footprint radius and 0.64-tile eye height. Roof data is required before
+spawning or crossing a block seam (except at the known top of the map).
+
+The bridge pairs each current-level XY block with its overhead block, then reads
+two lower levels. This makes nearby ceilings available before a full-map sweep
+finishes, retaining the 4096-block limit. buildMesh's first-person flag permits
+only downward underside faces from cut+1; orbit continues to omit that layer.
+Unknown and enclosed roofs borrow safe revealed-ground stone artwork with neutral
+shading, rather than exporting hidden mineral data. The regular dirty queue,
+vertical neighbour invalidation and GPU disposal cover these ceiling meshes.
+
+A click on a valid glowing floor selector stores the orbit camera and requests
+pointer lock. Escape releases capture; clicking the viewport recaptures it.
+Changing Z, reconnecting or choosing another point returns to selection. No game
+commands are used. Stair travel between levels and furniture collision remain
+outside this first-person navigation implementation.

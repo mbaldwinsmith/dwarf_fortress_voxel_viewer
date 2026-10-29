@@ -41,6 +41,7 @@ export function buildMesh(
   textureUV: (ref?: SpriteRef, transparent?: boolean) => TerrainUV = () => [
     0, 0, 1, 1,
   ],
+  firstPerson = false,
 ): MeshData {
   const out: MeshData = { positions: [], colors: [], uvs: [] };
   let surfaces: Tile["surfaces"];
@@ -52,7 +53,51 @@ export function buildMesh(
       .filter((o) => o.kind === "plant" && o.sprite)
       .map((o) => (o.y - c.y) * 16 + o.x - c.x),
   );
-  if (c.z > cut) return out;
+  if (c.z > cut) {
+    if (!firstPerson || c.z !== cut + 1) return out;
+    // Only underside faces of the overhead layer: the cutaway remains open in
+    // orbit mode. Unknown rock uses neutral art, never hidden material data.
+    for (let i = 0; i < 256; i++) {
+      const t = c.tiles[i];
+      if (
+        !t ||
+        !["wall", "floor", "unknown"].includes(t.shape) ||
+        t.treeGraphic
+      )
+        continue;
+      const x = c.x + (i % 16),
+        y = c.y + Math.floor(i / 16),
+        z = c.z;
+      const below = tileAt(chunks, x, y, cut);
+      if (!below || below.shape === "wall" || below.shape === "unknown")
+        continue;
+      const [l, b, r, u] = textureUV(
+        t.shape === "unknown" || t.sealed
+          ? below.surfaces?.side
+          : t.surfaces?.side,
+      );
+      const color =
+        t.shape === "unknown" ? [0.18, 0.18, 0.2] : [0.55, 0.55, 0.55];
+      const vertices = [
+          [x, z, y],
+          [x + 1, z, y],
+          [x + 1, z, y + 1],
+          [x, z, y + 1],
+        ],
+        uv = [
+          [l, b],
+          [r, b],
+          [r, u],
+          [l, u],
+        ];
+      for (const j of [0, 1, 2, 0, 2, 3]) {
+        out.positions.push(...vertices[j]);
+        out.colors.push(...color);
+        out.uvs.push(...uv[j]);
+      }
+    }
+    return out;
+  }
   function quad(
     v: number[][],
     color: number[],

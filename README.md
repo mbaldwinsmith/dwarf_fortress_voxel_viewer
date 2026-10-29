@@ -53,7 +53,7 @@ Use the **DF screen / Whole map** radio buttons in the toolbar. DF screen follow
 DF’s visible map area (rounded outward to 16-tile block boundaries) and current
 Z-level; the manual cutaway slider is disabled. Viewport changes are checked
 about every 12 block reads. Whole map streams the full XY footprint and enables
-the manual Z slider. Both modes load three levels and are shared by all open
+the manual Z slider. Both modes load three terrain levels plus one overhead level and are shared by all open
 viewer tabs. Switching resets terrain to avoid mixing regions.
 
 ## Controls
@@ -63,11 +63,19 @@ viewer tabs. Switching resets terrain to avoid mixing regions.
 - Frame terrain or `F`: reset camera and frame the local map.
 - Click terrain: inspect tile below the viewer. Hidden tiles stay undiscovered.
 - Touch: one finger orbits; two fingers pan and zoom.
+- **1st person**: switches to Whole map and shows a glowing camera-point selector.
+  Click a green floor tile to enter; red means blocked or awaiting terrain/roof data.
+  Use WASD to walk and the mouse to look. Escape releases the mouse and pauses movement;
+  click the viewport to resume. **Orbit view** returns to the previous camera,
+  and **Choose another point** lets you relocate.
 
 Routine terrain changes preserve the camera. Changing Z keeps horizontal camera
 position and shifts its height with the cutaway. All open viewer tabs share one
-cutaway; the latest level selection wins. Only three levels are resident, so this
+cutaway; the latest level selection wins. Four levels are resident, so this
 is full-footprint exploration, not a simultaneous 199-level volume.
+First-person walking stays on the selected Z-level, with terrain collision and
+ceilings from the overhead layer. Stair travel between levels and furniture/door
+collision are not implemented. Changing Z or reconnecting returns to camera-point selection.
 
 ## Verify
 

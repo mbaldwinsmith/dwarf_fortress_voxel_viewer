@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   affected,
+  chunkKey,
   type Bounds,
   type Chunk,
   WorldState,
@@ -10,6 +11,7 @@ import { CreatureSprites } from "./creatures.js";
 import { ScenerySprites } from "./scenery.js";
 import { TerrainAtlas } from "./terrain-atlas.js";
 import { buildMesh } from "./mesh.js";
+import { FirstPersonControls, canWalk, walkingHeight } from "./first-person.js";
 export class FortressScene {
   creatures = new CreatureSprites();
   scenery = new ScenerySprites();
@@ -30,6 +32,33 @@ export class FortressScene {
   observer: ResizeObserver;
   frameId = 0;
   onSelect?: (x: number, y: number, z: number) => void;
+  onNavigationChange?: (mode: "orbit" | "select" | "firstPerson") => void;
+  navigation: "orbit" | "select" | "firstPerson" = "orbit";
+  firstPerson: FirstPersonControls;
+  private lastFrame = performance.now();
+  private orbitPosition = new THREE.Vector3();
+  private orbitTarget = new THREE.Vector3();
+  private spawn?: { x: number; y: number; z: number };
+  private selector = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.88, 0.88),
+    new THREE.MeshBasicMaterial({
+      color: 0x62ffe3,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  private selectorBorder = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.95, 0.95)),
+    new THREE.LineBasicMaterial({
+      color: 0xbaffef,
+      transparent: true,
+      opacity: 1,
+      depthTest: false,
+    }),
+  );
   constructor(
     public host: HTMLElement,
     public state: WorldState,
@@ -49,6 +78,16 @@ export class FortressScene {
     sun.position.set(-50, 100, 20);
     this.scene.add(sun);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.firstPerson = new FirstPersonControls(
+      this.renderer.domElement,
+      this.camera,
+      () => this.state.chunks,
+      () => (this.bounds ? this.bounds.z + this.bounds.height - 1 : Infinity),
+    );
+    this.selector.rotation.x = -Math.PI / 2;
+    this.selector.add(this.selectorBorder);
+    this.selector.visible = false;
+    this.scene.add(this.selector);
     this.controls.enableDamping = !matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -61,10 +100,12 @@ export class FortressScene {
     });
     this.observer.observe(host);
     this.renderer.domElement.addEventListener("click", this.pick);
+    this.renderer.domElement.addEventListener("pointermove", this.hover);
+    this.renderer.domElement.addEventListener("pointerleave", this.leave);
     this.camera.position.set(30, 50, 60);
     this.animate();
   }
-  pick = (e: MouseEvent) => {
+  private rayHit(e: MouseEvent) {
     if (!this.bounds) return;
     const r = this.renderer.domElement.getBoundingClientRect(),
       ray = new THREE.Raycaster();
@@ -75,7 +116,62 @@ export class FortressScene {
       ),
       this.camera,
     );
-    const hit = ray.intersectObjects([...this.meshes.values()])[0];
+    return ray.intersectObjects([...this.meshes.values()])[0];
+  }
+  private leave = () => {
+    this.selector.visible = false;
+    this.spawn = undefined;
+  };
+  private hover = (e: MouseEvent) => {
+    if (this.navigation !== "select") return;
+    this.spawn = undefined;
+    const hit = this.rayHit(e);
+    this.selector.visible = !!hit;
+    if (!hit) return;
+    const p = hit.point
+      .clone()
+      .addScaledVector(hit.face?.normal ?? new THREE.Vector3(), -0.001);
+    const x = Math.floor(p.x) + 0.5,
+      y = Math.floor(p.z) + 0.5,
+      z = this.cut;
+    const valid =
+      Math.floor(p.y) === z &&
+      canWalk(
+        this.state.chunks,
+        x,
+        y,
+        z,
+        this.bounds ? this.bounds.z + this.bounds.height - 1 : Infinity,
+      );
+    const h = walkingHeight(this.state.chunks, x, y, z);
+    this.selector.position.set(x, valid ? h! + 0.025 : hit.point.y + 0.02, y);
+    this.selector.material.color.setHex(valid ? 0x62ffe3 : 0xff6677);
+    if (valid) this.spawn = { x, y, z };
+  };
+  pick = (e: MouseEvent) => {
+    if (this.navigation === "firstPerson") {
+      this.firstPerson.capture();
+      return;
+    }
+    if (this.navigation === "select") {
+      this.hover(e);
+      if (this.spawn) {
+        const { x, y, z } = this.spawn;
+        this.orbitPosition.copy(this.camera.position);
+        this.orbitTarget.copy(this.controls.target);
+        this.controls.enabled = false;
+        this.camera.fov = 75;
+        this.camera.near = 0.025;
+        this.camera.updateProjectionMatrix();
+        this.navigation = "firstPerson";
+        this.leave();
+        this.firstPerson.enter(x, y, z);
+        this.refreshRoofs();
+        this.onNavigationChange?.(this.navigation);
+      }
+      return;
+    }
+    const hit = this.rayHit(e);
     if (hit) {
       const p = hit.point
         .clone()
@@ -83,7 +179,51 @@ export class FortressScene {
       this.onSelect?.(Math.floor(p.x), Math.floor(p.z), Math.floor(p.y));
     }
   };
+  setFirstPerson(enabled: boolean) {
+    const wasWalking = this.navigation === "firstPerson";
+    this.firstPerson.exit();
+    if (wasWalking) {
+      this.camera.position.copy(this.orbitPosition);
+      this.controls.target.copy(this.orbitTarget);
+    }
+    this.navigation = enabled ? "select" : "orbit";
+    this.controls.enabled = true;
+    this.camera.fov = 45;
+    this.camera.near = 0.1;
+    this.camera.updateProjectionMatrix();
+    this.controls.update();
+    this.leave();
+    this.refreshRoofs();
+    this.onNavigationChange?.(this.navigation);
+  }
+  private refreshRoofs() {
+    const roofs = [...this.state.chunks.values()].filter(
+      (c) => c.z === this.cut + 1,
+    );
+    if (this.navigation === "firstPerson") {
+      const distance = (c: Chunk) =>
+        Math.hypot(
+          c.x + 8 - this.camera.position.x,
+          c.y + 8 - this.camera.position.z,
+        );
+      roofs.sort((a, b) => distance(a) - distance(b));
+      this.dirty = new Set([...roofs.map(chunkKey), ...this.dirty]);
+    } else {
+      // Remove ceilings immediately when returning to a cutaway view.
+      for (const c of roofs) {
+        const k = chunkKey(c),
+          mesh = this.meshes.get(k);
+        if (mesh) {
+          this.scene.remove(mesh);
+          mesh.geometry.dispose();
+          this.meshes.delete(k);
+        }
+      }
+    }
+  }
   reset(bounds: Bounds, level = bounds.z + bounds.height - 1) {
+    if (this.navigation === "firstPerson") this.setFirstPerson(true);
+    this.leave();
     this.creatures.clear();
     this.scenery.clear();
     const preserve =
@@ -111,6 +251,7 @@ export class FortressScene {
     } else if (bounds.height) this.frame();
   }
   frame() {
+    if (this.navigation === "firstPerson") return;
     if (!this.bounds) return;
     const b = this.bounds,
       t = new THREE.Vector3(b.x + b.width / 2, this.cut - 1, b.y + b.depth / 2);
@@ -130,6 +271,7 @@ export class FortressScene {
     for (const c of chunks) for (const k of affected(c)) this.dirty.add(k);
   }
   setCut(z: number) {
+    if (this.navigation === "firstPerson") this.setFirstPerson(true);
     const delta = z - this.cut;
     this.camera.position.y += delta;
     this.controls.target.y += delta;
@@ -139,6 +281,10 @@ export class FortressScene {
   animate = () => {
     this.frameId = requestAnimationFrame(this.animate);
     const start = performance.now();
+    this.firstPerson.update((start - this.lastFrame) / 1000);
+    this.lastFrame = start;
+    if (this.selector.visible)
+      this.selector.material.opacity = 0.3 + Math.sin(start / 180) * 0.12;
     let count = 0;
     for (const k of this.dirty) {
       if (count++ >= 3 || performance.now() - start > 8) break;
@@ -157,6 +303,7 @@ export class FortressScene {
         this.state.chunks,
         this.cut,
         this.terrainAtlas.uv,
+        this.navigation === "firstPerson",
       );
       if (!data.positions.length) continue;
       const g = new THREE.BufferGeometry();
@@ -172,7 +319,7 @@ export class FortressScene {
       this.scene.add(m);
     }
     this.creatures.update(this.state.chunks, this.cut);
-    this.controls.update();
+    if (this.navigation !== "firstPerson") this.controls.update();
     this.scenery.frame(this.camera, this.cut);
     this.renderer.render(this.scene, this.camera);
     this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
@@ -181,6 +328,13 @@ export class FortressScene {
     cancelAnimationFrame(this.frameId);
     this.observer.disconnect();
     this.renderer.domElement.removeEventListener("click", this.pick);
+    this.renderer.domElement.removeEventListener("pointermove", this.hover);
+    this.renderer.domElement.removeEventListener("pointerleave", this.leave);
+    this.firstPerson.dispose();
+    this.selector.geometry.dispose();
+    this.selector.material.dispose();
+    this.selectorBorder.geometry.dispose();
+    this.selectorBorder.material.dispose();
     this.controls.dispose();
     this.creatures.dispose();
     this.scenery.dispose();

@@ -31,6 +31,24 @@ function cut() {
 }
 slider.addEventListener("input", cut);
 el("frame").addEventListener("click", () => scene.frame());
+scene.onNavigationChange = (mode) => {
+  const enabled = mode !== "orbit";
+  el("first-person").setAttribute("aria-pressed", String(enabled));
+  el("first-person").textContent = enabled ? "Orbit view" : "1st person";
+  el("choose-spawn").hidden = mode !== "firstPerson";
+  el("walk-help").hidden = !enabled;
+  el("crosshair").hidden = mode !== "firstPerson";
+  el("walk-help").textContent =
+    mode === "select"
+      ? "Choose a camera point: click a glowing green floor tile. Red means blocked or still loading."
+      : "WASD to walk · Mouse to look · Esc releases the mouse · Click the view to resume";
+};
+el("first-person").addEventListener("click", () => {
+  const enabled = scene.navigation === "orbit";
+  scene.setFirstPerson(enabled);
+  if (enabled) disconnect.setMode("map");
+});
+el("choose-spawn").addEventListener("click", () => scene.setFirstPerson(true));
 scene.onSelect = (x, y, z) => {
   const t = tileAt(state.chunks, x, y, z);
   selection.textContent =
@@ -67,8 +85,8 @@ const disconnect = connect((m) => {
     el<HTMLInputElement>("mode-map").checked = m.mode !== "screen";
     el("scope").textContent =
       m.mode === "screen"
-        ? "Read-only · Following DF screen and Z · Block-aligned tiles, three levels deep"
-        : "Read-only · Full local map · Three levels at the selected cutaway";
+        ? "Read-only · Following DF screen and Z · Three terrain levels plus overhead"
+        : "Read-only · Full local map · Three terrain levels plus overhead";
     level.textContent = m.bounds.height ? `Z ${slider.value}` : "—";
     empty.hidden = false;
     selection.textContent = "Click a visible tile to inspect it.";

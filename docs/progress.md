@@ -355,3 +355,35 @@ Verified 53 loose item sprites in the live area, with actual material palette ro
 inspected a genuine snapshot through the WebGL renderer. Added regression coverage
 for flag exclusions, coordinate/redaction boundaries, stack/duplicate stability,
 pickup/removal snapshots, native wire fields, overrides and furniture palettes.
+
+## First-person navigation - 29 October 2026
+
+The viewer has Orbit / camera-point selection / first-person states. Selecting
+1st person uses the whole-map stream; hovering terrain displays a pulsing green
+floor selector (red for blocked or unloaded locations). A valid click saves the
+orbit camera, disables OrbitControls, places the eye 0.64 tiles above the floor,
+and requests pointer lock in that user gesture. WASD uses normalized horizontal
+motion, clamped frame time, small collision steps and axis sliding. Mouse motion
+uses yaw/pitch with pitch clamping. Escape, blur and pointer-lock changes clear
+held keys; Escape releases capture, clicking resumes, and exiting restores orbit.
+
+Walking tests the player footprint against revealed floor/ramp/stair tiles and
+loaded overhead data, including adjacent block seams. Missing/unknown ground is
+blocked. The map's topmost level requires no overhead block. Low roof clearance
+blocks movement onto ramps. Walking stays on the chosen Z; there is no gravity,
+inter-level stair travel or furniture/door collision in this implementation.
+
+blockOrder now loads each XY block with the overhead block immediately after it,
+then two lower levels, within the existing 4096-block resident bound. Orbit mode
+still omits all above-cut geometry. In first person, the layer above emits only
+underside ceiling faces over open ground. Unknown/enclosed roof rock uses neutral
+colour and artwork from the revealed floor, avoiding hidden material disclosure.
+All ceiling meshes use the existing neighbour invalidation and disposal path.
+
+Verification: 101 regression tests cover boundaries, roof winding and mode gating,
+headroom, hidden/unloaded collision, chunk seams and streaming order/top bounds.
+A browser integration check against an 18-chunk live snapshot verified glowing
+selection, click-to-spawn, pointer capture, WASD displacement, mouse look, Escape
+pause, recapture, and return to selection, with no page errors. Screenshots show
+actual ceiling geometry and installed textures. Production build and formatter
+checks pass; the existing Three.js bundle-size advisory remains.

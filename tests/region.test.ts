@@ -50,18 +50,21 @@ it("aligns the DF viewport to blocks and clips at map edges", () => {
     }),
   ).toThrow();
 });
-it("covers every XY block in three levels, top first without duplicates", () => {
+it("covers neighbouring blocks with paired overhead chunks and two lower levels", () => {
   const order = blockOrder(bounds, 128);
-  expect(order).toHaveLength(432);
-  expect(new Set(order.map((p) => p.join(","))).size).toBe(432);
-  expect(order.slice(0, 144).every((p) => p[2] === 128)).toBe(true);
+  expect(order).toHaveLength(576);
+  expect(new Set(order.map((p) => p.join(","))).size).toBe(576);
+  expect(order[0][2]).toBe(128);
+  expect(order[1]).toEqual([order[0][0], order[0][1], 129]);
   expect(order).toContainEqual([0, 0, 128]);
   expect(order).toContainEqual([176, 176, 126]);
   expect(order[0][0]).toBeGreaterThan(0);
 });
 it("clamps streaming depth at map bottom", () => {
-  expect(blockOrder(bounds, 0)).toHaveLength(144);
-  expect(blockOrder(bounds, 1)).toHaveLength(288);
+  expect(blockOrder(bounds, 0)).toHaveLength(288);
+  expect(blockOrder(bounds, 1)).toHaveLength(432);
+  expect(blockOrder(bounds, 198)).toHaveLength(432);
+  expect(blockOrder(bounds, 198).every((p) => p[2] < 199)).toBe(true);
 });
 it("accepts only bounded read-only integer level operations", () => {
   expect(parseLevel('{"type":"level","z":198}', bounds)).toBe(198);
