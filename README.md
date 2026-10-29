@@ -1,218 +1,333 @@
-# dwarf_fortress_voxel_viewer
+# Deepwatch
+**A live 3D voxel viewer for Dwarf Fortress.**
 
-Dwarf Fortress Voxel Viewer
+Explore your fortress from another perspective. **Deepwatch** connects to a running
+game through DFHack and renders its terrain, creatures and furnishings in WebGL.
+Orbit above an excavation, cut through the mountain, or step into the halls in
+first person.
 
-Deepwatch is a local, read-only WebGL companion. This first milestone renders
-actual terrain from a running fortress, polls changes and supports orbit, pan,
-zoom, Z cutaways and tile inspection. It does not issue gameplay commands.
+Deepwatch runs locally and reads artwork from your own Dwarf Fortress installation.
+It does not issue gameplay commands or modify your game files and saves.
 
-## Windows app
+> **Early development:** currently supports **Dwarf Fortress 53.16**,
+> **DFHack 53.16-r3** and **RemoteFortressReader 0.21.0**. Other version
+> combinations are rejected until verified.
 
-Use the **Deepwatch Setup** installer, or extract the portable **Deepwatch ZIP**
-and run `Deepwatch.exe` from the extracted folder. Node.js and a dev server are
-not needed on the viewer PC. Dwarf Fortress and DFHack must still be installed
-and running with a fortress loaded.
+## Features
 
-The app finds the standard Steam installation, or asks you to choose the folder
-containing `Dwarf Fortress.exe`. **File > Choose Dwarf Fortress folder** changes
-and remembers that choice. Cancelling opens the viewer without local artwork;
-you can choose the folder later. **File > Restart companion** retries startup,
-and **Help > Open log folder** opens diagnostics. Closing the app stops its
-companion. Game files and saves stay read-only.
+- **Live fortress terrain:** progressively loaded walls, floors, ramps, stairs
+  and excavations, with updates while the game runs.
+- **Orbit and cutaway views:** pan, zoom and inspect tiles across the map's
+  Z-levels, or follow the area currently visible in DF.
+- **First-person exploration:** choose a starting point and walk through revealed
+  terrain, including connected stairs and ramps.
+- **Authentic local artwork:** installed vanilla terrain textures, creature
+  sprites, workshops, furniture, plants and supported ground items.
+- **Layered dwarves:** supported clothing, armour and equipment, plus appearance
+  details drawn from live game data.
+- **Windows desktop app:** a local companion and WebGL viewer in one application,
+  with installer and portable ZIP build targets.
 
-Current Windows packages are unsigned; Windows may display an unrecognized-app
-warning. The installer is per-user and does not request administrator privileges.
+This is a companion viewer. Continue playing and controlling your fortress in
+Dwarf Fortress; first-person movement moves only Deepwatch's camera.
 
-### Build Windows packages
+## Getting started on Windows
 
-Requires Windows x64 and Node.js **22.12+** (Node 24 is used by CI):
+### Requirements
 
-```powershell
-npm ci
-npm run dist:win
+- Windows x64 for the packaged desktop app.
+- The supported DF, DFHack and RemoteFortressReader versions listed above.
+- DFHack's local remote server available, with a fortress loaded.
+- Working hardware-accelerated WebGL.
+
+DFHack must already be installed. Deepwatch does not install it or change its
+remote-access settings.
+
+### Desktop app
+
+When a package is available, get it from
+[Releases](https://github.com/mbaldwinsmith/dwarf_fortress_voxel_viewer/releases),
+or download a build artifact from the
+[Windows app workflow](https://github.com/mbaldwinsmith/dwarf_fortress_voxel_viewer/actions/workflows/windows-release.yml).
+See [Building Windows packages](#building-windows-packages) to build it yourself.
+
+1. Run the **Deepwatch Setup** installer, or extract the portable **Deepwatch ZIP**
+   and run `Deepwatch.exe` from the extracted folder.
+2. Start Dwarf Fortress with DFHack and load your fortress.
+3. Open Deepwatch. It looks for the standard Steam installation; if necessary,
+   choose the folder containing `Dwarf Fortress.exe`.
+4. Allow terrain to load, then orbit the map or choose **1st person**.
+
+A typical Steam installation is:
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\Dwarf Fortress
 ```
 
-The `release/` folder contains `Deepwatch-Setup-0.1.0-x64.exe`,
-`Deepwatch-0.1.0-x64.zip` and `SHA256SUMS.txt` (names follow `package.json`'s
-version). `npm run pack:win` produces an unpacked app for testing;
-`npm run desktop` builds and runs the desktop app from source.
-`npm run desktop:smoke` checks startup, WebGL, renderer isolation and connection
-to the bundled companion, then exits.
+Node.js and a development server are **not required** to use a packaged app.
 
-### Build releases on GitHub
+The app remembers your selected installation. Use **File → Choose Dwarf Fortress
+folder…** to change it, **File → Restart companion** to retry startup, and
+**Help → Open log folder** for diagnostics. If you cancel folder selection,
+the viewer can connect without local artwork.
 
-Run **Actions > Windows app > Run workflow** to download tested packages as a
-workflow artifact. To prepare a GitHub Release, push a `v` tag matching the
-version in `package.json`, for example `v0.1.0` for the initial package. The
-workflow builds and smoke-tests the packaged executable, uploads the installer,
-ZIP and checksums, and creates a **draft** release for you to review and publish.
-No signing credentials or release token beyond GitHub's built-in token are required.
-No game installation, saves, local configuration or proprietary game images are
-included in the app or release artifacts.
+Closing the app stops its companion. The installer is per-user and does not
+request administrator privileges. Packages are currently unsigned, so Windows
+may display an unrecognized-app warning.
 
-## Run
+## Exploring your fortress
 
-Requires Node.js 22.12+ and DF 53.16 with DFHack 53.16-r3 / RemoteFortressReader
-0.21.0. Other versions are rejected until verified. DFHack must already be
-installed and its local remote server available. Load a fortress in DF.
+### View modes
+
+| Mode | Behaviour |
+| --- | --- |
+| **Whole map** | Loads the local map's full XY footprint and enables the manual Z-level slider. |
+| **DF screen** | Follows DF's visible map area and current Z-level; the manual slider is disabled. |
+| **1st person** | Switches to Whole map and lets you choose a walkable camera starting point. |
+
+Deepwatch streams **up to five neighbouring Z-levels**: the selected level,
+two above and two below, clipped to map bounds. Nearby columns load first;
+in first person, level-change requests prioritise the camera's neighbourhood.
+
+Orbit view hides geometry above the selected cutaway. First person displays the
+loaded upper levels too, so ceilings, stair shafts and upper landings remain
+visible. The entire vertical map is not loaded at once.
+
+All tabs connected to the same companion share the view mode and selected
+Z-level. The latest selection applies to everyone.
+
+### Orbit controls
+
+| Action | Control |
+| --- | --- |
+| Orbit | Left-drag |
+| Pan | Right-drag |
+| Zoom | Mouse wheel |
+| Change cutaway level | Slider or `[` / `]` in Whole map mode |
+| Frame terrain | **Frame terrain** or `F` |
+| Inspect a tile | Click terrain; details appear below the viewer |
+| Touch navigation | One finger to orbit; two fingers to pan and zoom |
+
+Routine updates preserve the camera. In orbit view, changing Z preserves its
+horizontal position and shifts its height with the cutaway.
+
+### First-person controls
+
+Select **1st person**, then click a green floor selector to enter. Red indicates
+a blocked location or terrain/headroom data that has not yet loaded.
+
+| Action | Control |
+| --- | --- |
+| Walk / strafe | `W`, `A`, `S`, `D` |
+| Look around | Mouse |
+| Ascend connected stairs | Hold `W` while on the stair tile |
+| Descend connected stairs | Hold `S` while on the stair tile |
+| Pause and release mouse capture | `Esc` |
+| Resume | Click the viewport |
+| Relocate | **Choose another point** |
+| Return to the saved orbit camera | **Orbit view** |
+
+Ramps follow the rendered slope. The camera and streamed Z-levels follow
+successful stair and ramp transitions. Movement waits when destination data is
+missing; hidden, disconnected or blocked destinations cannot be entered.
+
+If mouse capture is unavailable, keep the pointer over the viewport to look
+around. Click the view to focus keyboard controls. The on-screen banner reports
+whether controls are active or paused.
+
+Manual Z changes and unrelated reconnections return to starting-point selection.
+Furniture and doors do not currently block camera movement.
+
+## Local graphics and fidelity
+
+Deepwatch supplies its own geometry and reads supported vanilla graphics from
+your installation at runtime. Proprietary game images and saves are not included
+in the repository or application packages.
+
+The current graphics profile is explicitly **vanilla**. Installation inspection
+can list available modules, but does not resolve the loaded world's active mod
+order or graphics overrides.
+
+| Element | Current representation |
+| --- | --- |
+| Terrain | Generated 3D geometry with installed wall/floor artwork, native edge variants and material information. |
+| Dwarves | Camera-facing sprites with a partial layered appearance compositor. |
+| Other creatures | Supported local sprites; markers for unsupported creatures. |
+| Workshops and furniture | Mostly artwork laid on the ground; doors use upright open/closed sprites. |
+| Vegetation | Species sprites for supported plants and tree parts; fallback geometry where needed. |
+| Ground items | One supported item sprite per occupied tile. |
+
+Hidden tiles remain opaque and undiscovered. Their actual shapes, materials and
+names are removed before data reaches the viewer. Enclosed natural rock is also
+masked conservatively.
+
+### Current limitations
+
+- **Updates are polled, not instantaneous.** Large footprints can take minutes
+  to refresh fully. Creatures are polled separately from terrain and scenery.
+- **Water and magma are not rendered.**
+- Ramps, stairs, trees and fortifications are visual approximations.
+- Creature animation, exact facial proportions, some appearance conditions and
+  profession palettes are incomplete. Some colours and graphic variants are
+  approximated where the remote API omits the game's selection data.
+- Furniture variants, construction stages, seasonal plant growth, lighting and
+  engravings are not reproduced exactly.
+- Only supported loose ground items are displayed. Carried items, container
+  contents, installed components, projectiles and hidden items are excluded.
+- The stream is bounded to **4,096 resident map blocks**; larger requested
+  footprints are rejected.
+
+## Running from source
+
+Requires **Node.js 22.12 or later**. Windows is the current desktop packaging
+target; installation inspection expects a Windows DF installation.
+
+Clone the repository and install dependencies:
 
 ```powershell
+git clone https://github.com/mbaldwinsmith/dwarf_fortress_voxel_viewer.git
+cd dwarf_fortress_voxel_viewer
 npm ci
 Copy-Item .env.example .env
-# Optionally set DF_PATH in .env to your installation directory.
+```
+
+Edit `.env` to set `DF_PATH` if you want local artwork, then load a fortress
+with DFHack running.
+
+### Browser development
+
+```powershell
 npm run dev
 ```
 
-Open [the development viewer](http://127.0.0.1:5173).
-One command runs Vite and the bridge. The viewer streams the full local map
-footprint, showing the selected Z-level and two beneath it. The slider spans
-every map Z-level. Terrain arrives progressively, centre first; changing Z
-cancels the old scan and starts a fresh session.
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
+This command runs both Vite and the companion.
 
-For production:
+### Production browser build
 
 ```powershell
 npm run build
 npm start
 ```
 
-Open [the production viewer](http://127.0.0.1:4174). Stop either mode with Ctrl+C.
-All generated files stay in the project. Nothing is written to DF or its saves.
+Open [http://127.0.0.1:4174](http://127.0.0.1:4174).
+Stop the browser-mode servers with Ctrl+C.
 
-## Configuration
+### Desktop development
 
-Copy `.env.example` to the ignored `.env`. `DF_PATH` enables read-only module
-inspection and reading the installation's remote-port setting. `DFHACK_PORT`
-overrides that port; otherwise it defaults to 5000. `VIEWER_PORT` defaults to 4174. `POLL_MS` defaults to 200 and is clamped to a minimum of 100 ms between
-individual block requests. The development viewer uses port 5173.
+```powershell
+npm run desktop
+```
 
-`npm run inspect` lists available installation module metadata when `DF_PATH` is
-set. It does **not** establish the loaded world's active mod order. This milestone
-uses original terrain geometry and an explicit vanilla simple-creature sprite profile.
-Artwork is read locally at runtime when DF_PATH is set; nothing is bundled.
+This builds the project and opens the Electron app.
 
-## Render view
+### Configuration
 
-Use the **DF screen / Whole map** radio buttons in the toolbar. DF screen follows
-DF’s visible map area (rounded outward to 16-tile block boundaries) and current
-Z-level; the manual cutaway slider is disabled. Viewport changes are checked
-about every 12 block reads. Whole map streams the full XY footprint and enables
-the manual Z slider. Both modes load five levels around the cutaway and are shared by all open
-viewer tabs. Switching resets terrain to avoid mixing regions.
+Local `.env` files are ignored by Git.
 
-## Controls
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `DF_PATH` | DF installation folder; enables local artwork and installation inspection. | Unset in browser mode |
+| `DFHACK_PORT` | Explicit override for the local DFHack TCP port. | Installation setting when available; otherwise `5000` |
+| `VIEWER_PORT` | Browser companion HTTP/WebSocket port. | `4174` |
+| `POLL_MS` | Delay between individual block reads; minimum `100` ms. | `200` |
 
-- Left-drag: orbit. Right-drag: pan. Wheel: zoom.
-- Cutaway slider or `[` / `]`: change the highest visible Z-level.
-- Frame terrain or `F`: reset camera and frame the local map.
-- Click terrain: inspect tile below the viewer. Hidden tiles stay undiscovered.
-- Touch: one finger orbits; two fingers pan and zoom.
-- **1st person**: switches to Whole map and shows a glowing camera-point selector.
-  Click a green floor tile to enter; red means blocked or awaiting terrain/roof data.
-  Use WASD to walk and the mouse to look. Escape releases the mouse and pauses movement;
-  click the viewport to resume. **Orbit view** returns to the previous camera,
-  and **Choose another point** lets you relocate.
+The example `.env` explicitly sets `DFHACK_PORT=5000`. Remove that assignment
+to use the selected installation's configured port.
 
-Routine terrain changes preserve the camera. Changing Z keeps horizontal camera
-position and shifts its height with the cutaway. All open viewer tabs share one
-cutaway; the latest level selection wins. Five levels are resident, so this
-is full-footprint exploration, not a simultaneous 199-level volume.
-First-person ramps follow the rendered slope into upper/lower landings. On a
-connected stair tile, hold W to climb or S to descend. The camera and streamed
-levels follow automatically; missing, hidden and disconnected destinations block
-travel. Furniture/door collision is not implemented. Manual Z changes and unrelated
-reconnections return to camera-point selection.
-First person renders the loaded levels above and below you, including upper walls
-and landings. Stair shafts have open centres so you can look between levels.
-Clicking the view focuses its keyboard controls even when an embedded browser
-blocks pointer lock. In that fallback, keep the pointer over the view to look.
-Escape pauses; click again to resume. The banner reports active/paused controls.
+The desktop launcher chooses an available companion port automatically and
+remembers its installation selection separately from the project's `.env`.
 
-## Verify
+The development viewer uses port `5173`. If changing `VIEWER_PORT` during
+development, also update the bridge proxy target in `vite.config.ts`.
+
+Run `npm run inspect` with `DF_PATH` set to list installation module metadata.
+This does not identify the loaded world's active mod order.
+
+## Building Windows packages
+
+On Windows x64:
+
+```powershell
+npm ci
+npm run dist:win
+```
+
+The `release/` directory contains:
+
+- `Deepwatch-Setup-<version>-x64.exe` — installer.
+- `Deepwatch-<version>-x64.zip` — portable application.
+- `SHA256SUMS.txt` — package checksums.
+
+The version comes from `package.json`. Use `npm run pack:win` for an unpacked
+application, or `npm run desktop:smoke` to check desktop startup, WebGL,
+renderer isolation and connection to the companion. This smoke check does not
+prove a live game connection.
+
+### GitHub builds and releases
+
+Run **Actions → Windows app → Run workflow** to produce downloadable build
+artifacts. The workflow tests, builds and smoke-tests the packaged executable.
+
+A pushed `v` tag matching `package.json`, such as `v0.1.0`, also triggers
+release packaging. For a new tag, the workflow creates a **draft GitHub Release**
+with the installer, ZIP and checksums for review and publication.
+
+## Development and verification
+
+The project uses TypeScript, Three.js, a Node.js HTTP/WebSocket companion,
+Protocol Buffers, Vite and an Electron desktop shell.
+
+| Directory | Responsibility |
+| --- | --- |
+| `src/bridge/` | DFHack connection, read-only adapter, installation and graphics loading, local server. |
+| `src/shared/` | Viewer data model and message validation. |
+| `src/viewer/` | Three.js rendering, navigation and HTML/CSS interface. |
+| `desktop/` | Desktop launcher and companion lifecycle. |
+| `tests/` | Synthetic fixtures, mock RPC tests and regression coverage. |
+| `docs/` | Architecture, progress and verification notes. |
+
+Run the standard checks with:
 
 ```powershell
 npm run check
 npm test
 npm run build
+npm run format:check
 ```
 
-Tests use original synthetic data and a local mock RPC server. They never load
-saves, use game artwork or issue gameplay commands. Live verification evidence
-and outstanding limits are in [docs/progress.md](docs/progress.md).
-Protocol and coordinate decisions are in [docs/architecture.md](docs/architecture.md).
+Tests use synthetic data and a local mock RPC server. They do not need saves or
+game artwork, and do not issue gameplay commands. Live verification is documented
+separately:
+
+- [Architecture and protocol decisions](docs/architecture.md)
+- [Implementation progress and verification](docs/progress.md)
+- [Live first-person navigation checks](docs/live-navigation-check.md)
+- [Texture fidelity review](docs/texture-fidelity-review.md)
+
+Keep game assets, saves, generated atlases, local configuration and caches out of
+commits and release packages.
 
 ## Troubleshooting
 
-**Disconnected / RPC failure:** ensure DFHack is running and a fortress is loaded.
-The bridge retries automatically. Check the displayed error and configured port.
-It does not alter DFHack remote-access settings. `GetMapInfo` failure commonly
-means no playable local map is loaded.
+| Problem | What to check |
+| --- | --- |
+| **Disconnected / RPC failure** | Confirm DFHack is running, a fortress is loaded and the port is correct. The companion retries automatically. In the desktop app, check **Help → Open log folder**. |
+| **Unsupported version** | Only the documented version combination is accepted. Supporting another version requires checking its protocol and semantics. |
+| **Empty or opaque terrain** | The selected levels may be sky or undiscovered rock. Try another cutaway level and allow nearby blocks to load. |
+| **Changes appear slowly** | Terrain is revisited block by block. A 192 × 192 footprint across five levels requires 720 block reads: the default delays alone total about 144 seconds, before RPC and processing time. DF screen mode reduces the requested area. |
+| **First-person movement is blocked** | Wait for ground and overhead data. Choose a green starting point; hidden, disconnected and unloaded destinations are blocked. |
+| **Mouse capture fails** | Click the viewport, then keep the pointer over it for fallback mouse look. Escape pauses; clicking resumes. |
+| **Artwork is missing or differs from DF** | Check the selected installation or `DF_PATH`. Unsupported graphics use fallbacks; active mod overrides are not resolved yet. |
+| **WebGL is unavailable** | Check browser/app hardware acceleration and graphics-driver support. Renderer failures appear in the status area. |
+| **Port is occupied** | Stop the other companion process. Browser development and production companions cannot share a port. The desktop app chooses its own available port. |
 
-**Unsupported version:** the exact protocol and plugin semantics need inspection
-before supporting another version. Do not bypass the version gate blindly.
+## Privacy and licence
 
-**Empty region:** the sampled Z-levels may be open sky or undiscovered. Try the
-cutaway to select a useful level. A black opaque region represents
-undiscovered tiles, whose real shapes and materials never reach the browser.
+The viewer and companion run locally. No account, telemetry, asset upload or
+cloud service is required to use them. The companion binds to loopback and
+exposes a restricted viewer protocol, rather than a general DFHack command proxy.
 
-**Changes appear slowly:** the bridge polls individual blocks conservatively;
-a 192 × 192 × 3 sweep takes roughly two minutes at default settings. The
-selected layer arrives first; subsequent layers follow. Render frames run independently.
-No changes may be happening if the game is paused.
-
-**WebGL unavailable:** enable a working hardware-accelerated browser. The viewer
-reports renderer creation failures in its status area.
-
-**Port occupied:** stop the other bridge/dev process. Do not run development and
-production bridges on the same port. If changing `VIEWER_PORT` for development,
-also update Vite's bridge proxy target.
-
-Live creatures use camera-facing billboards and local simple sprites. Dwarves use a partial layered compositor driven by live caste, skin palette,
-and worn/held inventory. Supported clothes, armour and equipment are composited
-at runtime. Hair and beards follow live length, colour and grooming style, with curl variants
-and headwear suppression. Faces use four stable per-dwarf vanilla variants and live iris colours.
-The face selection is an artistic substitute: RFR omits the game's random face index.
-Exact facial proportions, special conditions and
-profession palettes remain incomplete; root-by-root greying is approximated; item/dye colours are approximate.
-Unsupported creatures use markers. Directional animation frames are not implemented.
-The vanilla fallback profile does not claim to reproduce active mod overrides.
-Workshops and furnaces use local tiled artwork placed on the ground, as do beds and
-supported furniture. Doors are upright sprites with live open/closed artwork.
-Shrubs and saplings use species sprites that face the camera. Building/plant
-updates arrive with the terrain sweep; the plant position cache refreshes every
-five seconds. Unknown workshop art uses a neutral footprint. Construction stages,
-exact furniture variants/material palettes and plant seasonal growth are approximate.
-Revealed tree trunks, branches and mushroom caps now use species billboard tiles when available; unmatched tree tiles retain voxel geometry. Ramps, stairs, trees and
-fortifications are approximate; liquids are omitted. No external accounts,
-telemetry, uploads or cloud services are required.
-
-Wall and floor textures use installed vanilla terrain PNGs on all exposed faces,
-with rough/smoothed stone, soil, grass, ice and constructed wood families.
-The shared browser atlas retains one terrain material and per-block meshes.
-Terrain tints now use actual per-tile DFHack material RGB, including construction
-materials, with sRGB-to-linear conversion. Native species grass artwork includes
-floor fungus, cave moss and underlichen. Tile inspection shows material names.
-Lighting, engraved designs and adjacency variants remain approximate; hidden
-terrain and unavailable material data retain safe fallback colours.
-
-Wall caps combine neighbour-aware native wall edges/corners with dark hidden-rock
-interiors. All eight neighbours determine the directional tiles; enclosed fill
-variants remain independent of ore.
-Enclosed natural walls are sent as generic solid rock, including their inspection
-labels; material colours remain on exposed faces. Missing neighbour blocks are
-treated conservatively until a later sweep confirms exposure.
-
-The screenshot-led texture review reached an independent critic score of 4.53/5.
-Terrain preserves the authored premium-art palette instead of multiplying physical
-material RGB into already-coloured floors. Native ore/crystal borders, stair
-sprites and grass tile variants improve agreement with DF. Material names remain
-available in inspection. Bed sheet/pillow layers use stable approximate styles
-because RFR omits the game's graphic seed. See docs/texture-fidelity-review.md.
-
-Loose ground items now use installed item artwork, including material-specific
-boulders, rough gems, logs, bars, containers and supported equipment. Only revealed
-on-ground items are streamed; carried items, container contents, installed building
-components, hidden/encased/deleted items and projectiles are excluded. One stable
-item sprite is shown per occupied tile, with authoritative replacement on each
-terrain update. Unsupported item artwork is omitted. Native inorganic material
-palettes recolour boulders and installed tables/thrones without losing shading.
+Deepwatch's code is available under the [MIT licence](LICENSE). Dwarf Fortress,
+its artwork and third-party assets remain subject to their respective owners'
+rights and licences. This project's licence does not grant rights to game assets.
