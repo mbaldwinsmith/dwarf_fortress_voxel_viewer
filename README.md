@@ -44,7 +44,8 @@ individual block requests. The development viewer uses port 5173.
 
 `npm run inspect` lists available installation module metadata when `DF_PATH` is
 set. It does **not** establish the loaded world's active mod order. This milestone
-uses original geometry and fallback colours; no DF artwork is bundled or served.
+uses original terrain geometry and an explicit vanilla simple-creature sprite profile.
+Artwork is read locally at runtime when DF_PATH is set; nothing is bundled.
 
 ## Render view
 
@@ -107,6 +108,10 @@ reports renderer creation failures in its status area.
 production bridges on the same port. If changing `VIEWER_PORT` for development,
 also update Vite's bridge proxy target.
 
-No units, buildings or local sprite rendering yet. Ramps, stairs, trees and
+Live creatures use camera-facing billboards and local simple sprites. Layered
+creatures (including dwarves), conditional palettes and unsupported graphics use
+markers. Clothing/equipment and directional animation frames are not implemented.
+The vanilla fallback profile does not claim to reproduce active mod overrides.
+No buildings yet. Ramps, stairs, trees and
 fortifications are approximate; liquids are omitted. No external accounts,
 telemetry, uploads or cloud services are required.

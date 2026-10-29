@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { Graphics } from "./graphics.js";
+import { CreatureReader } from "./creatures.js";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -14,7 +16,7 @@ const installation = process.env.DF_PATH
   : undefined;
 if (installation)
   console.log(
-    `Read-only installation inspection: ${installation.modules.length} available modules; active world order unresolved (sprites disabled)`,
+    `Read-only installation inspection: ${installation.modules.length} available modules; active world order unresolved (explicit vanilla fallback profile)`,
   );
 const port = Number(process.env.VIEWER_PORT ?? 4174),
   dfPort = Number(process.env.DFHACK_PORT ?? installation?.remotePort ?? 5000),
@@ -22,6 +24,18 @@ const port = Number(process.env.VIEWER_PORT ?? 4174),
 for (const n of [port, dfPort, pollMs])
   if (!Number.isSafeInteger(n) || n < 1 || n > 65535)
     throw Error("Invalid port or polling configuration");
+const graphics = new Graphics();
+if (installation) {
+  try {
+    await graphics.load(installation.root);
+  } catch (e) {
+    console.warn(
+      "Local graphics unavailable; using markers:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
+  console.log(`Vanilla simple sprite profile: ${graphics.refs.size} mappings`);
+}
 const root = path.resolve("dist/viewer");
 const server = http.createServer(async (req, res) => {
   try {
@@ -34,8 +48,26 @@ const server = http.createServer(async (req, res) => {
           clients: wss.clients.size,
           session,
           chunks: chunks.size,
+          creatures: lastCreatures?.creatures.length ?? 0,
+          spriteCreatures:
+            lastCreatures?.creatures.filter((u) => u.sprite).length ?? 0,
         }),
       );
+      return;
+    }
+    if (url.pathname.startsWith("/local-art/")) {
+      const id = url.pathname.slice("/local-art/".length);
+      const file = /^[a-f0-9]{24}$/.test(id)
+        ? graphics.files.get(id)
+        : undefined;
+      if (!file) {
+        res.writeHead(404).end();
+        return;
+      }
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.end(await readFile(file));
       return;
     }
     // Built UI only. No filesystem paths or DF assets accepted from clients.
@@ -112,6 +144,7 @@ wss.on("connection", (ws) => {
   if (reset) {
     send(ws, reset);
     void replay(ws, session);
+    if (lastCreatures) send(ws, lastCreatures);
   }
   ws.on("message", (data) => {
     const mode = parseMode(data.toString());
@@ -128,7 +161,10 @@ wss.on("connection", (ws) => {
   });
   ws.on("error", (e) => console.warn(e.message));
 });
+let lastCreatures: Extract<ServerMessage, { type: "creatures" }> | undefined;
 function publish(m: ServerMessage) {
+  if (m.type === "reset") lastCreatures = undefined;
+  if (m.type === "creatures") lastCreatures = m;
   broadcast(m);
 }
 let requestedMode: "screen" | "map" = "map";
@@ -177,6 +213,9 @@ async function run() {
       setStatus("Loading actual fortress terrain…");
 
       requestedLevel = adapter.initialLevel;
+      const creatures = new CreatureReader(adapter, graphics);
+      let creatureTick = 0,
+        lastCreaturePoll = 0;
       let sweep = 0;
       while (!stopping && wss.clients.size) {
         const mode = requestedMode;
@@ -241,6 +280,18 @@ async function run() {
               pollMs: Math.round(performance.now() - t),
             });
             changed++;
+          }
+          if (performance.now() - lastCreaturePoll >= 1000) {
+            const snapshot = await creatures.snapshot(b, level, chunks);
+            await adapter.checkWorld();
+            if (requestedMode === mode && requestedLevel === level)
+              publish({
+                type: "creatures",
+                session,
+                tick: ++creatureTick,
+                creatures: snapshot,
+              });
+            lastCreaturePoll = performance.now();
           }
           completed++;
           if (completed % 12 === 0)

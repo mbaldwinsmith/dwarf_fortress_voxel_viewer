@@ -35,6 +35,42 @@ export function parseServerMessage(value: unknown): ServerMessage {
       return value as ServerMessage;
   }
   if (
+    value.type === "creatures" &&
+    int(value.tick) &&
+    value.tick > 0 &&
+    Array.isArray(value.creatures) &&
+    value.creatures.length <= 2000
+  ) {
+    for (const c of value.creatures) {
+      if (
+        !object(c) ||
+        !int(c.id) ||
+        !int(c.x) ||
+        !int(c.y) ||
+        !int(c.z) ||
+        !text(c.name)
+      )
+        throw Error("Invalid creature");
+      if (c.sprite !== undefined) {
+        const r = c.sprite;
+        if (
+          !object(r) ||
+          typeof r.asset !== "string" ||
+          !/^[a-f0-9]{24}$/.test(r.asset) ||
+          !["x", "y", "width", "height", "pageWidth", "pageHeight"].every(
+            (k) => int(r[k]) && Number(r[k]) >= 0,
+          ) ||
+          Number(r.width) < 1 ||
+          Number(r.height) < 1 ||
+          Number(r.x) + Number(r.width) > Number(r.pageWidth) ||
+          Number(r.y) + Number(r.height) > Number(r.pageHeight)
+        )
+          throw Error("Invalid sprite reference");
+      }
+    }
+    return value as ServerMessage;
+  }
+  if (
     value.type === "chunks" &&
     int(value.sequence) &&
     value.sequence > 0 &&

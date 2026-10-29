@@ -6,8 +6,10 @@ import {
   type Chunk,
   WorldState,
 } from "../shared/model.js";
+import { CreatureSprites } from "./creatures.js";
 import { buildMesh } from "./mesh.js";
 export class FortressScene {
+  creatures = new CreatureSprites();
   renderer = new THREE.WebGLRenderer({ antialias: true });
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 4000);
@@ -31,6 +33,7 @@ export class FortressScene {
       "aria-label",
       "3D fortress terrain. Drag to orbit; right drag to pan; scroll to zoom.",
     );
+    this.scene.add(this.creatures.group);
     this.scene.background = new THREE.Color("#101a23");
     this.scene.add(new THREE.HemisphereLight(0xcde2ef, 0x504333, 2));
     const sun = new THREE.DirectionalLight(0xffe4b5, 2.3);
@@ -72,6 +75,7 @@ export class FortressScene {
     }
   };
   reset(bounds: Bounds, level = bounds.z + bounds.height - 1) {
+    this.creatures.clear();
     const preserve =
       this.bounds?.width === bounds.width &&
       this.bounds?.depth === bounds.depth &&
@@ -150,15 +154,17 @@ export class FortressScene {
       this.meshes.set(k, m);
       this.scene.add(m);
     }
+    this.creatures.update(this.state.chunks, this.cut);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
-    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
+    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
   };
   dispose() {
     cancelAnimationFrame(this.frameId);
     this.observer.disconnect();
     this.renderer.domElement.removeEventListener("click", this.pick);
     this.controls.dispose();
+    this.creatures.dispose();
     for (const m of this.meshes.values()) m.geometry.dispose();
     this.material.dispose();
     this.renderer.dispose();

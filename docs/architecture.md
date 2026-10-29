@@ -8,7 +8,7 @@ mesh builder, connection and HTML controls. No framework or external services.
 ## Data flow
 
 The bridge opens one loopback TCP connection only while viewers are connected.
-It sends the 12-byte DFHack v1 handshake, binds a fixed allowlist of five reader
+It sends the 12-byte DFHack v1 handshake, binds a fixed allowlist of seven reader
 methods using their exact protobuf type names, then issues sequential calls.
 The native 8-byte message header has a signed 16-bit ID, two padding bytes and
 a signed 32-bit size, little endian. FAIL carries its error code in the size
@@ -78,7 +78,7 @@ preserve the camera. Frame/reset deliberately repositions it.
 
 HTTP binds only to 127.0.0.1; WebSocket upgrades require a local viewer origin and
 the exact `/live` route. Incoming WebSocket messages accept only bounded cutaway selection; there is no
-DFHack proxy. HTTP serves only index.html and flat generated asset identifiers
+DFHack proxy. HTTP serves index.html, registered local atlas IDs, and flat generated asset identifiers
 under the built viewer directory; no arbitrary filesystem route exists.
 
 `DF_PATH` is optional machine-local configuration. The installation inspector
@@ -91,7 +91,8 @@ profile's `AppData/Roaming/Bay 12 Games/Dwarf Fortress/save`. Save files are not
 parsed, modified, copied or committed. Current RFR reader messages do not expose
 active mod order. A future graphics resolver needs an authoritative world mod
 manifest before resolving ordered overrides; scanning directories is insufficient.
-Consequently this milestone uses original geometry/colours and serves no DF artwork.
+Creature rendering now uses an explicitly labelled vanilla fallback profile; it
+does not infer active mod precedence. Unsupported layered graphics remain markers.
 
 ## Source provenance
 
@@ -113,3 +114,30 @@ reads. Map mode keeps manual Z selection. Mode/region/Z changes reset the sessio
 and dispose the previous terrain. Radio controls are synchronised by reset
 messages across clients. Camera framing follows screen panning without changing
 the viewing angle. Neither operation changes the game.
+
+## Creature billboards
+
+GetUnitListInside is polled between terrain calls, at most once per second;
+requests remain sequential. The installed implementation emits partial records
+for out-of-region units, so positions and flags are validated independently.
+Inactive, off-map, incoming, ambushing and caged units are filtered, as are units
+on unstreamed or undiscovered tiles. GetPartialCreatureRaws resolves at most eight
+new race indices per poll, with one raw record per call. Unit snapshots are capped
+at 2,000, session-scoped, monotonically ticked and replace the previous unit list.
+They never rebuild terrain.
+
+The explicit vanilla profile parses TILE_PAGE and simple DEFAULT:...:AS_IS
+creature/caste definitions from the configured installation. Layer sets, palettes,
+clothing and equipment are not composited. Conflicting page/creature definitions
+fall back to markers. This installation yielded 202 simple mappings in four sheets.
+Resolved images must remain within the graphics root after realpath validation.
+The local-art route accepts only hashed identifiers registered by the parser; no
+client paths are accepted. No images are copied into the repo or build output.
+
+Three.js Sprites provide camera-facing quads with nearest filtering, atlas UVs,
+alpha-tested transparency and terrain depth testing. Loading failures use original
+diamond markers. Material/texture caches are bounded (256 sprite variants) and
+disposed on viewer teardown. Scene/session resets remove old creature objects.
+
+Unit flag positions were checked against the matching df-structures revision
+[d8ff8a63](https://github.com/DFHack/df-structures/blob/d8ff8a6326db37c11dc4173fadcf30b56e51b42d/df.unit.xml).

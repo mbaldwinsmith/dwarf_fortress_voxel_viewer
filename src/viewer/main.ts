@@ -74,6 +74,10 @@ const disconnect = connect((m) => {
     selection.textContent = "Click a visible tile to inspect it.";
     return;
   }
+  if (m.type === "creatures") {
+    if (m.session === state.session) scene.creatures.snapshot(m);
+    return;
+  }
   if (!state.merge(m)) {
     setStatus("State sequence mismatch · reconnecting");
     location.reload();

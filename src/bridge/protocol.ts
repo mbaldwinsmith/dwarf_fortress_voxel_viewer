@@ -12,6 +12,13 @@ message TiletypeList {repeated Tiletype tiletype_list=1;}
 message BlockRequest {optional int32 blocks_needed=1;optional int32 min_x=2;optional int32 max_x=3;optional int32 min_y=4;optional int32 max_y=5;optional int32 min_z=6;optional int32 max_z=7;optional bool force_reload=8;}
 message MapBlock {required int32 map_x=1;required int32 map_y=2;required int32 map_z=3;repeated int32 tiles=4;repeated bool hidden=11;}
 message BlockList {repeated MapBlock map_blocks=1;}
+message MatPair {required int32 mat_type=1;required int32 mat_index=2;}
+message UnitDefinition {required int32 id=1;optional int32 pos_x=3;optional int32 pos_y=4;optional int32 pos_z=5;optional MatPair race=6;optional uint32 flags1=8;optional string name=13;}
+message UnitList {repeated UnitDefinition creature_list=1;}
+message ListRequest {optional int32 list_start=1;optional int32 list_end=2;}
+message CasteRaw {optional int32 index=1;optional string caste_id=2;}
+message CreatureRaw {optional int32 index=1;optional string creature_id=2;repeated CasteRaw caste=10;}
+message CreatureRawList {repeated CreatureRaw creature_raws=1;}
 `;
 // protobufjs permits one package per parse, so parse the two scopes separately.
 const [core, rfr] = schema.split("package RemoteFortressReader;");
@@ -19,6 +26,14 @@ export const root = protobuf.parse(core).root;
 protobuf.parse('syntax="proto2";package RemoteFortressReader;' + rfr, root);
 export const type = (name: string) => root.lookupType(name);
 export const methods = {
+  GetUnitListInside: [
+    "RemoteFortressReader.BlockRequest",
+    "RemoteFortressReader.UnitList",
+  ],
+  GetPartialCreatureRaws: [
+    "RemoteFortressReader.ListRequest",
+    "RemoteFortressReader.CreatureRawList",
+  ],
   GetVersionInfo: ["dfproto.EmptyMessage", "RemoteFortressReader.VersionInfo"],
   GetMapInfo: ["dfproto.EmptyMessage", "RemoteFortressReader.MapInfo"],
   GetViewInfo: ["dfproto.EmptyMessage", "RemoteFortressReader.ViewInfo"],

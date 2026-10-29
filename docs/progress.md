@@ -39,8 +39,8 @@ floors, generic ramps/stairs, orbit/pan/zoom, cutaway controls and tile inspecti
 
 ### Limits and next steps
 
-- This is the terrain vertical slice. Live units, buildings, liquids, exact
-  material identities, local sprites and layered graphics remain unimplemented.
+- Live units and simple local sprites were added later (see below). Buildings,
+  liquids, exact material identities and layered graphics remain unimplemented.
 - The initial fixed region was superseded by full-footprint streaming (see below).
 - Ramp direction follows neighbouring walls; trees and fortifications use coarse wall geometry.
   Stair types share a marker geometry. Fluid depths are currently omitted.
@@ -111,3 +111,27 @@ the choice is shared by connected tabs. Both modes retain three levels.
 27 tests pass, covering mode validation and viewport clipping/alignment.
 Manual game panning was not induced; the follow logic is tested with synthetic
 viewport positions. Browser mode switching and production build checked locally.
+
+## Camera-facing creature sprites — 29 October 2026
+
+Added separate live unit snapshots, race/caste resolution, definition-based local
+vanilla simple sprites, bounded asset serving and camera-facing billboard geometry.
+Undiscovered/off-map/ambushing units are filtered before transmission. Dwarves
+and other layered definitions use original markers. Active mod order remains
+unresolved; the UI explicitly labels the vanilla fallback profile. No directional
+frames, animation, clothing/equipment or procedural creature compositing yet.
+
+Verified 32 automated tests, strict type checking and production build. Parsed
+202 local simple mappings / four sheets. A real local atlas was served as PNG
+(106,760 bytes); unknown asset identifiers returned 404. An isolated browser test
+used an explicitly labelled synthetic cat position and actual local artwork to
+verify cropping, transparency and camera-facing behaviour. It was not a live test,
+and its temporary page was removed. An initial texture upload warning was fixed
+by keeping the fallback material until image data is ready.
+
+After the user loaded DF, real unit RPC returned 157 active records. The live
+viewport stream then reported 50 eligible creatures, 36 with resolved sprites;
+the browser displayed them within actual fortress terrain at Z 128. No new
+texture warnings were recorded after the loading fix. This is a short smoke
+test; sustained motion, creature disappearance during play and game-FPS impact
+have not been measured. Next: layered dwarf graphics and authoritative mod order.

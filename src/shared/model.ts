@@ -1,3 +1,20 @@
+export interface SpriteRef {
+  asset: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pageWidth: number;
+  pageHeight: number;
+}
+export interface Creature {
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+  name: string;
+  sprite?: SpriteRef;
+}
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
   shape: Shape;
@@ -19,6 +36,7 @@ export interface Bounds {
   height: number;
 }
 export type ServerMessage =
+  | { type: "creatures"; session: string; tick: number; creatures: Creature[] }
   | { type: "status"; message: string }
   | {
       type: "reset";
