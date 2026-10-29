@@ -1,4 +1,5 @@
 import { tileAt, type Chunk, type Tile } from "../shared/model.js";
+import { rampSurface } from "./ramps.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
@@ -124,40 +125,32 @@ export function buildMesh(
       for (let s = 0; s < 4; s++)
         box((s + 1) * 0.22, 0, s / 4, 0.65, 0.25, 0.12);
     } else if (t.shape === "ramp") {
-      // Readable generic ramp rises toward north; directional adjacency remains a limitation.
-      quad(
-        [
-          [x, z, y + 1],
-          [x + 1, z, y + 1],
-          [x + 1, z + 1, y],
-          [x, z + 1, y],
-        ],
-        color,
-      );
+      const { corners, center } = rampSurface(chunks, x, y, z);
+      // Clockwise in map XY, counterclockwise when viewed from above in Three.js.
+      const offsets = [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [1, 0],
+      ];
+      const top = offsets.map(([dx, dy], i) => [
+        x + dx,
+        z + corners[i],
+        y + dy,
+      ]);
+      const middle = [x + 0.5, z + center, y + 0.5];
+      for (let edge = 0; edge < 4; edge++) {
+        const a = top[edge],
+          b = top[(edge + 1) % 4];
+        quad([a, b, middle, middle], color);
+        quad([[a[0], z, a[2]], [b[0], z, b[2]], b, a], color);
+      }
       quad(
         [
           [x, z, y],
-          [x, z + 1, y],
-          [x + 1, z + 1, y],
           [x + 1, z, y],
-        ],
-        color,
-      );
-      quad(
-        [
+          [x + 1, z, y + 1],
           [x, z, y + 1],
-          [x, z + 1, y],
-          [x, z, y],
-          [x, z, y],
-        ],
-        color,
-      );
-      quad(
-        [
-          [x + 1, z, y],
-          [x + 1, z + 1, y],
-          [x + 1, z, y + 1],
-          [x + 1, z, y + 1],
         ],
         color,
       );

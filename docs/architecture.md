@@ -54,9 +54,11 @@ Three.js uses `(dfX, dfZ, dfY)` with positive Y up; the north arrow is a fixed
 world-axis guide, not a camera-relative compass.
 
 One mesh per native block contains exposed surfaces. Adjacent full walls suppress
-faces across block boundaries. Updates dirty the block and six neighbours.
-Floors are 0.12 tile thick. Stairs use original steps; ramps use a generic slope
-whose orientation is provisional. Cutaways omit blocks above the selected Z,
+faces across block boundaries. Updates dirty the block and eight horizontal neighbours and two vertical neighbours.
+Floors are 0.12 tile thick. Stairs use original steps; ramps derive corner heights from adjacent cardinal and diagonal walls, rising
+toward each supporting edge/corner. Multiple exits use a triangulated basin;
+unsupported ramps remain flat at floor height. This is visual geometry, not a
+claim that the ramp is pathable (upper-level clearance is not tested). Cutaways omit blocks above the selected Z,
 exposing opaque top caps on remaining walls. Hidden tiles are opaque neutral
 cubes; their actual shape, material and name are removed in the bridge.
 

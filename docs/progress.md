@@ -43,7 +43,7 @@ floors, generic ramps/stairs, orbit/pan/zoom, cutaway controls and tile inspecti
   material identities, local sprites and layered graphics remain unimplemented.
 - Terrain covers a fixed viewport-centred 48 × 48 × 5 region. Reconnect with all
   viewer tabs closed to sample another region. No whole-fortress browsing yet.
-- Ramp direction is generic; trees and fortifications use coarse wall geometry.
+- Ramp direction follows neighbouring walls; trees and fortifications use coarse wall geometry.
   Stair types share a marker geometry. Fluid depths are currently omitted.
 - Active world mod order is unresolved. Available module metadata can be inspected,
   but no sprite override order is guessed and no proprietary assets are exported.
@@ -57,3 +57,15 @@ floors, generic ramps/stairs, orbit/pan/zoom, cutaway controls and tile inspecti
 
 The milestone commit is the commit introducing this file and `src/`; see
 `git log -1 --oneline`. Nothing is pushed automatically.
+
+## Ramp orientation correction — 29 October 2026
+
+Replaced the fixed north-facing wedge with neighbour-derived corner heights.
+Cardinal walls raise their shared edge; diagonal walls raise the touching corner.
+Multiple exits retain slopes and unsupported ramps remain at floor height.
+Diagonal chunk updates now invalidate affected corner ramps. Geometry remains a
+visual approximation and does not evaluate upper-level pathability.
+
+Verified 21 tests, including four compass directions, diagonal chunk boundaries,
+support removal and multiple exits; strict type checking and production build
+passed. Live browser smoke verified separately.

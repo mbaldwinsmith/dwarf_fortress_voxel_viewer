@@ -82,7 +82,7 @@ describe("world state and coordinates", () => {
     c.tiles[31] = { shape: "floor", material: 2, name: "Stone" };
     expect(tileAt(new Map([[chunkKey(c), c]]), -1, 17, 4)?.name).toBe("Stone");
     expect(affected(c)).toContain("0,16,4");
-    expect(affected(c)).toHaveLength(7);
+    expect(affected(c)).toHaveLength(11);
   });
 });
 describe("terrain meshing", () => {

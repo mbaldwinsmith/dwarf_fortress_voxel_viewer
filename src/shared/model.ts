@@ -61,11 +61,9 @@ export class WorldState {
 }
 export function affected(c: Chunk): string[] {
   return [
-    chunkKey(c),
-    key(c.x - 16, c.y, c.z),
-    key(c.x + 16, c.y, c.z),
-    key(c.x, c.y - 16, c.z),
-    key(c.x, c.y + 16, c.z),
+    ...[-16, 0, 16].flatMap((dx) =>
+      [-16, 0, 16].map((dy) => key(c.x + dx, c.y + dy, c.z)),
+    ),
     key(c.x, c.y, c.z - 1),
     key(c.x, c.y, c.z + 1),
   ];
