@@ -33,6 +33,17 @@ export interface Chunk {
   y: number;
   z: number;
   tiles: Tile[];
+  objects?: SceneryObject[];
+}
+export interface SceneryObject {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  name: string;
+  kind: "ground" | "door" | "plant";
+  sprite?: SpriteRef;
+  overlay?: SpriteRef;
 }
 export interface Bounds {
   x: number;

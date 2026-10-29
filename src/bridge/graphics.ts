@@ -45,6 +45,10 @@ export function parseGraphics(text: string) {
         page.width = Number(a[0]);
         page.height = Number(a[1]);
       }
+      if (tag === "PAGE_DIM") {
+        page.width = Number(a[0]) * page.tileWidth;
+        page.height = Number(a[1]) * page.tileHeight;
+      }
     } else if (
       creature &&
       !layered &&

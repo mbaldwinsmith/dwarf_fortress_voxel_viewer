@@ -203,3 +203,28 @@ confirmed distinct faces, copper/gold/amethyst iris colours and hair/beard layer
 55 tests cover metadata selection, missing/invalid colours, stable variants,
 face-only tinting, wire validation and pixel preservation, alongside prior terrain
 and sprite checks. Production build passes with the existing Three.js size warning.
+
+## Buildings, furniture and plants � 29 October 2026
+
+Added read-only building footprints/types and live plant species/positions.
+Workshops, furnaces and supported furniture use ground quads; native workshop
+machinery overlays are included. Doors stand vertically and switch between
+exported open/closed artwork. Species shrubs and saplings billboard toward the
+camera, while mature trees retain terrain meshes. Visibility filtering occurs
+before transmission, each block owns its object tiles, and empty replacements
+remove old objects. Plant reads are cached for five seconds.
+
+Live verification: loaded 6,739 vanilla scenery mappings from 69 local sheets.
+Two actual Z128 blocks at X32�63/Y128�143 contained 86 object tiles, all with art,
+including kitchens, stills, mason/fishery/craft workshops, beds, tables, chairs
+and doors. Surface samples rendered dimple cups, quarry bushes and fungiwood
+saplings; a lower sample contained a plump helmet. Browser preview showed native
+placements with workshop overlays, vertical doors and vegetation; no console
+errors. The preview is an actual read-only snapshot, not invented placements.
+
+63 offline tests cover hidden masking, footprint clipping, partial records,
+workshop overlay coordinates, door states, plant species/dead/sapling selection,
+geometry orientation, wire limits, deletion, plant cache expiry, camera following
+and resource disposal. Strict TypeScript and production builds pass. No gameplay,
+save, installation or DFHack configuration changes. Limits include approximate
+material/default variants, construction stages, ambiguous door axes and seasons.

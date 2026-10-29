@@ -7,9 +7,11 @@ import {
   WorldState,
 } from "../shared/model.js";
 import { CreatureSprites } from "./creatures.js";
+import { ScenerySprites } from "./scenery.js";
 import { buildMesh } from "./mesh.js";
 export class FortressScene {
   creatures = new CreatureSprites();
+  scenery = new ScenerySprites();
   renderer = new THREE.WebGLRenderer({ antialias: true });
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 4000);
@@ -34,6 +36,7 @@ export class FortressScene {
       "3D fortress terrain. Drag to orbit; right drag to pan; scroll to zoom.",
     );
     this.scene.add(this.creatures.group);
+    this.scene.add(this.scenery.group);
     this.scene.background = new THREE.Color("#101a23");
     this.scene.add(new THREE.HemisphereLight(0xcde2ef, 0x504333, 2));
     const sun = new THREE.DirectionalLight(0xffe4b5, 2.3);
@@ -76,6 +79,7 @@ export class FortressScene {
   };
   reset(bounds: Bounds, level = bounds.z + bounds.height - 1) {
     this.creatures.clear();
+    this.scenery.clear();
     const preserve =
       this.bounds?.width === bounds.width &&
       this.bounds?.depth === bounds.depth &&
@@ -141,6 +145,7 @@ export class FortressScene {
       }
       const c = this.state.chunks.get(k);
       if (!c) continue;
+      this.scenery.update([c], this.state.chunks);
       const data = buildMesh(c, this.state.chunks, this.cut);
       if (!data.positions.length) continue;
       const g = new THREE.BufferGeometry();
@@ -156,8 +161,9 @@ export class FortressScene {
     }
     this.creatures.update(this.state.chunks, this.cut);
     this.controls.update();
+    this.scenery.frame(this.camera, this.cut);
     this.renderer.render(this.scene, this.camera);
-    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
+    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
   };
   dispose() {
     cancelAnimationFrame(this.frameId);
@@ -165,6 +171,7 @@ export class FortressScene {
     this.renderer.domElement.removeEventListener("click", this.pick);
     this.controls.dispose();
     this.creatures.dispose();
+    this.scenery.dispose();
     for (const m of this.meshes.values()) m.geometry.dispose();
     this.material.dispose();
     this.renderer.dispose();

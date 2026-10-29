@@ -122,6 +122,38 @@ export function parseServerMessage(value: unknown): ServerMessage {
           !text(t.name)
         )
           throw Error("Invalid tile");
+      if (c.objects !== undefined) {
+        if (!Array.isArray(c.objects) || c.objects.length > 768)
+          throw Error("Invalid scenery count");
+        const ids = new Set<string>();
+        for (const o of c.objects) {
+          if (
+            !object(o) ||
+            !text(o.id) ||
+            ids.has(o.id) ||
+            !text(o.name) ||
+            !int(o.x) ||
+            !int(o.y) ||
+            !int(o.z) ||
+            o.z !== c.z ||
+            o.x < Number(c.x) ||
+            o.x >= Number(c.x) + 16 ||
+            o.y < Number(c.y) ||
+            o.y >= Number(c.y) + 16 ||
+            !["ground", "door", "plant"].includes(String(o.kind))
+          )
+            throw Error("Invalid scenery object");
+          ids.add(o.id);
+          const tile = c.tiles[(o.y - Number(c.y)) * 16 + o.x - Number(c.x)];
+          if (!object(tile) || tile.shape === "unknown")
+            throw Error("Hidden scenery object");
+          if (o.sprite !== undefined) validateSprite(o.sprite);
+          if (o.overlay !== undefined) {
+            if (o.kind !== "ground") throw Error("Invalid scenery overlay");
+            validateSprite(o.overlay);
+          }
+        }
+      }
     }
     return value as ServerMessage;
   }

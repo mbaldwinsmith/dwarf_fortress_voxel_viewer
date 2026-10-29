@@ -1,5 +1,6 @@
 import type { Bounds, Chunk, Shape, Tile } from "../shared/model.js";
 import { Rpc } from "./rpc.js";
+import type { SceneryReader } from "./scenery.js";
 function integer(v: unknown, name: string): number {
   if (typeof v !== "number" || !Number.isSafeInteger(v))
     throw Error(`Invalid ${name}`);
@@ -55,6 +56,7 @@ export function convertBlock(
   };
 }
 export class FortressAdapter {
+  scenery?: SceneryReader;
   rpc: Rpc;
   defs = new Map<number, TileDefinition>();
   identity = "";
@@ -130,7 +132,9 @@ export class FortressAdapter {
       throw Error("Invalid blocks response");
     const list = (blocks ?? []) as Record<string, unknown>[];
     if (list.length > 1) throw Error("Unbounded response");
-    return convertBlock(list[0], x, y, z, this.defs);
+    const chunk = convertBlock(list[0], x, y, z, this.defs);
+    await this.scenery?.decorate(chunk, list[0]);
+    return chunk;
   }
   close() {
     this.rpc.close();

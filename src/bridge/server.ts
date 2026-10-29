@@ -1,5 +1,7 @@
 import "dotenv/config";
 import { Graphics } from "./graphics.js";
+import { SceneryGraphics } from "./scenery-graphics.js";
+import { SceneryReader } from "./scenery.js";
 import { CreatureReader } from "./creatures.js";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
@@ -25,9 +27,11 @@ for (const n of [port, dfPort, pollMs])
   if (!Number.isSafeInteger(n) || n < 1 || n > 65535)
     throw Error("Invalid port or polling configuration");
 const graphics = new Graphics();
+const sceneryGraphics = new SceneryGraphics(graphics.files);
 if (installation) {
   try {
     await graphics.load(installation.root);
+    await sceneryGraphics.load(installation.root);
   } catch (e) {
     console.warn(
       "Local graphics unavailable; using markers:",
@@ -48,6 +52,10 @@ const server = http.createServer(async (req, res) => {
           clients: wss.clients.size,
           session,
           chunks: chunks.size,
+          sceneryObjects: [...chunks.values()].reduce(
+            (n, c) => n + (c.objects?.length ?? 0),
+            0,
+          ),
           creatures: lastCreatures?.creatures.length ?? 0,
           spriteCreatures:
             lastCreatures?.creatures.filter((u) => u.sprite || u.layers?.length)
@@ -198,6 +206,12 @@ async function run() {
       adapter = new FortressAdapter(dfPort);
       setStatus("Connecting to DFHack…");
       const version = await adapter.initialize();
+      adapter.scenery = new SceneryReader(
+        adapter.rpc,
+        sceneryGraphics,
+        adapter.bounds,
+      );
+      await adapter.scenery.initialize();
       console.log("Read-only handshake verified", version);
       session = randomUUID();
       sequence = 0;

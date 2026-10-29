@@ -117,6 +117,12 @@ Exact facial proportions, special conditions and
 profession palettes remain incomplete; root-by-root greying is approximated; item/dye colours are approximate.
 Unsupported creatures use markers. Directional animation frames are not implemented.
 The vanilla fallback profile does not claim to reproduce active mod overrides.
-No buildings yet. Ramps, stairs, trees and
+Workshops and furnaces use local tiled artwork placed on the ground, as do beds and
+supported furniture. Doors are upright sprites with live open/closed artwork.
+Shrubs and saplings use species sprites that face the camera. Building/plant
+updates arrive with the terrain sweep; the plant position cache refreshes every
+five seconds. Unknown workshop art uses a neutral footprint. Construction stages,
+exact furniture variants/material palettes and plant seasonal growth are approximate.
+Mature trees retain voxel terrain geometry. Ramps, stairs, trees and
 fortifications are approximate; liquids are omitted. No external accounts,
 telemetry, uploads or cloud services are required.

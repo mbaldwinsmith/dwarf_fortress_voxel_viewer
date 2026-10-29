@@ -8,7 +8,7 @@ mesh builder, connection and HTML controls. No framework or external services.
 ## Data flow
 
 The bridge opens one loopback TCP connection only while viewers are connected.
-It sends the 12-byte DFHack v1 handshake, binds a fixed allowlist of nine reader
+It sends the 12-byte DFHack v1 handshake, binds a fixed allowlist of twelve reader
 methods using their exact protobuf type names, then issues sequential calls.
 The native 8-byte message header has a signed 16-bit ID, two padding bytes and
 a signed 32-bit size, little endian. FAIL carries its error code in the size
@@ -203,3 +203,50 @@ charcoal outline, white sclera, skin and alpha. At 32-pixel character scale this
 is a pupil/iris approximation. Later hair, beard and headwear layers naturally
 occlude the face. Eye colour participates in the existing composition cache
 key; RGB is validated before browser use. No installed assets are modified.
+
+## Buildings, furniture and vegetation
+
+The restricted protocol now decodes MapBlock.buildings (field 19) plus
+GetBuildingDefList, GetPlantRaws and GetPlantList. Building type/subtype/custom
+triples resolve against definitions from the loaded world. CopyBuildings emits
+index-only records even outside the requested block: records without complete
+footprints are ignored. Actual footprints use inclusive X/Y maxima and the top
+Z; room extents are not furniture extents. Stockpiles, zones, constructions and
+unsupported large building classes are excluded. Workshops, furnaces, trade depots
+and supported furniture generate per-tile objects clipped to the owner block.
+Each tile must already be revealed, loaded and non-empty; no object names or
+references cross the bridge for hidden tiles. Objects are bounded to 768 per chunk.
+
+The explicit vanilla art profile additionally reads building, item and plant
+graphics modules. TILE_GRAPHICS tokens map workshop stage/footprint coordinates;
+PLANT_GRAPHICS maps species and shrub/sapling states. PAGE_DIM is in tiles,
+PAGE_DIM_PIXELS in pixels. Paths use the existing realpath image allowlist and
+opaque asset IDs. Only original installed PNGs are served; assets are not copied
+into the repository or build. Conflicting art mappings fail to neutral footprints.
+
+Ground art uses completed workshop mosaics with the extra above-footprint row
+omitted. Machinery overlays sit 0.003 tiles above base art to prevent z-fighting.
+Furniture uses default local variants, with a coarse inorganic/other stone/wood
+choice; exact material palettes, quality, damage and build stages are not reproduced.
+Unsupported workshops use an original neutral footprint. Doors use RFR active
+(1 closed, 0 open) and stand vertically at tile centres. Nearby walls infer their
+axis; ambiguous corridors use an X-aligned plane. RFR does not export door or bed
+orientation, so no exact facing is claimed. Beds and furniture remain flat.
+
+GetPlantList internally iterates 3x3-block columns and requires whole tree bounds
+in Z. A read-only query aligned outward to these columns covers the bounded local
+map and its full height. Results are cached for five seconds, capped at 32,768
+positions, and filtered against each revealed terrain block. Species resolve from
+live PlantRaw indices. Shrubs/dead shrubs and saplings/dead saplings use matching
+art where available, otherwise vanilla generic vegetation. Mature tree wall tiles
+retain their existing voxel meshes; grass, growth seasons and full tree canopies
+are not rebuilt as billboards.
+
+Chunk.objects is authoritative, including an empty array after removal. Refreshing
+a block replaces all its object geometry, so harvested plants and dismantled
+furniture disappear on the subsequent terrain sweep. Renderer rebuilds share the
+existing three-block/eight-ms frame budget and neighbour invalidation, allowing
+door axes to update when adjacent terrain arrives. Ground and door quads batch
+by atlas per block; plants face the camera each frame. Alpha testing, depth testing
+and the cutaway apply to all objects. Reset removes objects and disposes geometry;
+full disposal also releases atlas textures and materials.
