@@ -164,3 +164,26 @@ palette IDs. Strict type checking, production build and formatting checks pass.
 
 Final live viewport snapshot: 50 creatures, including 12 dwarves using 21 layers
 each. No game inventory was modified for verification.
+
+## Hair and beards — 29 October 2026
+
+Added live hair/beard colour, grooming, length and curl matching against local
+vanilla layer rules. Supported styles include unkempt, neatly combed, braided,
+double-braided and ponytails; shaved and covered hair is suppressed. Unit
+appearance modifiers are mapped through the caste expanded indices. Hair and
+beard data are independent. Age colour transitions are approximated by palette
+group; individual roots/strands, independent moustache/sideburn shapes and exact
+face variants remain unsupported.
+
+Actual samples: unit 1233 had black double braids (length 117); unit 6715 had
+chocolate neatly-combed hair (141) and braided beard (262); unit 6717 had a
+chestnut ponytail (255). These resolved to 22, 23 and 22 layers respectively.
+The browser displayed enlarged actual snapshots with no errors or warnings.
+Long ponytail alignment was checked and corrected against the normal body tile.
+No hairstyles or inventory were changed in DF for testing.
+
+48 tests pass, including all five visible styles, clean shaving, length boundaries,
+headwear suppression, beard/scalp independence, exact curl-index mapping, age
+colour selection, missing data and large curly-image swaps. Strict TypeScript
+checking and production build pass. The temporary diagnostic snapshot page and
+script are removed before commit.

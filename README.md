@@ -110,8 +110,9 @@ also update Vite's bridge proxy target.
 
 Live creatures use camera-facing billboards and local simple sprites. Dwarves use a partial layered compositor driven by live caste, skin palette,
 and worn/held inventory. Supported clothes, armour and equipment are composited
-at runtime. Hair/beards, exact random face variants, special conditions and
-profession palettes remain incomplete; item/dye colours are approximate.
+at runtime. Hair and beards follow live length, colour and grooming style, with curl variants
+and headwear suppression. Exact random face variants, special conditions and
+profession palettes remain incomplete; root-by-root greying is approximated; item/dye colours are approximate.
 Unsupported creatures use markers. Directional animation frames are not implemented.
 The vanilla fallback profile does not claim to reproduce active mod overrides.
 No buildings yet. Ramps, stairs, trees and

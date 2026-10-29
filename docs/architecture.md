@@ -155,7 +155,7 @@ Supported rules include caste, skin palette, worn/held item subtype and attached
 body category/token, item suppression and artifact flags (item_flags bits 18/27
 from matching df-structures). Other material/syndrome/wound/procedural rules fail
 closed. Face variant one is an explicit approximation because RFR does not expose
-the game random-part index. Hair/beard conditions remain unimplemented.
+the game random-part index. Hair/beard rules are described in the next section.
 
 The browser composites selected local PNG rectangles onto an in-memory canvas.
 Large-image rectangles anchor at the bottom-right normal tile; world scale remains
@@ -165,3 +165,22 @@ DF material/profession palette algorithm. Composites are GPU textures with a
 256-appearance limit and are never written to disk or included in build output.
 Inventory changes alter the composition key; snapshots replace the material on
 the existing billboard. Unsupported or failed composites retain markers.
+
+## Hair and beard matching
+
+UnitAppearance now reads separate scalp and beard lengths and style enums, with
+bp_modifiers and appearance colours. Caste tissue layers reference expanded
+modifier slots; modifier_idx maps those slots to modifier definitions. CURLY
+values must use the expanded unit slot, not the modifier-definition index.
+Colour modifier body-part/tissue-layer pairs select the relevant pattern.
+Age-gated modifiers use DF days (336 per year); the latest started modifier
+selects the palette group. This approximates gradual root greying, not individual
+strands. Missing colours/styles are not guessed.
+
+Supported graphics rules: inclusive length limits, unkempt, neatly combed, braids,
+double braids, ponytails, clean shaving, colour groups and IF_MIN_CURLY image
+swaps (including large images). Headwear/cloak suppression uses existing live
+inventory conditions. Scalp hair and chin-whisker/beard styling are independent.
+Separate moustache/sideburn rules and exact random face variants remain outside
+this subset. Normal tile anchoring is preserved for tall hair images, avoiding
+floating ponytails and changing character scale.

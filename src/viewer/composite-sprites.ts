@@ -1,5 +1,10 @@
 import * as THREE from "three";
 import type { SpriteLayer } from "../shared/model.js";
+export function compositionBounds(layers: SpriteLayer[]) {
+  const width = Math.max(32, ...layers.map((l) => l.sprite.width));
+  const height = Math.max(32, ...layers.map((l) => l.sprite.height));
+  return { width, height, minY: 32 - height, footFromBottom: 0 };
+}
 export function recolor(
   pixels: Uint8ClampedArray,
   source: Uint8ClampedArray | undefined,
@@ -91,8 +96,7 @@ export class CompositeSprites {
         ...(l.palette ? [this.image(l.palette.asset)] : []),
       ]),
     );
-    const width = Math.max(...layers.map((l) => l.sprite.width)),
-      height = Math.max(...layers.map((l) => l.sprite.height));
+    const { width, height, minY } = compositionBounds(layers);
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -127,7 +131,7 @@ export class CompositeSprites {
       recolor(data.data, source, target, l.tint);
       t.putImageData(data, 0, 0);
       // Large sprites extend left/up from the normal tile, anchored bottom-right.
-      ctx.drawImage(tile, width - r.width, height - r.height);
+      ctx.drawImage(tile, width - r.width, 32 - r.height - minY);
     }
     return canvas;
   }

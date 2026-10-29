@@ -1,4 +1,4 @@
-import { CompositeSprites } from "./composite-sprites.js";
+import { CompositeSprites, compositionBounds } from "./composite-sprites.js";
 import * as THREE from "three";
 import {
   tileAt,
@@ -126,16 +126,16 @@ export class CreatureSprites {
         width = unit.sprite
           ? (height * unit.sprite.width) / unit.sprite.height
           : 0.45;
-      const w = unit.layers?.length
-          ? Math.max(...unit.layers.map((l) => l.sprite.width))
-          : 0,
-        h = unit.layers?.length
-          ? Math.max(...unit.layers.map((l) => l.sprite.height))
-          : 0;
-      s.object.center.set(w ? (w - 16) / w : 0.5, 0);
+      const bounds = unit.layers?.length
+        ? compositionBounds(unit.layers)
+        : undefined;
+      s.object.center.set(
+        bounds ? (bounds.width - 16) / bounds.width : 0.5,
+        bounds ? bounds.footFromBottom / bounds.height : 0,
+      );
       s.object.scale.set(
-        w ? (1.2 * w) / 32 : width,
-        h ? (1.2 * h) / 32 : height,
+        bounds ? (1.2 * bounds.width) / 32 : width,
+        bounds ? (1.2 * bounds.height) / 32 : height,
         1,
       );
       s.object.position.set(unit.x + 0.5, unit.z + 0.13, unit.y + 0.5);

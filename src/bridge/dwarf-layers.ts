@@ -81,7 +81,15 @@ export interface WornItem {
   color?: [number, number, number];
   artifact?: boolean;
 }
+export interface HairAppearance {
+  length: number;
+  style: number;
+  color: string;
+  curly?: number;
+}
 export interface DwarfAppearance {
+  hair?: HairAppearance;
+  beard?: HairAppearance;
   caste: string;
   age: number;
   skin: string;
@@ -128,13 +136,72 @@ export function chooseDwarfLayers(
         );
         if (!matched) continue;
       }
+      const tissueRule = layer.conditions.find(
+        (c) => c[0] === "CONDITION_TISSUE_LAYER",
+      );
+      const tissue =
+        tissueRule?.[3] === "HAIR"
+          ? appearance.hair
+          : tissueRule?.[3] === "CHIN_WHISKERS"
+            ? appearance.beard
+            : undefined;
+      let image = {
+        page: layer.page,
+        x: layer.x,
+        y: layer.y,
+        width: layer.width,
+        height: layer.height,
+      };
       for (const [tag, ...a] of layer.conditions) {
         if (tag === "CONDITION_ITEM_WORN") continue;
         if (tag === "CONDITION_CASTE") ok &&= a.includes(appearance.caste);
         else if (tag === "CONDITION_TISSUE_LAYER")
-          ok &&= a[0] === "BY_CATEGORY" && a[1] === "ALL" && a[2] === "SKIN";
+          ok &&=
+            a[0] === "BY_CATEGORY" &&
+            ((a[1] === "ALL" && a[2] === "SKIN") ||
+              (a[1] === "HEAD" &&
+                !!tissue &&
+                tissue.length > 0 &&
+                tissue.style !== 4));
         else if (tag === "TISSUE_MAY_HAVE_COLOR")
-          ok &&= a.includes(appearance.skin);
+          ok &&= a.includes(tissue?.color ?? appearance.skin);
+        else if (tag === "TISSUE_MIN_LENGTH")
+          ok &&= !!tissue && tissue.length >= Number(a[0]);
+        else if (tag === "TISSUE_MAX_LENGTH")
+          ok &&= !!tissue && tissue.length <= Number(a[0]);
+        else if (tag === "TISSUE_NOT_SHAPED") ok &&= tissue?.style === -1;
+        else if (tag === "TISSUE_MAY_HAVE_SHAPING")
+          ok &&=
+            !!tissue &&
+            a.includes(
+              (
+                {
+                  "0": "NEATLY_COMBED",
+                  "1": "BRAIDED",
+                  "2": "DOUBLE_BRAIDS",
+                  "3": "PONY_TAILS",
+                } as Record<string, string>
+              )[String(tissue.style)],
+            );
+        else if (tag === "TISSUE_SWAP") {
+          if (a[0] !== "IF_MIN_CURLY") ok = false;
+          else if (
+            tissue?.curly !== undefined &&
+            tissue.curly >= Number(a[1])
+          ) {
+            const large = a[3] === "LARGE_IMAGE",
+              n = large ? 4 : 3,
+              x = Number(a[n]),
+              y = Number(a[n + 1]);
+            image = {
+              page: a[2],
+              x,
+              y,
+              width: large ? Number(a[n + 2]) - x + 1 : 1,
+              height: large ? Number(a[n + 3]) - y + 1 : 1,
+            };
+          }
+        }
         // RFR does not expose the game's random face index: use variant one.
         else if (tag === "CONDITION_RANDOM_PART_INDEX")
           ok &&= a[0] === "HEAD" && a[1] === "1";
@@ -153,11 +220,11 @@ export function chooseDwarfLayers(
       }
       if (!ok) continue;
       const sprite = resolve(
-        layer.page,
-        layer.x,
-        layer.y,
-        layer.width,
-        layer.height,
+        image.page,
+        image.x,
+        image.y,
+        image.width,
+        image.height,
       );
       if (!sprite) continue;
       const out: SpriteLayer = { sprite };

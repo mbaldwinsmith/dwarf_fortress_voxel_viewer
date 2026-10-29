@@ -17,15 +17,18 @@ message UnitDefinition {required int32 id=1;optional int32 pos_x=3;optional int3
 message UnitList {repeated UnitDefinition creature_list=1;}
 message ListRequest {optional int32 list_start=1;optional int32 list_end=2;}
 message ColorDefinition {required int32 red=1;required int32 green=2;required int32 blue=3;}
-message UnitAppearance {repeated int32 colors=4;}
+message Hair {optional int32 length=1;optional int32 style=2;}
+message UnitAppearance {repeated int32 bp_modifiers=2;repeated int32 colors=4;optional Hair hair=5;optional Hair beard=6;optional Hair moustache=7;optional Hair sideburns=8;}
 message Item {optional int32 id=1;optional uint32 flags1=3;optional MatPair type=5;optional MatPair material=6;optional ColorDefinition dye=7;}
 message InventoryItem {optional int32 mode=1;optional Item item=2;optional int32 body_part_id=3;}
 message MaterialDefinition {required MatPair mat_pair=1;optional string id=2;optional ColorDefinition state_color=4;}
 message MaterialList {repeated MaterialDefinition material_list=1;}
-message BodyPartRaw {optional string token=1;optional string category=2;}
+message BodyPartLayerRaw {optional string layer_name=1;repeated int32 bp_modifiers=4;}
+message BodyPartRaw {optional string token=1;optional string category=2;repeated BodyPartLayerRaw layers=5;}
+message BpAppearanceModifier {optional string type=1;}
 message PatternDescriptor {optional string id=1;}
-message ColorModifierRaw {repeated PatternDescriptor patterns=1;optional string part=6;}
-message CasteRaw {optional int32 index=1;optional string caste_id=2;repeated BodyPartRaw body_parts=7;repeated ColorModifierRaw color_modifiers=14;}
+message ColorModifierRaw {repeated PatternDescriptor patterns=1;repeated int32 body_part_id=2;repeated int32 tissue_layer_id=3;optional int32 start_date=4;optional int32 end_date=5;optional string part=6;}
+message CasteRaw {optional int32 index=1;optional string caste_id=2;repeated BodyPartRaw body_parts=7;repeated ColorModifierRaw color_modifiers=14;repeated BpAppearanceModifier modifiers=9;repeated int32 modifier_idx=10;repeated int32 part_idx=11;repeated int32 layer_idx=12;}
 message CreatureRaw {optional int32 index=1;optional string creature_id=2;repeated CasteRaw caste=10;}
 message CreatureRawList {repeated CreatureRaw creature_raws=1;}
 `;
