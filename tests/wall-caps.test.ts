@@ -136,7 +136,7 @@ it("uses a uniform untextured cap regardless of ore while retaining exposed side
   expect(calls).toContain(ref);
   expect(mesh.colors.slice(0, 3)).toEqual(linearMaterialColor([0, 255, 255]));
 });
-it("textures both enclosed and undiscovered caps with material-independent native hidden-rock variants", () => {
+it("keeps enclosed and undiscovered cap interiors uniform without material-dependent artwork", () => {
   const definitions = terrainMaterials([
     {
       matPair: { matType: 0, matIndex: 1 },
@@ -160,9 +160,9 @@ it("textures both enclosed and undiscovered caps with material-independent nativ
     Array(256).fill({ matType: 0, matIndex: 1 }),
     { definitions },
   );
-  expect(c.tiles[0].wallCap).toEqual(ref);
-  expect(c.tiles[1].wallCap).toEqual(ref);
-  expect(requests.every((k) => /^HIDDEN_ROCK_[1-5]$/.test(k))).toBe(true);
+  expect(c.tiles[0].wallCap).toBeUndefined();
+  expect(c.tiles[1].wallCap).toBeUndefined();
+  expect(requests).toHaveLength(0);
   expect(c.tiles[1].materialName).toBeUndefined();
   expect(c.tiles[0].surfaces).toBeUndefined();
   expect(() =>
@@ -175,7 +175,7 @@ it("textures both enclosed and undiscovered caps with material-independent nativ
     }),
   ).not.toThrow();
 });
-it("samples the cap texture with a neutral tint rather than an ore colour", () => {
+it("preserves authored colours of explicit cap artwork without an ore tint", () => {
   const c = chunk();
   c.tiles = Array.from({ length: 256 }, () => ({
     shape: "empty",
@@ -197,5 +197,5 @@ it("samples the cap texture with a neutral tint rather than an ore colour", () =
   expect(requests).toContain(ref);
   for (let i = 0; i < mesh.positions.length; i += 9)
     if ([1, 4, 7].every((j) => mesh.positions[i + j] === 4))
-      expect(mesh.colors.slice(i, i + 9)).toEqual(Array(9).fill(0.45));
+      expect(mesh.colors.slice(i, i + 9)).toEqual(Array(9).fill(1));
 });

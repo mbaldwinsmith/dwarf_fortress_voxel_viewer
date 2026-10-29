@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { linearMaterialColor } from "./mesh.js";
 import {
   chunkKey,
   tileAt,
@@ -84,6 +85,7 @@ export class ScenerySprites {
     let m = this.materials.get(key);
     if (m) return m;
     m = new THREE.MeshBasicMaterial({
+      vertexColors: true,
       map: this.marker,
       side: THREE.DoubleSide,
       alphaTest: 0.3,
@@ -135,6 +137,7 @@ export class ScenerySprites {
         string,
         {
           positions: number[];
+          colors: number[];
           uvs: number[];
           indices: number[];
           material: THREE.MeshBasicMaterial;
@@ -158,6 +161,10 @@ export class ScenerySprites {
             "uv",
             new THREE.Float32BufferAttribute(coords, 2),
           );
+          geometry.setAttribute(
+            "color",
+            new THREE.Float32BufferAttribute(Array(12).fill(1), 3),
+          );
           geometry.setIndex([0, 1, 2, 0, 2, 3]);
           geometry.computeBoundingSphere();
           const mesh = new THREE.Mesh(geometry, material);
@@ -166,15 +173,18 @@ export class ScenerySprites {
           this.billboards.add(mesh);
           group.add(mesh);
         } else {
-          for (const [layerIndex, ref] of [
-            o.sprite,
-            ...(o.overlay ? [o.overlay] : []),
+          for (const [layerIndex, layer] of [
+            { sprite: o.sprite, tint: o.tint, brightness: 1.4 },
+            ...(o.overlay ? [{ sprite: o.overlay }] : []),
+            ...(o.details ?? []),
           ].entries()) {
+            const ref = layer.sprite;
             const k = ref?.asset ?? "marker";
             let batch = batches.get(k);
             if (!batch) {
               batch = {
                 positions: [],
+                colors: [],
                 uvs: [],
                 indices: [],
                 material: this.material(ref?.asset),
@@ -193,6 +203,13 @@ export class ScenerySprites {
               ),
             );
             batch.uvs.push(...(ref ? uv(ref) : coords));
+            const tint = layer.tint
+              ? linearMaterialColor(layer.tint).map(
+                  (v) => v * (layer.brightness ?? 1),
+                )
+              : [1, 1, 1];
+            for (let vertex = 0; vertex < 4; vertex++)
+              batch.colors.push(...tint);
             batch.indices.push(
               base,
               base + 1,
@@ -211,6 +228,10 @@ export class ScenerySprites {
           new THREE.Float32BufferAttribute(b.positions, 3),
         );
         geometry.setAttribute("uv", new THREE.Float32BufferAttribute(b.uvs, 2));
+        geometry.setAttribute(
+          "color",
+          new THREE.Float32BufferAttribute(b.colors, 3),
+        );
         geometry.setIndex(b.indices);
         geometry.computeBoundingSphere();
         group.add(new THREE.Mesh(geometry, b.material));

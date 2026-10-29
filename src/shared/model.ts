@@ -24,9 +24,11 @@ export interface Creature {
 }
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
+  variant?: number;
   wallCap?: SpriteRef;
   wallMask?: number;
   wallRim?: SpriteRef[];
+  wallRimTint?: [number, number, number];
   sealed?: true;
   color?: [number, number, number];
   materialName?: string;
@@ -49,6 +51,12 @@ export interface Chunk {
   objects?: SceneryObject[];
 }
 export interface SceneryObject {
+  tint?: [number, number, number];
+  details?: {
+    sprite: SpriteRef;
+    tint?: [number, number, number];
+    brightness?: number;
+  }[];
   id: string;
   x: number;
   y: number;

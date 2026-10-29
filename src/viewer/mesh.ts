@@ -30,7 +30,7 @@ export function linearMaterialColor(rgb: number[]) {
     return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   });
 }
-export const wallCapColor = linearMaterialColor([39, 36, 44]);
+export const wallCapColor = linearMaterialColor([49, 44, 52]);
 function solid(t: Tile | undefined) {
   return (t?.shape === "wall" && !t.treeGraphic) || t?.shape === "unknown";
 }
@@ -46,6 +46,7 @@ export function buildMesh(
   let surfaces: Tile["surfaces"];
   let capTexture: SpriteRef | undefined;
   let capRim: SpriteRef[] = [];
+  let rimTint: number[] | undefined;
   const treeSprites = new Set(
     (c.objects ?? [])
       .filter((o) => o.kind === "plant" && o.sprite)
@@ -62,10 +63,10 @@ export function buildMesh(
       v.every((p) => p[1] === v[0][1]) ||
       !(v.every((p) => p[0] === v[0][0]) || v.every((p) => p[2] === v[0][2]));
     const faceColor = rim
-      ? color
+      ? (rimTint ?? color)
       : wallCap
         ? capTexture
-          ? [0.45, 0.45, 0.45]
+          ? [1, 1, 1]
           : wallCapColor
         : horizontal && surfaces?.topTint
           ? linearMaterialColor(surfaces.topTint)
@@ -100,6 +101,7 @@ export function buildMesh(
     surfaces = t.shape === "unknown" ? undefined : t.surfaces;
     capTexture = t.wallCap;
     capRim = t.wallRim ?? [];
+    rimTint = t.wallRimTint ? linearMaterialColor(t.wallRimTint) : undefined;
     const x = c.x + (i % 16),
       y = c.y + Math.floor(i / 16),
       z = c.z;
@@ -205,7 +207,10 @@ export function buildMesh(
       box(1, 0, 0, 1, 1, 0, true);
     else if (t.shape === "stairs") {
       box(0.12);
-      for (let s = 0; s < 4; s++)
+      const stairArt = c.objects?.some(
+        (o) => o.id === `s:${x}:${y}:${z}` && o.sprite,
+      );
+      for (let s = 0; !stairArt && s < 4; s++)
         box((s + 1) * 0.22, 0, s / 4, 0.65, 0.25, 0.12);
     } else if (t.shape === "ramp") {
       const { corners, center } = rampSurface(chunks, x, y, z);

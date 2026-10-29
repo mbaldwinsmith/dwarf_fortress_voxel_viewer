@@ -31,6 +31,8 @@ export function terrainMaterials(value: unknown) {
   return result;
 }
 interface TerrainContext {
+  gems?: Set<string>;
+  ores?: Set<string>;
   definitions?: Map<string, TerrainMaterial>;
   plants?: Map<number, { id: string; name: string }>;
   layerMaterials?: unknown;
@@ -59,6 +61,7 @@ export function textureTerrain(
       delete t.materialName;
       delete t.wallCap;
       delete t.wallRim;
+      delete t.wallRimTint;
     }
     const x = chunk.x + (i % 16),
       y = chunk.y + Math.floor(i / 16);
@@ -67,8 +70,6 @@ export function textureTerrain(
         Math.imul(y, 19349663) ^
         Math.imul(chunk.z, 83492791)) >>>
       0;
-    if (t && (t.shape === "wall" || t.shape === "unknown") && !t.treeGraphic)
-      t.wallCap = graphics.get(`HIDDEN_ROCK_${(hash % 5) + 1}`);
     if (
       !t ||
       t.sealed ||
@@ -83,7 +84,7 @@ export function textureTerrain(
       grass || t.material === 12 ? (definition(layers[i]) ?? actual) : actual;
     if (ground?.color) t.color = ground.color;
     if (actual) t.materialName = actual.name;
-    const variant = (hash % 4) + 1;
+    const variant = (t.variant ?? hash % 4) + 1;
     const wood =
       t.material === 7 &&
       Number(mats[i]?.matType) >= 419 &&
@@ -116,16 +117,34 @@ export function textureTerrain(
           ? "SOIL_WALL"
           : t.material === 6
             ? "ICE_WALL"
-            : t.smooth || t.material === 7
-              ? "SMOOTHED_STONE_WALL"
-              : "STONE_WALL";
+            : t.material === 5
+              ? context.gems?.has(actual?.id ?? "")
+                ? "GEM_A_WALL"
+                : context.ores?.has(actual?.id ?? "")
+                  ? "ORE_VEIN_WALL"
+                  : "STONE_WALL"
+              : t.smooth || t.material === 7
+                ? "SMOOTHED_STONE_WALL"
+                : "STONE_WALL";
       const rim = wallTileSuffixes(t.wallMask).flatMap((suffix) => {
         const r =
           graphics.get(`${prefix}_${suffix}_${variant}`) ??
           graphics.get(`${prefix}_${suffix}`);
         return r ? [r] : [];
       });
-      if (rim.length) t.wallRim = rim;
+      if (rim.length) {
+        t.wallRim = rim;
+        if (t.material === 5) {
+          const rgb = actual?.color ?? [255, 255, 255];
+          if (context.gems?.has(actual?.id ?? "")) t.wallRimTint = rgb;
+          else if (context.ores?.has(actual?.id ?? ""))
+            t.wallRimTint = rgb.map((c) => Math.round(204 + c * 0.2)) as [
+              number,
+              number,
+              number,
+            ];
+        }
+      }
     }
     const species =
       grass && Number(mats[i]?.matType) >= 419 && Number(mats[i]?.matType) < 619
@@ -146,7 +165,7 @@ export function textureTerrain(
       t.surfaces = {
         top,
         side,
-        ...(grassArt
+        ...(grassArt || t.shape !== "wall"
           ? { topTint: [255, 255, 255] as [number, number, number] }
           : {}),
       };

@@ -142,3 +142,10 @@ variants remain independent of ore.
 Enclosed natural walls are sent as generic solid rock, including their inspection
 labels; material colours remain on exposed faces. Missing neighbour blocks are
 treated conservatively until a later sweep confirms exposure.
+
+The screenshot-led texture review reached an independent critic score of 4.53/5.
+Terrain preserves the authored premium-art palette instead of multiplying physical
+material RGB into already-coloured floors. Native ore/crystal borders, stair
+sprites and grass tile variants improve agreement with DF. Material names remain
+available in inspection. Bed sheet/pillow layers use stable approximate styles
+because RFR omits the game's graphic seed. See docs/texture-fidelity-review.md.

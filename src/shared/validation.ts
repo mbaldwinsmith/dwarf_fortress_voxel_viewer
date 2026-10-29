@@ -128,6 +128,16 @@ export function parseServerMessage(value: unknown): ServerMessage {
           throw Error("Invalid tile");
       for (const t of c.tiles) {
         if (
+          t.variant !== undefined &&
+          (!int(t.variant) ||
+            t.variant < 0 ||
+            t.variant > 3 ||
+            t.shape === "unknown")
+        )
+          throw Error("Invalid tile variant");
+        if (t.wallRimTint !== undefined && (!t.wallRim || !rgb(t.wallRimTint)))
+          throw Error("Invalid wall rim tint");
+        if (
           t.wallMask !== undefined &&
           (!int(t.wallMask) ||
             t.wallMask < 1 ||
@@ -162,7 +172,9 @@ export function parseServerMessage(value: unknown): ServerMessage {
             t.smooth !== undefined ||
             t.treeGraphic !== undefined ||
             t.wallMask !== undefined ||
-            t.wallRim !== undefined)
+            t.wallRim !== undefined ||
+            t.wallRimTint !== undefined ||
+            t.variant !== undefined)
         )
           throw Error("Unredacted enclosed wall");
         if (
@@ -208,6 +220,30 @@ export function parseServerMessage(value: unknown): ServerMessage {
           )
             throw Error("Invalid scenery object");
           ids.add(o.id);
+          if (o.tint !== undefined && !rgb(o.tint))
+            throw Error("Invalid scenery tint");
+          if (o.details !== undefined) {
+            if (
+              !Array.isArray(o.details) ||
+              o.details.length > 4 ||
+              o.kind !== "ground"
+            )
+              throw Error("Invalid scenery detail layers");
+            for (const d of o.details) {
+              if (!object(d)) throw Error("Invalid scenery detail");
+              validateSprite(d.sprite);
+              if (d.tint !== undefined && !rgb(d.tint))
+                throw Error("Invalid detail tint");
+              if (
+                d.brightness !== undefined &&
+                (typeof d.brightness !== "number" ||
+                  !Number.isFinite(d.brightness) ||
+                  d.brightness < 0 ||
+                  d.brightness > 4)
+              )
+                throw Error("Invalid detail brightness");
+            }
+          }
           const tile = c.tiles[(o.y - Number(c.y)) * 16 + o.x - Number(c.x)];
           if (!object(tile) || tile.shape === "unknown")
             throw Error("Hidden scenery object");

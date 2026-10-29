@@ -7,13 +7,14 @@ package RemoteFortressReader;
 message VersionInfo {optional string dwarf_fortress_version=1;optional string dfhack_version=2;optional string remote_fortress_reader_version=3;}
 message MapInfo {optional int32 block_size_x=1;optional int32 block_size_y=2;optional int32 block_size_z=3;optional int32 block_pos_x=4;optional int32 block_pos_y=5;optional int32 block_pos_z=6;optional string world_name=7;optional string world_name_english=8;optional string save_name=9;}
 message ViewInfo {optional int32 view_pos_x=1;optional int32 view_pos_y=2;optional int32 view_pos_z=3;optional int32 view_size_x=4;optional int32 view_size_y=5;}
-message Tiletype {required int32 id=1;optional string name=2;optional string caption=3;optional int32 shape=4;optional int32 special=5;optional int32 material=6;}
+message Tiletype {required int32 id=1;optional string name=2;optional string caption=3;optional int32 shape=4;optional int32 special=5;optional int32 material=6;optional int32 variant=7;}
 message TiletypeList {repeated Tiletype tiletype_list=1;}
 message BlockRequest {optional int32 blocks_needed=1;optional int32 min_x=2;optional int32 max_x=3;optional int32 min_y=4;optional int32 max_y=5;optional int32 min_z=6;optional int32 max_z=7;optional bool force_reload=8;}
 message BuildingType {required int32 building_type=1;required int32 building_subtype=2;required int32 building_custom=3;}
 message BuildingDefinition {required BuildingType building_type=1;optional string id=2;optional string name=3;}
 message BuildingList {repeated BuildingDefinition building_list=1;}
-message BuildingInstance {required int32 index=1;optional int32 pos_x_min=2;optional int32 pos_y_min=3;optional int32 pos_z_min=4;optional int32 pos_x_max=5;optional int32 pos_y_max=6;optional int32 pos_z_max=7;optional BuildingType building_type=8;optional MatPair material=9;optional uint32 building_flags=10;optional int32 direction=13;optional int32 active=15;}
+message BuildingItem {optional Item item=1;optional int32 mode=2;}
+message BuildingInstance {required int32 index=1;optional int32 pos_x_min=2;optional int32 pos_y_min=3;optional int32 pos_z_min=4;optional int32 pos_x_max=5;optional int32 pos_y_max=6;optional int32 pos_z_max=7;optional BuildingType building_type=8;optional MatPair material=9;optional uint32 building_flags=10;optional int32 direction=13;repeated BuildingItem items=14;optional int32 active=15;}
 message Coord {optional int32 x=1;optional int32 y=2;optional int32 z=3;}
 message PlantDef {required int32 pos_x=1;required int32 pos_y=2;required int32 pos_z=3;required int32 index=4;}
 message PlantList {repeated PlantDef plant_list=1;}

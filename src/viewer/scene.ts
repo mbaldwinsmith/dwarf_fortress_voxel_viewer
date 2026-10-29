@@ -22,7 +22,7 @@ export class FortressScene {
   cut = 0;
   bounds?: Bounds;
   terrainAtlas = new TerrainAtlas();
-  material = new THREE.MeshLambertMaterial({
+  material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     map: this.terrainAtlas.texture,
     alphaTest: 0.3,

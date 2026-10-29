@@ -314,3 +314,22 @@ The final suite has 88 tests covering edge/corner token selection, chunk-corner
 exposure, material families and transparent rim sampling as well as anti-spoiler
 masking. The two-block directional sample masks 61 enclosed walls with zero
 material metadata leaks.
+
+## Independent texture critic iterations � 29 October 2026
+
+An explicitly requested read-only critic compared the user's 891x555 DF screenshot
+with the same live fortress area rendered from above. The fixed rubric covered
+floors (35%), cap/mineral edges (30%), cavern ground (15%), furniture/workshops
+(15%) and pixel/palette consistency (5%). Scores progressed 2.295 -> 4.055 ->
+4.53/5, meeting the requested 4.5 threshold without changing weights.
+
+Corrected double-tinted natural floors and lighting, restored native charcoal
+interiors, distinguished ore/gem/ordinary-mineral edge families, used native
+grass variants and stair sprites, tinted workshop bases separately from their
+overlays, and added native bed sheet/pillow detail layers. Bed graphic seeds
+remain absent from RFR, so styles are stable approximations. Loose items, moved
+units and upright doors seen edge-on are separate coverage/geometry differences.
+The final rated image is a genuine read-only live snapshot, not a screenshot
+composite or reference pixels inserted into the viewer.
+
+Final validation: all 93 tests, strict TypeScript, production build and formatting checks pass. The existing Three.js bundle-size advisory remains.

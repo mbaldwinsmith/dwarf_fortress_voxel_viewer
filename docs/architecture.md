@@ -299,7 +299,7 @@ avoid neighbouring-cell bleed; mipmaps are disabled.
 Each exposed mesh vertex now has UVs. Horizontal faces use top references and
 vertical faces use side references, including walls, floor edges and cutaway
 caps. Existing ramp/stair geometry receives the same family textures. Face culling,
-chunk ownership and vertex counts are unchanged: one MeshLambertMaterial and
+chunk ownership and vertex counts are unchanged: one MeshBasicMaterial and
 one shared atlas retain existing per-block draw calls. The atlas has bounded
 allocation, survives world resets and disposes with the renderer.
 
@@ -312,7 +312,8 @@ base_materials (field 8). Revealed terrain receives RGB and material-name metada
 with strict 0�255 validation. Missing/invalid RGB preserves the class-colour
 fallback. Unknown tiles receive neither colours nor material names. Inspection
 shows the resolved material name. The browser converts sRGB material channels
-to linear vertex colours before applying the existing textured Lambert lighting.
+to linear vertex colours before applying the texture compositor where material tinting applies; authored floor colours
+are preserved as described in the screenshot-fidelity section below.
 These are source RGB tints, not a promise of pixel-identical game lighting.
 
 Pinned DFHack MapCache.cpp confirms grass static material selects the dominant
@@ -379,3 +380,36 @@ rock pixels use material colour. All geometry still shares one terrain material
 and per-block mesh. The rim list is bounded to five references per wall and
 validated alongside the 8-bit mask; sealed/unknown cells cannot carry rims.
 Neighbour exposure recovers on subsequent reads across block boundaries.
+
+## Screenshot-led premium-art fidelity
+
+The prior physical-RGB multiplication was inappropriate for authored premium
+floor art: the installed stone-floor PNG already contains the reference
+blue-grey crack palette. Terrain now uses an unlit MeshBasicMaterial, retaining
+alpha-tested directional wall rims and the single shared atlas. Floor tops use
+a white tint; actual material RGB/name metadata remains available for inspection
+and appropriate side/material accents. Cap interiors use the native charcoal
+background RGB (49,44,52), avoiding repeated hidden-rock flecks absent from the
+reference. Directional edges and diagonal corners remain textured.
+
+Vanilla inorganic raw flags distinguish IS_GEM, METAL_ORE and ordinary vein
+stone. Gems select native GEM_A_WALL crystal art; metal ores select
+ORE_VEIN_WALL with a pale material accent; ordinary minerals such as mica retain
+rock borders and their material colour. This avoids treating all vein stone as
+white ore. Exact per-gem graphics style and some border hues remain approximate.
+Native tile variant field 7 selects grass variants, with coordinate hashing only
+when the variant is absent. Hidden/fully enclosed walls never receive these
+material distinctions.
+
+Native stair top art now sits on the floor; primitive stair steps remain the
+fallback when artwork is unavailable. Workshop base rectangles receive building
+material tint while tool/fire overlays retain their authored colours. Scenery
+meshes carry vertex colour, avoiding a material/texture allocation per tint.
+BuildingInstance.items field 14 supplies permanent item identifiers for stable
+bed details. Native sheet and pillow sprites are layered over bed frames using
+a muted deterministic sheet palette. RFR does not export the original graphic
+seed, so these are explicitly substitutes, not per-bed colour matches. Detail
+layers, RGB and brightness are bounded and validated.
+
+See texture-fidelity-review.md for the fixed critic rubric, comparison crop,
+iteration scores and remaining coverage/geometry differences.

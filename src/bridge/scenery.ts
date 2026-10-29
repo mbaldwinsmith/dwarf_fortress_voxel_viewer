@@ -59,6 +59,7 @@ export function buildingObjects(
   buildings: unknown,
   definitions: Map<string, string>,
   graphics: Pick<SceneryGraphics, "get">,
+  materialDefinitions?: ReturnType<typeof terrainMaterials>,
 ): SceneryObject[] {
   const out: SceneryObject[] = [];
   for (const b of records(buildings)) {
@@ -158,6 +159,40 @@ export function buildingObjects(
             graphics.get(`${token}_${material}`) ??
             graphics.get(token);
         }
+        const tint =
+          isShop && mat
+            ? materialDefinitions?.get(`${mat.matType},${mat.matIndex}`)?.color
+            : undefined;
+        const details: NonNullable<SceneryObject["details"]> = [];
+        if (category === "Bed") {
+          const item = records(b.items)
+            .map((v) => v.item as Record<string, unknown>)
+            .find((v) => v && typeof v.id === "number");
+          const seed = Number(item?.id ?? b.index) >>> 0;
+          // RFR omits the game's sheet/pillow graphic seed. Use stable native
+          // layers and a muted palette; these are explicitly approximate styles.
+          const colors: [number, number, number][] = [
+            [245, 245, 230],
+            [190, 225, 185],
+            [235, 185, 225],
+            [255, 220, 150],
+            [235, 170, 135],
+            [205, 220, 225],
+          ];
+          const sheet = graphics.get(
+            `ITEM_BED_SHEET_VARIANT:${(seed % 2) + 1}`,
+          );
+          const pillow = graphics.get(
+            `ITEM_BED_PILLOW_VARIANT:${(seed % 3) + 1}`,
+          );
+          if (sheet)
+            details.push({
+              sprite: sheet,
+              tint: colors[seed % colors.length],
+              brightness: 3.4,
+            });
+          if (pillow) details.push({ sprite: pillow });
+        }
         out.push({
           id: `b:${b.index}:${x}:${y}`,
           x,
@@ -167,6 +202,8 @@ export function buildingObjects(
           kind: category === "Door" ? "door" : "ground",
           ...(sprite ? { sprite } : {}),
           ...(overlay ? { overlay } : {}),
+          ...(tint ? { tint } : {}),
+          ...(details.length ? { details } : {}),
         });
         if (out.length >= 512) return out;
       }
@@ -293,6 +330,8 @@ export class SceneryReader {
     textureTerrain(chunk, this.graphics, raw?.materials, {
       definitions: this.materialDefinitions,
       plants: this.plantDefinitions,
+      gems: this.graphics.gemIds,
+      ores: this.graphics.oreIds,
       layerMaterials: raw?.layerMaterials,
       baseMaterials: raw?.baseMaterials,
     });
@@ -317,6 +356,7 @@ export class SceneryReader {
         raw?.buildings,
         this.definitions,
         this.graphics,
+        this.materialDefinitions,
       ),
       ...plantObjects(
         chunk,
@@ -326,5 +366,27 @@ export class SceneryReader {
         raw?.materials,
       ),
     ];
+    for (let i = 0; i < 256; i++)
+      if (chunk.tiles[i].shape === "stairs") {
+        const t = chunk.tiles[i],
+          x = chunk.x + (i % 16),
+          y = chunk.y + Math.floor(i / 16);
+        const direction = /up.down|updown/i.test(t.name)
+          ? "UPDOWN"
+          : /down/i.test(t.name)
+            ? "DOWN"
+            : "UP";
+        const sprite = this.graphics.get(`STONE_STAIR_${direction}`);
+        if (sprite)
+          chunk.objects.push({
+            id: `s:${x}:${y}:${chunk.z}`,
+            x,
+            y,
+            z: chunk.z,
+            name: t.name,
+            kind: "ground",
+            sprite,
+          });
+      }
   }
 }

@@ -61,9 +61,26 @@ export function sceneryMappings(text: string) {
   return entries;
 }
 export class SceneryGraphics {
+  gemIds = new Set<string>();
+  oreIds = new Set<string>();
   refs = new Map<string, SpriteRef>();
   constructor(private files: Map<string, string>) {}
   async load(installation: string) {
+    const rawRoot = path.join(
+      installation,
+      "data/vanilla/vanilla_materials/objects",
+    );
+    for (const name of (await readdir(rawRoot)).filter(
+      (n) => n.startsWith("inorganic_") && n.endsWith(".txt"),
+    )) {
+      const source = await readFile(path.join(rawRoot, name), "utf8");
+      for (const m of source.matchAll(
+        /\[INORGANIC:([^\]]+)\]([\s\S]*?)(?=\[INORGANIC:|$)/g,
+      )) {
+        if (/\[IS_GEM:/.test(m[2])) this.gemIds.add(`INORGANIC:${m[1]}`);
+        if (/\[METAL_ORE:/.test(m[2])) this.oreIds.add(`INORGANIC:${m[1]}`);
+      }
+    }
     for (const module of [
       "vanilla_buildings_graphics",
       "vanilla_items_graphics",
