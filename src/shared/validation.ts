@@ -1,0 +1,59 @@
+import type { ServerMessage, Shape } from "./model.js";
+const object = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null;
+const int = (v: unknown): v is number =>
+  typeof v === "number" && Number.isSafeInteger(v) && Math.abs(v) < 1000000;
+const text = (v: unknown): v is string =>
+  typeof v === "string" && v.length <= 1000;
+const shapes: Shape[] = ["empty", "wall", "floor", "ramp", "stairs", "unknown"];
+export function parseServerMessage(value: unknown): ServerMessage {
+  if (!object(value)) throw Error("Expected message object");
+  if (value.type === "status" && text(value.message))
+    return value as ServerMessage;
+  if (!text(value.session) || !value.session) throw Error("Missing session");
+  if (value.type === "reset" && text(value.world) && object(value.bounds)) {
+    const b = value.bounds;
+    if (
+      ["x", "y", "z", "width", "depth", "height"].every((k) => int(b[k])) &&
+      Number(b.width) >= 0 &&
+      Number(b.depth) >= 0 &&
+      Number(b.height) >= 0 &&
+      Number(b.width) <= 48 &&
+      Number(b.depth) <= 48 &&
+      Number(b.height) <= 5
+    )
+      return value as ServerMessage;
+  }
+  if (
+    value.type === "chunks" &&
+    int(value.sequence) &&
+    value.sequence > 0 &&
+    int(value.pollMs) &&
+    Array.isArray(value.chunks) &&
+    value.chunks.length <= 45
+  ) {
+    for (const c of value.chunks) {
+      if (
+        !object(c) ||
+        !int(c.x) ||
+        !int(c.y) ||
+        !int(c.z) ||
+        c.x % 16 !== 0 ||
+        c.y % 16 !== 0 ||
+        !Array.isArray(c.tiles) ||
+        c.tiles.length !== 256
+      )
+        throw Error("Invalid chunk");
+      for (const t of c.tiles)
+        if (
+          !object(t) ||
+          !shapes.includes(t.shape as Shape) ||
+          !int(t.material) ||
+          !text(t.name)
+        )
+          throw Error("Invalid tile");
+    }
+    return value as ServerMessage;
+  }
+  throw Error("Invalid viewer message");
+}

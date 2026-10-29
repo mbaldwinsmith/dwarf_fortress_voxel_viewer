@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.reference/
+*.log
+coverage/
+artifacts/
+cache/

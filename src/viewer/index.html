@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Deepwatch · Fortress Viewer</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">DWARF FORTRESS · LOCAL OBSERVATORY</p>
+          <h1>Deepwatch <span>◆</span></h1>
+        </div>
+        <div class="connection">
+          <span class="dot"></span>
+          <p id="status" role="status">Connecting to local companion…</p>
+        </div>
+      </header>
+      <section class="toolbar" aria-label="Viewer controls">
+        <div>
+          <span class="eyebrow">FORTRESS</span>
+          <h2 id="world">Awaiting a fortress</h2>
+        </div>
+        <div class="cut">
+          <label for="level"
+            >Cutaway <output id="level-value" for="level">—</output></label
+          ><input id="level" type="range" min="0" max="0" value="0" disabled />
+        </div>
+        <button id="frame" type="button">Frame terrain <kbd>F</kbd></button>
+      </section>
+      <section id="viewport" aria-label="Fortress viewer">
+        <div id="empty">
+          <span class="sigil">◇</span>
+          <h2>Your fortress, another perspective.</h2>
+          <p>
+            Load a fortress with DFHack running.<br />Actual terrain will appear
+            here automatically.
+          </p>
+          <small>No game commands. No hidden terrain revealed.</small>
+        </div>
+        <div class="compass" aria-hidden="true">N ↑<br /><span>E →</span></div>
+      </section>
+      <section class="inspection" aria-label="Selected tile">
+        <span class="eyebrow">SELECTED TILE</span>
+        <p id="selection">Click a visible tile to inspect it.</p>
+        <span id="stats"></span>
+      </section>
+      <footer>
+        <p>
+          Drag to orbit · Right-drag to pan · Scroll to zoom · <kbd>[</kbd>
+          <kbd>]</kbd> Z-level · Touch: one finger orbit, two fingers pan / zoom
+        </p>
+        <p>
+          Read-only · Bounded 48 × 48 × 5 region around DF’s viewport at
+          connection
+        </p>
+      </footer>
+    </main>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

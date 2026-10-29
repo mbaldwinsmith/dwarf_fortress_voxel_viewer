@@ -1,0 +1,224 @@
+import "dotenv/config";
+import http from "node:http";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { WebSocketServer, WebSocket } from "ws";
+import { FortressAdapter } from "./adapter.js";
+import { chunkKey, type Chunk, type ServerMessage } from "../shared/model.js";
+import { inspectInstallation } from "./installation.js";
+import { publicFile } from "./public-files.js";
+const installation = process.env.DF_PATH
+  ? await inspectInstallation(process.env.DF_PATH)
+  : undefined;
+if (installation)
+  console.log(
+    `Read-only installation inspection: ${installation.modules.length} available modules; active world order unresolved (sprites disabled)`,
+  );
+const port = Number(process.env.VIEWER_PORT ?? 4174),
+  dfPort = Number(process.env.DFHACK_PORT ?? installation?.remotePort ?? 5000),
+  pollMs = Math.max(100, Number(process.env.POLL_MS ?? 200));
+for (const n of [port, dfPort, pollMs])
+  if (!Number.isSafeInteger(n) || n < 1 || n > 65535)
+    throw Error("Invalid port or polling configuration");
+const root = path.resolve("dist/viewer");
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    if (url.pathname === "/health") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(
+        JSON.stringify({
+          status,
+          clients: wss.clients.size,
+          session,
+          chunks: chunks.size,
+        }),
+      );
+      return;
+    }
+    // Built UI only. No filesystem paths or DF assets accepted from clients.
+    const file = publicFile(root, url.pathname);
+    if (!file) {
+      res.writeHead(403).end();
+      return;
+    }
+    const mime: Record<string, string> = {
+      ".html": "text/html",
+      ".js": "text/javascript",
+      ".css": "text/css",
+      ".svg": "image/svg+xml",
+    };
+    const content = await readFile(file);
+    res.setHeader(
+      "Content-Type",
+      mime[path.extname(file)] ?? "application/octet-stream",
+    );
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.end(content);
+  } catch {
+    res
+      .writeHead(404)
+      .end("Build the viewer with npm run build, or use npm run dev.");
+  }
+});
+const wss = new WebSocketServer({ noServer: true, maxPayload: 256 });
+const origins = new Set([
+  `http://127.0.0.1:${port}`,
+  `http://localhost:${port}`,
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+]);
+server.on("upgrade", (req, socket, head) => {
+  if (req.url !== "/live" || !origins.has(req.headers.origin ?? "")) {
+    socket.destroy();
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws));
+});
+let status = "Waiting for DFHack",
+  session = "",
+  sequence = 0,
+  reset: Extract<ServerMessage, { type: "reset" }> | undefined;
+const chunks = new Map<string, Chunk>();
+const counters = new WeakMap<WebSocket, number>();
+function send(ws: WebSocket, m: ServerMessage) {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  if (ws.bufferedAmount > 2 * 1024 * 1024) {
+    ws.close(1013, "Slow client; reconnect to resynchronise");
+    return;
+  }
+  if (m.type === "reset") counters.set(ws, 0);
+  if (m.type === "chunks") {
+    const sequence = (counters.get(ws) ?? 0) + 1;
+    counters.set(ws, sequence);
+    m = { ...m, sequence };
+  }
+  ws.send(JSON.stringify(m));
+}
+function broadcast(m: ServerMessage) {
+  for (const ws of wss.clients) send(ws, m);
+}
+function setStatus(message: string) {
+  if (status !== message) {
+    status = message;
+    console.log(message);
+    broadcast({ type: "status", message });
+  }
+}
+wss.on("connection", (ws) => {
+  send(ws, { type: "status", message: status });
+  if (reset) {
+    send(ws, reset);
+    send(ws, {
+      type: "chunks",
+      session,
+      sequence: 1,
+      chunks: [...chunks.values()],
+      pollMs,
+    });
+  }
+  ws.on("message", () => ws.close(1008, "Viewer protocol is receive-only"));
+  ws.on("error", (e) => console.warn(e.message));
+});
+function publish(m: ServerMessage) {
+  broadcast(m);
+}
+let stopping = false,
+  adapter: FortressAdapter | undefined;
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function run() {
+  while (!stopping) {
+    if (wss.clients.size === 0) {
+      await pause(500);
+      continue;
+    }
+    try {
+      adapter = new FortressAdapter(dfPort);
+      setStatus("Connecting to DFHack…");
+      const version = await adapter.initialize();
+      console.log("Read-only handshake verified", version);
+      session = randomUUID();
+      sequence = 0;
+      chunks.clear();
+      reset = {
+        type: "reset",
+        session,
+        bounds: adapter.bounds,
+        world: adapter.world,
+      };
+      publish(reset);
+      setStatus("Loading actual fortress terrain…");
+      const b = adapter.bounds;
+      let sweep = 0;
+      while (!stopping && wss.clients.size) {
+        const started = performance.now();
+        await adapter.checkWorld();
+        let changed = 0;
+        for (let z = b.z + b.height - 1; z >= b.z; z--)
+          for (let y = b.y; y < b.y + b.depth; y += 16)
+            for (let x = b.x; x < b.x + b.width; x += 16) {
+              if (stopping || !wss.clients.size) break;
+              await adapter.checkWorld();
+              const t = performance.now(),
+                chunk = await adapter.block(x, y, z),
+                k = chunkKey(chunk);
+              await adapter.checkWorld();
+              if (JSON.stringify(chunks.get(k)) !== JSON.stringify(chunk)) {
+                chunks.set(k, chunk);
+                publish({
+                  type: "chunks",
+                  session,
+                  sequence: ++sequence,
+                  chunks: [chunk],
+                  pollMs: Math.round(performance.now() - t),
+                });
+                changed++;
+              }
+              await pause(pollMs);
+            }
+        setStatus(
+          `Live · ${adapter.world} · ${chunks.size} blocks · sweep ${++sweep}`,
+        );
+        console.log(
+          JSON.stringify({
+            sweep,
+            changed,
+            sweepMs: Math.round(performance.now() - started),
+            heapMB: Math.round(process.memoryUsage().heapUsed / 1048576),
+          }),
+        );
+      }
+    } catch (e) {
+      reset = undefined;
+      chunks.clear();
+      session = randomUUID();
+      publish({
+        type: "reset",
+        session,
+        bounds: { x: 0, y: 0, z: 0, width: 0, depth: 0, height: 0 },
+        world: "",
+      });
+      setStatus(
+        `Disconnected · ${e instanceof Error ? e.message : String(e)}. Load a fortress; retrying in 3 seconds.`,
+      );
+      await pause(3000);
+    } finally {
+      adapter?.close();
+      adapter = undefined;
+    }
+  }
+}
+server.listen(port, "127.0.0.1", () => {
+  console.log(`Viewer bridge: http://127.0.0.1:${port}`);
+  void run();
+});
+function stop() {
+  stopping = true;
+  adapter?.close();
+  for (const ws of wss.clients) ws.close();
+  wss.close();
+  server.close();
+}
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);

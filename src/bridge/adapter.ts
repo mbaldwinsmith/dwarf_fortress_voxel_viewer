@@ -1,0 +1,159 @@
+import type { Bounds, Chunk, Shape, Tile } from "../shared/model.js";
+import { Rpc } from "./rpc.js";
+function integer(v: unknown, name: string): number {
+  if (typeof v !== "number" || !Number.isSafeInteger(v))
+    throw Error(`Invalid ${name}`);
+  return v;
+}
+interface TileDefinition {
+  shape: number;
+  material: number;
+  name: string;
+}
+export function shapeFromDf(shape: number): Shape {
+  if ([4, 5, 13, 17, 18, 19].includes(shape)) return "wall";
+  if ([1, 2, 3, 11, 12, 14, 15].includes(shape)) return "floor";
+  if ([6, 7, 8].includes(shape)) return "stairs";
+  if (shape === 9) return "ramp";
+  return "empty";
+}
+export function convertBlock(
+  raw: Record<string, unknown> | undefined,
+  x: number,
+  y: number,
+  z: number,
+  defs: Map<number, TileDefinition>,
+): Chunk {
+  if (raw && (raw.mapX !== x || raw.mapY !== y || raw.mapZ !== z))
+    throw Error("Unexpected map block coordinates");
+  const tiles = raw?.tiles,
+    hidden = raw?.hidden;
+  if (
+    raw &&
+    (!Array.isArray(tiles) ||
+      tiles.length !== 256 ||
+      !Array.isArray(hidden) ||
+      hidden.length !== 256)
+  )
+    throw Error("Incomplete terrain/visibility response");
+  return {
+    x,
+    y,
+    z,
+    tiles: Array.from({ length: 256 }, (_, i): Tile => {
+      if (!raw) return { shape: "empty", material: 0, name: "Open space" };
+      if ((hidden as unknown[])[i] !== false)
+        return { shape: "unknown", material: 0, name: "Undiscovered" };
+      const d = defs.get(integer((tiles as unknown[])[i], "tile id"));
+      if (!d) throw Error("Unknown DF tile type");
+      return {
+        shape: shapeFromDf(d.shape),
+        material: d.material,
+        name: d.name,
+      };
+    }),
+  };
+}
+export class FortressAdapter {
+  rpc: Rpc;
+  defs = new Map<number, TileDefinition>();
+  identity = "";
+  bounds!: Bounds;
+  world = "";
+  constructor(port: number) {
+    this.rpc = new Rpc(port);
+  }
+  async initialize() {
+    await this.rpc.connect();
+    const version = await this.rpc.call("GetVersionInfo");
+    if (
+      version.dwarfFortressVersion !== "53.16" ||
+      version.dfhackVersion !== "53.16-r3" ||
+      version.remoteFortressReaderVersion !== "0.21.0"
+    )
+      throw Error(
+        `Unsupported versions: ${JSON.stringify(version)}. Verified schema: DF 53.16 / DFHack 53.16-r3 / RFR 0.21.0.`,
+      );
+    const map = await this.rpc.call("GetMapInfo");
+    this.identity = JSON.stringify(map);
+    this.world = String(map.worldNameEnglish ?? map.worldName ?? "Fortress");
+    const view = await this.rpc.call("GetViewInfo");
+    const sx = integer(map.blockSizeX, "map width"),
+      sy = integer(map.blockSizeY, "map depth"),
+      sz = integer(map.blockSizeZ, "map height");
+    if (sx < 1 || sy < 1 || sz < 1 || sx > 1000 || sy > 1000 || sz > 1000)
+      throw Error("Invalid map dimensions");
+    const bx = Math.max(
+      0,
+      Math.min(
+        sx - 1,
+        Math.floor(
+          (integer(view.viewPosX, "viewport X") +
+            Number(view.viewSizeX ?? 0) / 2) /
+            16,
+        ),
+      ),
+    );
+    const by = Math.max(
+      0,
+      Math.min(
+        sy - 1,
+        Math.floor(
+          (integer(view.viewPosY, "viewport Y") +
+            Number(view.viewSizeY ?? 0) / 2) /
+            16,
+        ),
+      ),
+    );
+    const top = Math.max(
+      0,
+      Math.min(sz - 1, integer(view.viewPosZ, "viewport Z")),
+    );
+    this.bounds = {
+      x: Math.max(0, bx - 1) * 16,
+      y: Math.max(0, by - 1) * 16,
+      z: Math.max(0, top - 4),
+      width: Math.min(3, sx - Math.max(0, bx - 1)) * 16,
+      depth: Math.min(3, sy - Math.max(0, by - 1)) * 16,
+      height: Math.min(5, top + 1),
+    };
+    const list = await this.rpc.call("GetTiletypeList");
+    if (!Array.isArray(list.tiletypeList))
+      throw Error("Invalid tile definitions");
+    for (const d of list.tiletypeList as Record<string, unknown>[]) {
+      this.defs.set(integer(d.id, "type id"), {
+        shape: integer(d.shape, "shape"),
+        material: integer(d.material, "material"),
+        name: String(d.caption ?? d.name ?? "Terrain").slice(0, 120),
+      });
+    }
+    return version;
+  }
+  async checkWorld() {
+    if (JSON.stringify(await this.rpc.call("GetMapInfo")) !== this.identity)
+      throw Error("Loaded fortress changed; resynchronising");
+  }
+  async block(x: number, y: number, z: number): Promise<Chunk> {
+    // One block, force_reload: full tiles AND designations, avoiding plugin-global
+    // hashes and stale all-air blocks. We do not call ResetMapHashes.
+    const result = await this.rpc.call("GetBlockList", {
+      minX: x / 16,
+      maxX: x / 16 + 1,
+      minY: y / 16,
+      maxY: y / 16 + 1,
+      minZ: z,
+      maxZ: z + 1,
+      blocksNeeded: 1,
+      forceReload: true,
+    });
+    const blocks = result.mapBlocks;
+    if (blocks !== undefined && !Array.isArray(blocks))
+      throw Error("Invalid blocks response");
+    const list = (blocks ?? []) as Record<string, unknown>[];
+    if (list.length > 1) throw Error("Unbounded response");
+    return convertBlock(list[0], x, y, z, this.defs);
+  }
+  close() {
+    this.rpc.close();
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "dwarf-fortress-voxel-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"tsx watch src/bridge/server.ts\" \"vite --host 127.0.0.1\"",
+    "build": "tsc --noEmit && vite build && tsc -p tsconfig.bridge.json",
+    "start": "node dist/bridge/bridge/server.js",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "inspect": "tsx src/bridge/inspect.ts",
+    "format": "prettier --write src tests *.ts *.json docs/*.md README.md",
+    "format:check": "prettier --check src tests *.ts *.json docs/*.md README.md"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "protobufjs": "^8.8.1",
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.2",
+    "concurrently": "^9.2.5",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^6.4.5",
+    "vitest": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=20.15"
+  }
+}
