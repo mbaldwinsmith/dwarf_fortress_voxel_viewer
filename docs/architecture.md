@@ -8,7 +8,7 @@ mesh builder, connection and HTML controls. No framework or external services.
 ## Data flow
 
 The bridge opens one loopback TCP connection only while viewers are connected.
-It sends the 12-byte DFHack v1 handshake, binds a fixed allowlist of seven reader
+It sends the 12-byte DFHack v1 handshake, binds a fixed allowlist of nine reader
 methods using their exact protobuf type names, then issues sequential calls.
 The native 8-byte message header has a signed 16-bit ID, two padding bytes and
 a signed 32-bit size, little endian. FAIL carries its error code in the size
@@ -127,8 +127,7 @@ at 2,000, session-scoped, monotonically ticked and replace the previous unit lis
 They never rebuild terrain.
 
 The explicit vanilla profile parses TILE_PAGE and simple DEFAULT:...:AS_IS
-creature/caste definitions from the configured installation. Layer sets, palettes,
-clothing and equipment are not composited. Conflicting page/creature definitions
+creature/caste definitions from the configured installation. Simple definitions use atlas rectangles; dwarf layer support is described below. Conflicting page/creature definitions
 fall back to markers. This installation yielded 202 simple mappings in four sheets.
 Resolved images must remain within the graphics root after realpath validation.
 The local-art route accepts only hashed identifiers registered by the parser; no
@@ -141,3 +140,28 @@ disposed on viewer teardown. Scene/session resets remove old creature objects.
 
 Unit flag positions were checked against the matching df-structures revision
 [d8ff8a63](https://github.com/DFHack/df-structures/blob/d8ff8a6326db37c11dc4173fadcf30b56e51b42d/df.unit.xml).
+
+## Partial layered dwarves
+
+GetItemList maps live item type/subtype pairs to definition IDs. GetMaterialList
+provides material colours once per connection. Unit snapshots now read appearance
+colours and inventory item mode, type, material, dye, flags and attached body part.
+Caste raws supply body tokens/categories and skin-pattern IDs. Only worn and held
+items are considered; hauled inventory does not become worn equipment.
+
+The explicit vanilla dwarf definition is parsed into life-stage sets and ordered
+layer groups. The first supported matching layer in each group is selected.
+Supported rules include caste, skin palette, worn/held item subtype and attached
+body category/token, item suppression and artifact flags (item_flags bits 18/27
+from matching df-structures). Other material/syndrome/wound/procedural rules fail
+closed. Face variant one is an explicit approximation because RFR does not expose
+the game random-part index. Hair/beard conditions remain unimplemented.
+
+The browser composites selected local PNG rectangles onto an in-memory canvas.
+Large-image rectangles anchor at the bottom-right normal tile; world scale remains
+32 pixels per 1.2 tiles. Exact skin palette colours are remapped from the declared
+default row. Item colours use approximate shaded material/dye tint, not the full
+DF material/profession palette algorithm. Composites are GPU textures with a
+256-appearance limit and are never written to disk or included in build output.
+Inventory changes alter the composition key; snapshots replace the material on
+the existing billboard. Unsupported or failed composites retain markers.

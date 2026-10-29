@@ -1,3 +1,4 @@
+import { CompositeSprites } from "./composite-sprites.js";
 import * as THREE from "three";
 import {
   tileAt,
@@ -8,6 +9,7 @@ import {
 } from "../shared/model.js";
 export class CreatureSprites {
   group = new THREE.Group();
+  private composites = new CompositeSprites();
   visibleCount = 0;
   private sprites = new Map<number, { object: THREE.Sprite; unit: Creature }>();
   private materials = new Map<string, THREE.SpriteMaterial>();
@@ -107,7 +109,11 @@ export class CreatureSprites {
       }
     for (const unit of message.creatures) {
       let s = this.sprites.get(unit.id);
-      const material = unit.sprite ? this.material(unit.sprite) : this.marker;
+      const material = unit.layers?.length
+        ? this.composites.material(unit.layers, this.marker)
+        : unit.sprite
+          ? this.material(unit.sprite)
+          : this.marker;
       if (!s) {
         s = { object: new THREE.Sprite(material), unit };
         s.object.center.set(0.5, 0);
@@ -116,11 +122,22 @@ export class CreatureSprites {
       }
       s.unit = unit;
       s.object.material = material;
-      const height = unit.sprite ? 1.2 : 0.45,
+      const height = unit.sprite || unit.layers?.length ? 1.2 : 0.45,
         width = unit.sprite
           ? (height * unit.sprite.width) / unit.sprite.height
           : 0.45;
-      s.object.scale.set(width, height, 1);
+      const w = unit.layers?.length
+          ? Math.max(...unit.layers.map((l) => l.sprite.width))
+          : 0,
+        h = unit.layers?.length
+          ? Math.max(...unit.layers.map((l) => l.sprite.height))
+          : 0;
+      s.object.center.set(w ? (w - 16) / w : 0.5, 0);
+      s.object.scale.set(
+        w ? (1.2 * w) / 32 : width,
+        h ? (1.2 * h) / 32 : height,
+        1,
+      );
       s.object.position.set(unit.x + 0.5, unit.z + 0.13, unit.y + 0.5);
     }
   }
@@ -142,6 +159,7 @@ export class CreatureSprites {
   }
   dispose() {
     this.disposed = true;
+    this.composites.dispose();
     this.clear();
     for (const m of this.materials.values()) m.dispose();
     for (const t of this.textures) t.dispose();

@@ -50,7 +50,8 @@ const server = http.createServer(async (req, res) => {
           chunks: chunks.size,
           creatures: lastCreatures?.creatures.length ?? 0,
           spriteCreatures:
-            lastCreatures?.creatures.filter((u) => u.sprite).length ?? 0,
+            lastCreatures?.creatures.filter((u) => u.sprite || u.layers?.length)
+              .length ?? 0,
         }),
       );
       return;

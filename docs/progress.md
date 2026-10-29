@@ -135,3 +135,32 @@ the browser displayed them within actual fortress terrain at Z 128. No new
 texture warnings were recorded after the loading fix. This is a short smoke
 test; sustained motion, creature disappearance during play and game-FPS impact
 have not been measured. Next: layered dwarf graphics and authoritative mod order.
+
+## Dwarf clothing and equipment — 29 October 2026
+
+Added partial definition-driven dwarf layer selection and runtime canvas
+compositing. Live inventory IDs are resolved through GetItemList; attachments
+use caste body part tokens/categories. Skin palettes, worn clothing, standard
+armour, held equipment, item suppression and artifact variants are supported
+where their conditions are understood. Large equipment images anchor to the
+normal body tile and retain correct pixel-to-world scale.
+
+Live samples initially selected 20–21 layers per dwarf; adding the default face
+variant selected 21 for Atír Craftsorder (unit 6715), including a large held-item
+layer. An enlarged read-only snapshot preview was rendered and inspected in the
+browser; it was an actual appearance snapshot displayed at a centred diagnostic
+position, not a live movement test. No compositor console errors were observed.
+The temporary preview and snapshot script are excluded from the final changes.
+
+Remaining approximations: face variant one, no hair/beard rendering, incomplete
+material/profession palettes, no wounds/syndromes/procedural items and unresolved
+active mod precedence. Normal material/dye tint is approximate. Equipment removal
+is tested synthetically; no gameplay inventory commands were issued.
+
+Verification: 39 automated tests pass, including body/caste and life stages,
+clothing attachments, held-item hand selection, large-image extent, artifact
+variants, default face selection, palette remapping, alpha preservation and unsafe
+palette IDs. Strict type checking, production build and formatting checks pass.
+
+Final live viewport snapshot: 50 creatures, including 12 dwarves using 21 layers
+each. No game inventory was modified for verification.

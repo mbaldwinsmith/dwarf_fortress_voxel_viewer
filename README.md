@@ -108,9 +108,11 @@ reports renderer creation failures in its status area.
 production bridges on the same port. If changing `VIEWER_PORT` for development,
 also update Vite's bridge proxy target.
 
-Live creatures use camera-facing billboards and local simple sprites. Layered
-creatures (including dwarves), conditional palettes and unsupported graphics use
-markers. Clothing/equipment and directional animation frames are not implemented.
+Live creatures use camera-facing billboards and local simple sprites. Dwarves use a partial layered compositor driven by live caste, skin palette,
+and worn/held inventory. Supported clothes, armour and equipment are composited
+at runtime. Hair/beards, exact random face variants, special conditions and
+profession palettes remain incomplete; item/dye colours are approximate.
+Unsupported creatures use markers. Directional animation frames are not implemented.
 The vanilla fallback profile does not claim to reproduce active mod overrides.
 No buildings yet. Ramps, stairs, trees and
 fortifications are approximate; liquids are omitted. No external accounts,

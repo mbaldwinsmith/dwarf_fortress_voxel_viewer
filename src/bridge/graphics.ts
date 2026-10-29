@@ -1,3 +1,9 @@
+import {
+  parseDwarfLayers,
+  chooseDwarfLayers,
+  type LayerSet,
+  type DwarfAppearance,
+} from "./dwarf-layers.js";
 import { readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -66,6 +72,9 @@ export async function permittedImage(root: string, relative: string) {
   return file;
 }
 export class Graphics {
+  dwarfSets: LayerSet[] = [];
+  private dwarfPages = new Map<string, SpriteRef>();
+  private paletteAssets = new Map<string, string>();
   files = new Map<string, string>();
   refs = new Map<string, SpriteRef>();
   async load(installation: string) {
@@ -117,6 +126,63 @@ export class Graphics {
         pageHeight: p.height,
       });
     }
+    this.dwarfSets = parseDwarfLayers(
+      await readFile(path.join(root, "graphics_creatures_dwarf.txt"), "utf8"),
+    );
+    const needed = new Set(
+      this.dwarfSets.flatMap((s) =>
+        s.groups.flatMap((g) => g.map((l) => l.page)),
+      ),
+    );
+    for (const id of needed) {
+      const p = pages.get(id);
+      if (!p || duplicatePages.has(id)) continue;
+      const file = await permittedImage(root, p.file),
+        asset = createHash("sha256").update(file).digest("hex").slice(0, 24);
+      this.files.set(asset, file);
+      this.dwarfPages.set(id, {
+        asset,
+        x: 0,
+        y: 0,
+        width: p.tileWidth,
+        height: p.tileHeight,
+        pageWidth: p.width,
+        pageHeight: p.height,
+      });
+    }
+    for (const set of this.dwarfSets)
+      for (const p of set.palettes.values()) {
+        const file = await permittedImage(root, p.file),
+          asset = createHash("sha256").update(file).digest("hex").slice(0, 24);
+        this.files.set(asset, file);
+        this.paletteAssets.set(p.file, asset);
+      }
+  }
+  dwarf(appearance: DwarfAppearance) {
+    return chooseDwarfLayers(
+      this.dwarfSets,
+      appearance,
+      (id, x, y, w, h) => {
+        const base = this.dwarfPages.get(id);
+        if (!base) return;
+        const ref = {
+          ...base,
+          x: x * base.width,
+          y: y * base.height,
+          width: w * base.width,
+          height: h * base.height,
+        };
+        return ref.x >= 0 &&
+          ref.y >= 0 &&
+          ref.width > 0 &&
+          ref.height > 0 &&
+          ref.x + ref.width <= ref.pageWidth &&
+          ref.y + ref.height <= ref.pageHeight
+          ? ref
+          : undefined;
+      },
+      (file) => this.paletteAssets.get(file),
+    );
   }
   resolve(race: string, caste: string) {
     return this.refs.get(`${race}:${caste}`) ?? this.refs.get(race);

@@ -51,21 +51,38 @@ export function parseServerMessage(value: unknown): ServerMessage {
         !text(c.name)
       )
         throw Error("Invalid creature");
+      if (c.layers !== undefined) {
+        if (!Array.isArray(c.layers) || c.layers.length > 64)
+          throw Error("Invalid layer count");
+        for (const l of c.layers) {
+          if (!object(l)) throw Error("Invalid layer");
+          validateSprite(l.sprite);
+          if (l.palette !== undefined) {
+            const p = l.palette;
+            if (
+              !object(p) ||
+              typeof p.asset !== "string" ||
+              !/^[a-f0-9]{24}$/.test(p.asset) ||
+              !int(p.row) ||
+              !int(p.sourceRow) ||
+              p.row < 0 ||
+              p.row > 16384 ||
+              p.sourceRow < 0 ||
+              p.sourceRow > 16384
+            )
+              throw Error("Invalid palette");
+          }
+          if (
+            l.tint !== undefined &&
+            (!Array.isArray(l.tint) ||
+              l.tint.length !== 3 ||
+              !l.tint.every((n) => int(n) && n >= 0 && n <= 255))
+          )
+            throw Error("Invalid tint");
+        }
+      }
       if (c.sprite !== undefined) {
-        const r = c.sprite;
-        if (
-          !object(r) ||
-          typeof r.asset !== "string" ||
-          !/^[a-f0-9]{24}$/.test(r.asset) ||
-          !["x", "y", "width", "height", "pageWidth", "pageHeight"].every(
-            (k) => int(r[k]) && Number(r[k]) >= 0,
-          ) ||
-          Number(r.width) < 1 ||
-          Number(r.height) < 1 ||
-          Number(r.x) + Number(r.width) > Number(r.pageWidth) ||
-          Number(r.y) + Number(r.height) > Number(r.pageHeight)
-        )
-          throw Error("Invalid sprite reference");
+        validateSprite(c.sprite);
       }
     }
     return value as ServerMessage;
@@ -102,4 +119,22 @@ export function parseServerMessage(value: unknown): ServerMessage {
     return value as ServerMessage;
   }
   throw Error("Invalid viewer message");
+}
+
+function validateSprite(r: unknown) {
+  if (
+    !object(r) ||
+    typeof r.asset !== "string" ||
+    !/^[a-f0-9]{24}$/.test(r.asset) ||
+    !["x", "y", "width", "height", "pageWidth", "pageHeight"].every(
+      (k) => int(r[k]) && Number(r[k]) >= 0,
+    ) ||
+    Number(r.width) < 1 ||
+    Number(r.width) > 256 ||
+    Number(r.height) > 256 ||
+    Number(r.height) < 1 ||
+    Number(r.x) + Number(r.width) > Number(r.pageWidth) ||
+    Number(r.y) + Number(r.height) > Number(r.pageHeight)
+  )
+    throw Error("Invalid sprite reference");
 }

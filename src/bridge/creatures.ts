@@ -1,3 +1,4 @@
+import type { WornItem } from "./dwarf-layers.js";
 import type { FortressAdapter } from "./adapter.js";
 import {
   tileAt,
@@ -34,7 +35,40 @@ export function visibleUnit(
   );
 }
 export class CreatureReader {
-  raws = new Map<number, { id: string; castes: Map<number, string> }>();
+  raws = new Map<
+    number,
+    {
+      id: string;
+      castes: Map<number, string>;
+      details: Map<number, Record<string, unknown>>;
+    }
+  >();
+  private itemDefs: Map<string, string> | undefined;
+  private materialColors = new Map<string, [number, number, number]>();
+  private async metadata() {
+    if (this.itemDefs) return;
+    const items = await this.adapter.rpc.call("GetItemList"),
+      materials = await this.adapter.rpc.call("GetMaterialList");
+    this.itemDefs = new Map();
+    for (const d of (items.materialList ?? []) as Record<string, unknown>[]) {
+      const p = d.matPair as Record<string, unknown>;
+      if (p && typeof d.id === "string")
+        this.itemDefs.set(`${p.matType},${p.matIndex}`, d.id);
+    }
+    for (const d of (materials.materialList ?? []) as Record<
+      string,
+      unknown
+    >[]) {
+      const p = d.matPair as Record<string, unknown>,
+        c = d.stateColor as Record<string, unknown> | undefined;
+      if (p && c)
+        this.materialColors.set(`${p.matType},${p.matIndex}`, [
+          Number(c.red),
+          Number(c.green),
+          Number(c.blue),
+        ]);
+    }
+  }
   constructor(
     private adapter: FortressAdapter,
     private graphics: Graphics,
@@ -44,6 +78,7 @@ export class CreatureReader {
     level: number,
     chunks: Map<string, Chunk>,
   ): Promise<Creature[]> {
+    await this.metadata();
     const data = await this.adapter.rpc.call("GetUnitListInside", {
       minX: b.x / 16,
       maxX: (b.x + b.width) / 16,
@@ -85,6 +120,12 @@ export class CreatureReader {
         )
           this.raws.set(race.matType, {
             id: raw.creatureId,
+            details: new Map(
+              ((raw.caste ?? []) as Record<string, unknown>[]).map((c) => [
+                Number(c.index),
+                c,
+              ]),
+            ),
             castes: new Map(
               ((raw.caste ?? []) as Record<string, unknown>[]).map((c) => [
                 Number(c.index),
@@ -100,6 +141,59 @@ export class CreatureReader {
               raw.castes.get(Number(race.matIndex)) ?? "",
             )
           : undefined;
+      let layers: ReturnType<Graphics["dwarf"]> | undefined;
+      if (raw?.id === "DWARF") {
+        const caste = raw.details.get(Number(race.matIndex)),
+          appearance = u.appearance as Record<string, unknown> | undefined;
+        const modifiers = (caste?.colorModifiers ?? []) as Record<
+            string,
+            unknown
+          >[],
+          colors = (appearance?.colors ?? []) as number[];
+        let skin = "";
+        for (let i = 0; i < modifiers.length; i++)
+          if (String(modifiers[i].part).toUpperCase().includes("SKIN")) {
+            const patterns = modifiers[i].patterns as Record<string, unknown>[];
+            skin = String(patterns?.[colors[i]]?.id ?? "");
+          }
+        const parts = (caste?.bodyParts ?? []) as Record<string, unknown>[],
+          items: WornItem[] = [];
+        for (const inv of (u.inventory ?? []) as Record<string, unknown>[]) {
+          if (inv.mode !== 1 && inv.mode !== 2) continue;
+          const item = inv.item as Record<string, unknown> | undefined,
+            p = item?.type as Record<string, unknown> | undefined;
+          if (!item || !p) continue;
+          const token = this.itemDefs?.get(`${p.matType},${p.matIndex}`),
+            body = parts[Number(inv.bodyPartId)];
+          if (!token || !body) continue;
+          const [type, subtype] = token.split("/"),
+            mat = item.material as Record<string, unknown> | undefined,
+            dye = item.dye as Record<string, unknown> | undefined;
+          const color = dye
+            ? ([Number(dye.red), Number(dye.green), Number(dye.blue)] as [
+                number,
+                number,
+                number,
+              ])
+            : mat
+              ? this.materialColors.get(`${mat.matType},${mat.matIndex}`)
+              : undefined;
+          items.push({
+            type,
+            subtype,
+            bodyToken: String(body.token),
+            bodyCategory: String(body.category),
+            color,
+            artifact: (Number(item.flags1) & ((1 << 18) | (1 << 27))) !== 0,
+          });
+        }
+        layers = this.graphics.dwarf({
+          caste: raw.castes.get(Number(race.matIndex)) ?? "",
+          age: Number(u.age ?? 30),
+          skin,
+          items,
+        });
+      }
       result.push({
         id: Number(u.id),
         x: Number(u.posX),
@@ -110,6 +204,7 @@ export class CreatureReader {
             ? u.name.slice(0, 120)
             : (raw?.id ?? "Creature"),
         ...(sprite ? { sprite } : {}),
+        ...(layers && layers.length > 1 ? { layers } : {}),
       });
     }
     return result;

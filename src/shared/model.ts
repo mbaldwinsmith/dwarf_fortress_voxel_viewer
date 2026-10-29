@@ -1,3 +1,8 @@
+export interface SpriteLayer {
+  sprite: SpriteRef;
+  palette?: { asset: string; sourceRow: number; row: number };
+  tint?: [number, number, number];
+}
 export interface SpriteRef {
   asset: string;
   x: number;
@@ -14,6 +19,7 @@ export interface Creature {
   z: number;
   name: string;
   sprite?: SpriteRef;
+  layers?: SpriteLayer[];
 }
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
