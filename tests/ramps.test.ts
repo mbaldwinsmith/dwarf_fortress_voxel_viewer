@@ -65,3 +65,27 @@ it("keeps opposite exits sloped rather than becoming a flat wall", () => {
   expect(f.surface().corners).toEqual([1, 1, 1, 1]);
   expect(f.surface().center).toBeLessThan(1);
 });
+it("uses confirmed upper landings instead of lifting the low edge against side walls", () => {
+  const f = fixture();
+  f.set(8, 7, "wall");
+  f.set(8, 9, "wall");
+  f.set(9, 8, "wall");
+  const above: Chunk = {
+    x: 0,
+    y: 0,
+    z: 1,
+    tiles: Array.from({ length: 256 }, () => ({
+      shape: "wall",
+      material: 2,
+      name: "Rock",
+    })),
+  };
+  above.tiles[8 * 16 + 8] = { shape: "empty", material: 0, name: "Ramp top" };
+  above.tiles[8 * 16 + 9] = {
+    shape: "floor",
+    material: 2,
+    name: "Upper landing",
+  };
+  f.chunks.set(chunkKey(above), above);
+  expect(f.surface().corners).toEqual([0.12, 0.12, 1, 1]);
+});

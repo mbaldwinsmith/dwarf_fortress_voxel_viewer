@@ -256,3 +256,19 @@ it("caches bounded map plant reads while keeping chunk contents authoritative", 
   expect(c.objects).toEqual([]);
   clock.mockRestore();
 });
+it("omits flat stair art in first person and restores it in orbit mode", () => {
+  const view = new ScenerySprites(),
+    c = chunk();
+  c.objects = [
+    { id: "s:2:1:4", x: 2, y: 1, z: 4, name: "Stairs", kind: "ground" },
+  ];
+  const all = new Map([["0,0,4", c]]);
+  const camera = new THREE.PerspectiveCamera();
+  view.update([c], all, true);
+  view.frame(camera, 6);
+  expect(view.visibleCount).toBe(0);
+  view.update([c], all);
+  view.frame(camera, 4);
+  expect(view.visibleCount).toBe(1);
+  view.dispose();
+});

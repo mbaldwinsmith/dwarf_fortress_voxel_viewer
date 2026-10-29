@@ -9,7 +9,21 @@ export function rampSurface(
   y: number,
   z: number,
 ) {
+  const exits = new Set<string>();
+  for (const dx of [-1, 0, 1])
+    for (const dy of [-1, 0, 1]) {
+      if (!dx && !dy) continue;
+      const base = tileAt(chunks, x + dx, y + dy, z),
+        top = tileAt(chunks, x + dx, y + dy, z + 1);
+      if (
+        base?.shape === "wall" &&
+        top &&
+        ["floor", "stairs", "ramp"].includes(top.shape)
+      )
+        exits.add(`${dx},${dy}`);
+    }
   const wall = (dx: number, dy: number) => {
+    if (exits.size) return exits.has(`${dx},${dy}`);
     const shape = tileAt(chunks, x + dx, y + dy, z)?.shape;
     return shape === "wall" || shape === "unknown";
   };

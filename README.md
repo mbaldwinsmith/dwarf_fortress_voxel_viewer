@@ -78,6 +78,8 @@ connected stair tile, hold W to climb or S to descend. The camera and streamed
 levels follow automatically; missing, hidden and disconnected destinations block
 travel. Furniture/door collision is not implemented. Manual Z changes and unrelated
 reconnections return to camera-point selection.
+First person renders the loaded levels above and below you, including upper walls
+and landings. Stair shafts have open centres so you can look between levels.
 Clicking the view focuses its keyboard controls even when an embedded browser
 blocks pointer lock. In that fallback, keep the pointer over the view to look.
 Escape pauses; click again to resume. The banner reports active/paused controls.

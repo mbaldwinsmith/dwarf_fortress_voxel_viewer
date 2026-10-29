@@ -168,12 +168,13 @@ export class ScenerySprites {
     this.group.remove(group);
     this.blocks.delete(key);
   }
-  update(chunks: Chunk[], all: Map<string, Chunk>) {
+  update(chunks: Chunk[], all: Map<string, Chunk>, firstPerson = false) {
     for (const chunk of chunks) {
       const key = chunkKey(chunk);
       this.remove(key);
       const group = new THREE.Group();
       group.userData.z = chunk.z;
+      group.userData.count = 0;
       const batches = new Map<
         string,
         {
@@ -185,8 +186,10 @@ export class ScenerySprites {
         }
       >();
       for (const o of chunk.objects ?? []) {
+        if (firstPerson && o.id.startsWith("s:")) continue;
         const tile = tileAt(all, o.x, o.y, o.z);
         if (!tile || tile.shape === "unknown") continue;
+        group.userData.count++;
         const coords = o.sprite ? uv(o.sprite) : [0, 1, 0, 0, 1, 0, 1, 1];
         if (o.kind === "plant") {
           const material = this.material(o.sprite?.asset);
@@ -287,15 +290,14 @@ export class ScenerySprites {
         geometry.computeBoundingSphere();
         group.add(new THREE.Mesh(geometry, b.material));
       }
-      group.userData.count = chunk.objects?.length ?? 0;
       this.blocks.set(key, group);
       this.group.add(group);
     }
   }
-  frame(camera: THREE.Camera, cut: number) {
+  frame(camera: THREE.Camera, cut: number, minLevel = cut - 2) {
     this.visibleCount = 0;
     for (const group of this.blocks.values()) {
-      group.visible = group.userData.z <= cut && group.userData.z >= cut - 2;
+      group.visible = group.userData.z <= cut && group.userData.z >= minLevel;
       if (group.visible) this.visibleCount += group.userData.count;
     }
     for (const mesh of this.billboards) mesh.quaternion.copy(camera.quaternion);

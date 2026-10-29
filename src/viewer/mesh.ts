@@ -53,51 +53,9 @@ export function buildMesh(
       .filter((o) => o.kind === "plant" && o.sprite)
       .map((o) => (o.y - c.y) * 16 + o.x - c.x),
   );
-  if (c.z > cut) {
-    if (!firstPerson || c.z !== cut + 1) return out;
-    // Only underside faces of the overhead layer: the cutaway remains open in
-    // orbit mode. Unknown rock uses neutral art, never hidden material data.
-    for (let i = 0; i < 256; i++) {
-      const t = c.tiles[i];
-      if (
-        !t ||
-        !["wall", "floor", "unknown"].includes(t.shape) ||
-        t.treeGraphic
-      )
-        continue;
-      const x = c.x + (i % 16),
-        y = c.y + Math.floor(i / 16),
-        z = c.z;
-      const below = tileAt(chunks, x, y, cut);
-      if (!below || below.shape === "wall" || below.shape === "unknown")
-        continue;
-      const [l, b, r, u] = textureUV(
-        t.shape === "unknown" || t.sealed
-          ? below.surfaces?.side
-          : t.surfaces?.side,
-      );
-      const color =
-        t.shape === "unknown" ? [0.18, 0.18, 0.2] : [0.55, 0.55, 0.55];
-      const vertices = [
-          [x, z, y],
-          [x + 1, z, y],
-          [x + 1, z, y + 1],
-          [x, z, y + 1],
-        ],
-        uv = [
-          [l, b],
-          [r, b],
-          [r, u],
-          [l, u],
-        ];
-      for (const j of [0, 1, 2, 0, 2, 3]) {
-        out.positions.push(...vertices[j]);
-        out.colors.push(...color);
-        out.uvs.push(...uv[j]);
-      }
-    }
-    return out;
-  }
+  const visibleCut = firstPerson ? cut + 2 : cut;
+  if (c.z > visibleCut) return out;
+
   function quad(
     v: number[][],
     color: number[],
@@ -170,7 +128,7 @@ export function buildMesh(
         l = z + base,
         u = l + h;
       const neighbour = (nx: number, ny: number, nz: number) =>
-        nz <= cut && solid(tileAt(chunks, nx, ny, nz));
+        nz <= visibleCut && solid(tileAt(chunks, nx, ny, nz));
       if (!cull || !neighbour(x + 1, y, z))
         quad(
           [
@@ -236,7 +194,18 @@ export function buildMesh(
               rim,
             );
       }
-      if (!cull || !neighbour(x, y, z - 1))
+      if (!cull || !neighbour(x, y, z - 1)) {
+        const original = surfaces;
+        const below =
+          firstPerson && (t.sealed || t.shape === "unknown")
+            ? tileAt(chunks, x, y, z - 1)?.surfaces
+            : undefined;
+        if (below)
+          surfaces = {
+            top: below.side,
+            side: below.side,
+            topTint: [190, 190, 190],
+          };
         quad(
           [
             [a, l, b],
@@ -246,17 +215,19 @@ export function buildMesh(
           ],
           color,
         );
+        surfaces = original;
+      }
     }
     if (t.treeGraphic && treeSprites.has(i)) box(0.12);
     else if (t.shape === "wall" || t.shape === "unknown")
       box(1, 0, 0, 1, 1, 0, true);
     else if (t.shape === "stairs") {
-      box(0.12);
+      if (!firstPerson) box(0.12);
       const stairArt = c.objects?.some(
         (o) => o.id === `s:${x}:${y}:${z}` && o.sprite,
       );
-      for (let s = 0; !stairArt && s < 4; s++)
-        box((s + 1) * 0.22, 0, s / 4, 0.65, 0.25, 0.12);
+      for (let s = 0; (firstPerson || !stairArt) && s < 4; s++)
+        box((s + 1) * 0.22, 0, s / 4, firstPerson ? 0.28 : 0.65, 0.25, 0.12);
     } else if (t.shape === "ramp") {
       const { corners, center } = rampSurface(chunks, x, y, z);
       // Clockwise in map XY, counterclockwise when viewed from above in Three.js.

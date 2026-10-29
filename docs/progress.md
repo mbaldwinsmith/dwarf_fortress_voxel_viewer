@@ -417,3 +417,29 @@ stair directions, ramp ascent/descent, Escape and recapture. A renderer fixture
 verifies that a simulated level/terrain reset preserves active walking. The local
 dev server was restarted after the user's connection interruption; DFHack port
 5000 was unavailable afterward, so fresh live-game traversal remains unverified.
+
+## Live navigation verification - 29 October 2026
+
+Fresh read-only live testing now supersedes the earlier disconnected-game limit.
+The production viewer handlers passed stairs up/down at X34/Y128 (Z128/129),
+WASD, mouse look, Escape and recapture against the loaded fortress. A denied
+pointer-lock run also passed actual-terrain controls and ramp ascent/descent from
+the lower floor at X28/Y120/Z128 through X29/Y120 to X30/Y120/Z129 and back.
+No browser page errors occurred. See live-navigation-check.md for the test scope.
+
+Fixed delayed lower-column loading, unintended horizontal movement while stair
+connection data was missing, and a three-sided ramp whose low edge was raised by
+side walls. Confirmed upper landings now select uphill supports, and updates also
+invalidate all horizontally adjacent chunks one level below for seam correctness.
+
+The user's upward-visibility report exposed a remaining orbit cutaway in first
+person. Full loaded geometry now renders through cut+2 instead of replacing the
+upper layer with ceiling-only faces. Stair slabs and flat top sprites are replaced
+by narrow 3D treads with an open centre in first person; orbit art is unchanged.
+Objects/creatures use the full loaded vertical range, and view-height changes
+replace meshes gradually instead of clearing them all. Ceiling fallback artwork
+still uses revealed lower-tile stone art for sealed/unknown rock.
+
+A fresh live view ray from eye height 128.76 hit the actual Z129 wall at height
+129.4267 through the staircase, then live stair/ramp/input checks passed again.
+Final validation: 109 tests, strict TypeScript, production build and formatter.

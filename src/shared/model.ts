@@ -129,7 +129,9 @@ export function affected(c: Chunk): string[] {
     ...[-16, 0, 16].flatMap((dx) =>
       [-16, 0, 16].map((dy) => key(c.x + dx, c.y + dy, c.z)),
     ),
-    key(c.x, c.y, c.z - 1),
+    ...[-16, 0, 16].flatMap((dx) =>
+      [-16, 0, 16].map((dy) => key(c.x + dx, c.y + dy, c.z - 1)),
+    ),
     key(c.x, c.y, c.z + 1),
   ];
 }

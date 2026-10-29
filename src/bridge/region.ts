@@ -76,11 +76,8 @@ export function blockOrder(
     Math.abs(y + 8 - (focus?.y ?? b.y + b.depth / 2));
   xy.sort((a, b) => distance(a) - distance(b));
   const order: [number, number, number][] = [];
-  // Pair each visible block with its roof so neighbouring rooms are walkable
-  // immediately, without waiting for an entire map-wide Z sweep.
-  for (const [x, y] of xy)
-    for (const z of levels.filter((z) => z >= level)) order.push([x, y, z]);
-  for (const z of levels.filter((z) => z < level))
-    for (const [x, y] of xy) order.push([x, y, z]);
+  // Complete the nearby column in both directions before expanding outward.
+  // Returning down stairs must not wait for a map-wide overhead sweep.
+  for (const [x, y] of xy) for (const z of levels) order.push([x, y, z]);
   return order;
 }

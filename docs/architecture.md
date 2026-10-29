@@ -455,3 +455,20 @@ Controls explicitly focus the canvas. Pointer lock is optional: on failure,
 focused WASD and hover mouse look stay active. Free mouse deltas reset on capture
 and pointer leave; Escape, blur and lost lock pause/clear keys. Capture failures
 are surfaced in the control banner rather than silently disabling input.
+
+Live traversal refinement: each nearby column now streams all five levels before
+expanding across XY. A stair command waits in place while its linked destination
+or clearance data is unavailable. When upper-layer data confirms a walkable landing
+above a supporting wall, ramp geometry uses those confirmed exits rather than
+unrelated side walls. Upper-chunk updates therefore invalidate the 3x3 lower-level
+neighbourhood in addition to the current horizontal neighbours and direct upper
+neighbour (19 affected keys). See live-navigation-check.md for fresh game evidence.
+
+The ceiling-only first-person mesh branch is superseded: first person now meshes
+full terrain through cut+2, while orbit retains its cutaway. Stair centres stay
+open using narrow 3D treads, suppressing their flat native top art only in first
+person. Scenery and creature visibility use explicit upper/lower bounds so upper
+landings and lower floors can both be seen. The ordinary opaque unknown-rock
+geometry still conceals unrevealed terrain; sealed/unknown ceiling undersides may
+borrow only the revealed tile below's stone artwork. Mesh replacements during
+view-height changes preserve existing geometry until queued replacements arrive.

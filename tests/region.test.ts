@@ -73,6 +73,10 @@ it("prioritizes the walking camera and both overhead levels within the resident 
     [32, 128, 129],
     [32, 128, 130],
   ]);
+  expect(order.slice(3, 5)).toEqual([
+    [32, 128, 127],
+    [32, 128, 126],
+  ]);
   expect(() => blockOrder({ ...bounds, width: 512, depth: 512 }, 128)).toThrow(
     /resident limit/,
   );

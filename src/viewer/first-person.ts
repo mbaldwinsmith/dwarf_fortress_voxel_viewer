@@ -220,6 +220,23 @@ export class FirstPersonControls {
     const p = this.camera.position,
       chunks = this.chunks();
     if (!this.climbing && forward && !right) {
+      const stair = tileAt(
+        chunks,
+        Math.floor(p.x),
+        Math.floor(p.z),
+        this.level,
+      );
+      if (
+        stair?.shape === "stairs" &&
+        (forward > 0 ? /up/i.test(stair.name) : /down/i.test(stair.name)) &&
+        !tileAt(
+          chunks,
+          Math.floor(p.x),
+          Math.floor(p.z),
+          this.level + Math.sign(forward),
+        )
+      )
+        return;
       const destination = stairDestination(
         chunks,
         p.x,
@@ -227,16 +244,17 @@ export class FirstPersonControls {
         this.level,
         Math.sign(forward),
       );
-      if (
-        destination !== undefined &&
-        canWalk(
-          chunks,
-          Math.floor(p.x) + 0.5,
-          Math.floor(p.z) + 0.5,
-          destination,
-          this.mapTop(),
+      if (destination !== undefined) {
+        if (
+          !canWalk(
+            chunks,
+            Math.floor(p.x) + 0.5,
+            Math.floor(p.z) + 0.5,
+            destination,
+            this.mapTop(),
+          )
         )
-      ) {
+          return;
         p.x = Math.floor(p.x) + 0.5;
         p.z = Math.floor(p.z) + 0.5;
         this.climbing = { from: this.level, to: destination, progress: 0 };

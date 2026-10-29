@@ -141,13 +141,13 @@ export class CreatureSprites {
       s.object.position.set(unit.x + 0.5, unit.z + 0.13, unit.y + 0.5);
     }
   }
-  update(chunks: Map<string, Chunk>, cut: number) {
+  update(chunks: Map<string, Chunk>, cut: number, minLevel = cut - 2) {
     this.visibleCount = 0;
     for (const s of this.sprites.values()) {
       const u = s.unit,
         t = tileAt(chunks, u.x, u.y, u.z);
       s.object.visible =
-        !!t && t.shape !== "unknown" && u.z <= cut && u.z >= cut - 2;
+        !!t && t.shape !== "unknown" && u.z <= cut && u.z >= minLevel;
       if (s.object.visible) this.visibleCount++;
     }
   }

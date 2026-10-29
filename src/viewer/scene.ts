@@ -203,9 +203,7 @@ export class FortressScene {
     this.onNavigationChange?.(this.navigation);
   }
   private refreshRoofs() {
-    const roofs = [...this.state.chunks.values()].filter(
-      (c) => c.z === this.cut + 1,
-    );
+    const roofs = [...this.state.chunks.values()];
     if (this.navigation === "firstPerson") {
       const distance = (c: Chunk) =>
         Math.hypot(
@@ -215,26 +213,22 @@ export class FortressScene {
       roofs.sort((a, b) => distance(a) - distance(b));
       this.dirty = new Set([...roofs.map(chunkKey), ...this.dirty]);
     } else {
-      // Remove ceilings immediately when returning to a cutaway view.
+      // Restore the orbit cutaway and native stair sprites.
       for (const c of roofs) {
         const k = chunkKey(c),
           mesh = this.meshes.get(k);
-        if (mesh) {
+        if (mesh && c.z > this.cut) {
           this.scene.remove(mesh);
           mesh.geometry.dispose();
           this.meshes.delete(k);
         }
       }
+      this.update(roofs);
     }
   }
   private followWalkingCut(z: number) {
     if (z === this.cut) return;
     this.cut = z;
-    for (const m of this.meshes.values()) {
-      this.scene.remove(m);
-      m.geometry.dispose();
-    }
-    this.meshes.clear();
     this.update([...this.state.chunks.values()]);
     this.refreshRoofs();
   }
@@ -325,7 +319,11 @@ export class FortressScene {
       }
       const c = this.state.chunks.get(k);
       if (!c) continue;
-      this.scenery.update([c], this.state.chunks);
+      this.scenery.update(
+        [c],
+        this.state.chunks,
+        this.navigation === "firstPerson",
+      );
       const data = buildMesh(
         c,
         this.state.chunks,
@@ -346,9 +344,11 @@ export class FortressScene {
       this.meshes.set(k, m);
       this.scene.add(m);
     }
-    this.creatures.update(this.state.chunks, this.cut);
+    const visibleLevel =
+      this.navigation === "firstPerson" ? this.cut + 2 : this.cut;
+    this.creatures.update(this.state.chunks, visibleLevel, this.cut - 2);
     if (this.navigation !== "firstPerson") this.controls.update();
-    this.scenery.frame(this.camera, this.cut);
+    this.scenery.frame(this.camera, visibleLevel, this.cut - 2);
     this.renderer.render(this.scene, this.camera);
     this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
   };
