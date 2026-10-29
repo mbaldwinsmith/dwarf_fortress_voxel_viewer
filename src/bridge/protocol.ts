@@ -26,7 +26,7 @@ message MaterialList {repeated MaterialDefinition material_list=1;}
 message BodyPartLayerRaw {optional string layer_name=1;repeated int32 bp_modifiers=4;}
 message BodyPartRaw {optional string token=1;optional string category=2;repeated BodyPartLayerRaw layers=5;}
 message BpAppearanceModifier {optional string type=1;}
-message PatternDescriptor {optional string id=1;}
+message PatternDescriptor {optional string id=1;repeated ColorDefinition colors=2;optional int32 pattern=3;}
 message ColorModifierRaw {repeated PatternDescriptor patterns=1;repeated int32 body_part_id=2;repeated int32 tissue_layer_id=3;optional int32 start_date=4;optional int32 end_date=5;optional string part=6;}
 message CasteRaw {optional int32 index=1;optional string caste_id=2;repeated BodyPartRaw body_parts=7;repeated ColorModifierRaw color_modifiers=14;repeated BpAppearanceModifier modifiers=9;repeated int32 modifier_idx=10;repeated int32 part_idx=11;repeated int32 layer_idx=12;}
 message CreatureRaw {optional int32 index=1;optional string creature_id=2;repeated CasteRaw caste=10;}

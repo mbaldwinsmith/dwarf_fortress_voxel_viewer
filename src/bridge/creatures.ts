@@ -1,4 +1,5 @@
 import { hairAppearance } from "./hair.js";
+import { eyeColor, faceVariant } from "./face.js";
 import type { WornItem } from "./dwarf-layers.js";
 import type { FortressAdapter } from "./adapter.js";
 import {
@@ -192,6 +193,8 @@ export class CreatureReader {
           caste: raw.castes.get(Number(race.matIndex)) ?? "",
           age: Number(u.age ?? 30),
           skin,
+          faceVariant: faceVariant(Number(u.id)),
+          eyeColor: eyeColor(caste ?? {}, appearance ?? {}),
           ...hairAppearance(caste ?? {}, appearance ?? {}, Number(u.age ?? 0)),
           items,
         });

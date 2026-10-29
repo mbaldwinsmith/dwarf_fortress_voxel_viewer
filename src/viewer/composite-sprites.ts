@@ -10,6 +10,7 @@ export function recolor(
   source: Uint8ClampedArray | undefined,
   target: Uint8ClampedArray | undefined,
   tint?: number[],
+  eyeColor?: number[],
 ) {
   const palette = new Map<number, number[]>();
   if (source && target)
@@ -21,6 +22,11 @@ export function recolor(
       ]);
   for (let i = 0; i < pixels.length; i += 4) {
     if (!pixels[i + 3]) continue;
+    const pupil =
+      !!eyeColor &&
+      pixels[i] === 0 &&
+      pixels[i + 1] === 0 &&
+      pixels[i + 2] === 0;
     const rgb = palette.get(
       (pixels[i] << 16) | (pixels[i + 1] << 8) | pixels[i + 2],
     );
@@ -31,6 +37,13 @@ export function recolor(
       pixels[i + 1] = tint[1] * light;
       pixels[i + 2] = tint[2] * light;
     }
+    // At native scale each eye is a single pixel: retain a dark pupil/iris mix.
+    // The opaque pure-black source mask excludes the charcoal face outline.
+    if (pupil)
+      pixels.set(
+        eyeColor!.map((n) => Math.round(n * 0.7)),
+        i,
+      );
   }
 }
 export class CompositeSprites {
@@ -128,7 +141,7 @@ export class CompositeSprites {
         target = context.getImageData(0, p.row, img.width, 1).data;
       }
       const data = t.getImageData(0, 0, r.width, r.height);
-      recolor(data.data, source, target, l.tint);
+      recolor(data.data, source, target, l.tint, l.eyeColor);
       t.putImageData(data, 0, 0);
       // Large sprites extend left/up from the normal tile, anchored bottom-right.
       ctx.drawImage(tile, width - r.width, 32 - r.height - minY);

@@ -1,4 +1,5 @@
 export interface SpriteLayer {
+  eyeColor?: [number, number, number];
   sprite: SpriteRef;
   palette?: { asset: string; sourceRow: number; row: number };
   tint?: [number, number, number];

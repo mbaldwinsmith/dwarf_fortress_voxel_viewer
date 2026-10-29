@@ -57,6 +57,13 @@ export function parseServerMessage(value: unknown): ServerMessage {
         for (const l of c.layers) {
           if (!object(l)) throw Error("Invalid layer");
           validateSprite(l.sprite);
+          if (
+            l.eyeColor !== undefined &&
+            (!Array.isArray(l.eyeColor) ||
+              l.eyeColor.length !== 3 ||
+              !l.eyeColor.every((n) => int(n) && n >= 0 && n <= 255))
+          )
+            throw Error("Invalid eye colour");
           if (l.palette !== undefined) {
             const p = l.palette;
             if (

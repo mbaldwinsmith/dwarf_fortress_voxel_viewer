@@ -88,6 +88,8 @@ export interface HairAppearance {
   curly?: number;
 }
 export interface DwarfAppearance {
+  faceVariant?: number;
+  eyeColor?: [number, number, number];
   hair?: HairAppearance;
   beard?: HairAppearance;
   caste: string;
@@ -202,9 +204,12 @@ export function chooseDwarfLayers(
             };
           }
         }
-        // RFR does not expose the game's random face index: use variant one.
+        // RFR omits the game's index; the bridge supplies a stable artistic variant.
         else if (tag === "CONDITION_RANDOM_PART_INDEX")
-          ok &&= a[0] === "HEAD" && a[1] === "1";
+          ok &&=
+            a[0] === "HEAD" &&
+            Number(a[1]) === (appearance.faceVariant ?? 1) &&
+            a[2] === "4";
         else if (tag === "CONDITION_MATERIAL_FLAG")
           ok &&=
             !!matched &&
@@ -228,6 +233,17 @@ export function chooseDwarfLayers(
       );
       if (!sprite) continue;
       const out: SpriteLayer = { sprite };
+      // This mask is specific to the inspected vanilla adult/child face rows. Do not
+      // tint black outlines, wearables, babies or arbitrary mod graphics.
+      if (
+        appearance.eyeColor &&
+        layer.page === "DWARF_BODY" &&
+        (layer.y === 0 || layer.y === 3) &&
+        layer.x >= 0 &&
+        layer.x <= 7 &&
+        layer.conditions.some((c) => c[0] === "CONDITION_RANDOM_PART_INDEX")
+      )
+        out.eyeColor = appearance.eyeColor;
       if (layer.palette) {
         const p = set.palettes.get(layer.palette.name),
           asset = p ? paletteAsset(p.file) : undefined;

@@ -154,8 +154,8 @@ layer groups. The first supported matching layer in each group is selected.
 Supported rules include caste, skin palette, worn/held item subtype and attached
 body category/token, item suppression and artifact flags (item_flags bits 18/27
 from matching df-structures). Other material/syndrome/wound/procedural rules fail
-closed. Face variant one is an explicit approximation because RFR does not expose
-the game random-part index. Hair/beard rules are described in the next section.
+closed. A stable unit-ID hash selects one of four native face variants because RFR
+does not expose the game random-part index. Hair/beard rules are described below.
 
 The browser composites selected local PNG rectangles onto an in-memory canvas.
 Large-image rectangles anchor at the bottom-right normal tile; world scale remains
@@ -184,3 +184,22 @@ inventory conditions. Scalp hair and chin-whisker/beard styling are independent.
 Separate moustache/sideburn rules and exact random face variants remain outside
 this subset. Normal tile anchoring is preserved for tall hair images, avoiding
 floating ponytails and changing character scale.
+
+## Facial features
+
+Adult and child faces now use the four vanilla nose/mouth/eye-layout variants
+per caste. A unit-ID hash selects a stable artistic variant; this is not the
+game's random-part index and does not reconstruct actual facial proportions.
+Caste colour modifiers are matched to EYE body parts, then indexed by live
+UnitAppearance.colors. PatternDescriptor field 2 supplies RGB colours; native
+IRIS_EYE patterns order sclera, pupil, iris, so index 2 is the iris colour.
+Missing or malformed eye metadata leaves the original art unchanged.
+
+Only inspected vanilla face rows (DWARF_BODY rows 0 and 3, columns 0�7, with
+a HEAD random-part condition) receive eye colour metadata. The compositor masks
+opaque pure-black source pixels, which are the two pupil pixels in these faces.
+It paints a 70% iris/black mix after skin palette remapping, preserving the
+charcoal outline, white sclera, skin and alpha. At 32-pixel character scale this
+is a pupil/iris approximation. Later hair, beard and headwear layers naturally
+occlude the face. Eye colour participates in the existing composition cache
+key; RGB is validated before browser use. No installed assets are modified.

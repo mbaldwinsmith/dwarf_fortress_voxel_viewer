@@ -187,3 +187,19 @@ headwear suppression, beard/scalp independence, exact curl-index mapping, age
 colour selection, missing data and large curly-image swaps. Strict TypeScript
 checking and production build pass. The temporary diagnostic snapshot page and
 script are removed before commit.
+
+## Facial features � 29 October 2026
+
+Added four stable native face variants per caste and eye pixels driven by each
+dwarf's live IRIS_EYE RGB. RFR omits the random face-art index, so the unit-ID
+variant is explicitly an artistic substitute; exact nose, mouth and eye
+proportions remain unimplemented. Eye extraction uses body-part-linked colour
+modifiers and the iris entry, not sclera or pupil entries. No guessed colours.
+The source mask is restricted to vanilla adult/child face layers and preserves
+skin palette, alpha, outlines and later hair/headwear occlusion.
+
+Read-only live verification found 15 dwarf appearance records. Enlarged previews
+confirmed distinct faces, copper/gold/amethyst iris colours and hair/beard layering.
+55 tests cover metadata selection, missing/invalid colours, stable variants,
+face-only tinting, wire validation and pixel preservation, alongside prior terrain
+and sprite checks. Production build passes with the existing Three.js size warning.
