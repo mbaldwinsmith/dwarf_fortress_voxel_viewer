@@ -12,6 +12,12 @@ export function parseServerMessage(value: unknown): ServerMessage {
     return value as ServerMessage;
   if (!text(value.session) || !value.session) throw Error("Missing session");
   if (value.type === "reset" && text(value.world) && object(value.bounds)) {
+    if (
+      value.mode !== undefined &&
+      value.mode !== "screen" &&
+      value.mode !== "map"
+    )
+      throw Error("Invalid render mode");
     const b = value.bounds;
     if (
       ["x", "y", "z", "width", "depth", "height"].every((k) => int(b[k])) &&

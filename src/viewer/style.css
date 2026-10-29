@@ -214,3 +214,30 @@ footer {
     display: block;
   }
 }
+
+.render-mode {
+  border: 1px solid #475666;
+  border-radius: 4px;
+  padding: 7px 10px;
+  flex-shrink: 0;
+  font-size: 12px;
+  display: flex;
+  gap: 12px;
+}
+.render-mode legend {
+  color: #bfc9d0;
+  font-size: 11px;
+}
+.render-mode label {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  cursor: pointer;
+}
+.render-mode input {
+  width: auto;
+  margin: 0;
+}
+.toolbar {
+  flex-wrap: wrap;
+}

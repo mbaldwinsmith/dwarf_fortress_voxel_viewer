@@ -100,3 +100,14 @@ settled mesh statistics and screenshot were inspected locally.
 Measured full sweep: 108,926 ms (about 109 seconds), bridge heap 15 MB.
 Settled live browser: 432 blocks, 216,130 triangles, zero queued mesh rebuilds.
 Browser/GPU memory and game frame-time impact remain unmeasured.
+
+## Render-view toggle — 29 October 2026
+
+Added accessible DF screen / Whole map radio controls. Screen mode follows
+GetViewInfo's current Z and block-aligned viewport, checked every twelve reads.
+Whole map retains full-footprint manual cutaways. Mode changes reset sessions;
+the choice is shared by connected tabs. Both modes retain three levels.
+
+27 tests pass, covering mode validation and viewport clipping/alignment.
+Manual game panning was not induced; the follow logic is tested with synthetic
+viewport positions. Browser mode switching and production build checked locally.

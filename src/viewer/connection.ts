@@ -35,6 +35,10 @@ export function connect(
       socket.close();
     },
     {
+      setMode: (mode: "screen" | "map") => {
+        if (socket.readyState === WebSocket.OPEN)
+          socket.send(JSON.stringify({ type: "mode", mode }));
+      },
       setLevel: (z: number) => {
         if (socket.readyState === WebSocket.OPEN)
           socket.send(JSON.stringify({ type: "level", z }));

@@ -26,6 +26,7 @@ export type ServerMessage =
       bounds: Bounds;
       world: string;
       level?: number;
+      mode?: "screen" | "map";
     }
   | {
       type: "chunks";

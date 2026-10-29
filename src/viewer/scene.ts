@@ -77,6 +77,8 @@ export class FortressScene {
       this.bounds?.depth === bounds.depth &&
       bounds.height > 0;
     const delta = level - this.cut;
+    const dx = bounds.x - (this.bounds?.x ?? bounds.x),
+      dy = bounds.y - (this.bounds?.y ?? bounds.y);
     for (const mesh of this.meshes.values()) {
       this.scene.remove(mesh);
       mesh.geometry.dispose();
@@ -86,6 +88,10 @@ export class FortressScene {
     this.bounds = bounds;
     this.cut = level;
     if (preserve) {
+      this.camera.position.x += dx;
+      this.controls.target.x += dx;
+      this.camera.position.z += dy;
+      this.controls.target.z += dy;
       this.camera.position.y += delta;
       this.controls.target.y += delta;
     } else if (bounds.height) this.frame();

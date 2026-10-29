@@ -103,3 +103,13 @@ Message layouts and polling semantics were checked against
 and [the plugin implementation](https://github.com/DFHack/dfhack/blob/0bf381cc/plugins/remotefortressreader/remotefortressreader.cpp).
 No upstream implementation or game assets are redistributed. Runtime dependencies
 retain their own licences in their packages; project code uses the repository MIT licence.
+
+## Render-view selection
+
+The validated `mode` operation accepts only `screen` or `map`. Screen mode
+reads GetViewInfo and rounds the viewport out to native block boundaries, clipped
+to the local map. Its Z follows DF and its viewport is checked every twelve block
+reads. Map mode keeps manual Z selection. Mode/region/Z changes reset the session
+and dispose the previous terrain. Radio controls are synchronised by reset
+messages across clients. Camera framing follows screen panning without changing
+the viewing angle. Neither operation changes the game.

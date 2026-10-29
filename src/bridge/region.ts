@@ -1,4 +1,38 @@
 import type { Bounds } from "../shared/model.js";
+export function parseMode(message: string): "screen" | "map" | undefined {
+  try {
+    const m = JSON.parse(message);
+    if (m?.type === "mode" && (m.mode === "screen" || m.mode === "map"))
+      return m.mode;
+  } catch {
+    /* Invalid operations are rejected by the caller. */
+  }
+}
+export function screenRegion(map: Bounds, view: Record<string, unknown>) {
+  const read = (k: string) => {
+    const n = view[k];
+    if (typeof n !== "number" || !Number.isInteger(n))
+      throw Error(`Invalid viewport ${k}`);
+    return n;
+  };
+  const x = Math.max(map.x, Math.min(map.x + map.width - 1, read("viewPosX"))),
+    y = Math.max(map.y, Math.min(map.y + map.depth - 1, read("viewPosY")));
+  const width = read("viewSizeX"),
+    depth = read("viewSizeY");
+  if (width < 1 || depth < 1) throw Error("DFHack returned an empty viewport");
+  const bx = Math.floor(x / 16) * 16,
+    by = Math.floor(y / 16) * 16;
+  return {
+    bounds: {
+      ...map,
+      x: bx,
+      y: by,
+      width: Math.min(map.x + map.width, Math.ceil((x + width) / 16) * 16) - bx,
+      depth: Math.min(map.y + map.depth, Math.ceil((y + depth) / 16) * 16) - by,
+    },
+    level: Math.max(map.z, Math.min(map.z + map.height - 1, read("viewPosZ"))),
+  };
+}
 export function parseLevel(
   message: string,
   bounds: Bounds | undefined,

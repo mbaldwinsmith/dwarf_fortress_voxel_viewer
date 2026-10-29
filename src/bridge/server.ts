@@ -7,7 +7,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { FortressAdapter } from "./adapter.js";
 import { chunkKey, type Chunk, type ServerMessage } from "../shared/model.js";
 import { inspectInstallation } from "./installation.js";
-import { blockOrder, parseLevel } from "./region.js";
+import { blockOrder, parseLevel, parseMode, screenRegion } from "./region.js";
 import { publicFile } from "./public-files.js";
 const installation = process.env.DF_PATH
   ? await inspectInstallation(process.env.DF_PATH)
@@ -114,6 +114,11 @@ wss.on("connection", (ws) => {
     void replay(ws, session);
   }
   ws.on("message", (data) => {
+    const mode = parseMode(data.toString());
+    if (mode) {
+      requestedMode = mode;
+      return;
+    }
     const level = parseLevel(data.toString(), reset?.bounds);
     if (level === undefined) {
       ws.close(1008, "Invalid viewer operation");
@@ -126,6 +131,7 @@ wss.on("connection", (ws) => {
 function publish(m: ServerMessage) {
   broadcast(m);
 }
+let requestedMode: "screen" | "map" = "map";
 let requestedLevel = 0;
 async function replay(ws: WebSocket, replaySession: string) {
   for (const k of [...chunks.keys()]) {
@@ -164,20 +170,35 @@ async function run() {
         session,
         bounds: adapter.bounds,
         level: adapter.initialLevel,
+        mode: "map",
         world: adapter.world,
       };
       publish(reset);
       setStatus("Loading actual fortress terrain…");
-      const b = adapter.bounds;
+
       requestedLevel = adapter.initialLevel;
       let sweep = 0;
       while (!stopping && wss.clients.size) {
-        const level = requestedLevel;
-        if (reset.level !== level) {
+        const mode = requestedMode;
+        const region =
+          mode === "screen"
+            ? screenRegion(
+                adapter.bounds,
+                await adapter.rpc.call("GetViewInfo"),
+              )
+            : { bounds: adapter.bounds, level: requestedLevel };
+        const b = region.bounds,
+          level = region.level;
+        requestedLevel = level;
+        if (
+          reset.level !== level ||
+          reset.mode !== mode ||
+          JSON.stringify(reset.bounds) !== JSON.stringify(b)
+        ) {
           session = randomUUID();
           chunks.clear();
           sequence = 0;
-          reset = { ...reset, session, level };
+          reset = { ...reset, session, level, bounds: b, mode };
           publish(reset);
         }
         const started = performance.now();
@@ -186,7 +207,24 @@ async function run() {
           completed = 0;
         const order = blockOrder(b, level);
         for (const [x, y, z] of order) {
-          if (stopping || !wss.clients.size || requestedLevel !== level) break;
+          if (
+            stopping ||
+            !wss.clients.size ||
+            requestedLevel !== level ||
+            requestedMode !== mode
+          )
+            break;
+          if (mode === "screen" && completed % 12 === 0) {
+            const current = screenRegion(
+              adapter.bounds,
+              await adapter.rpc.call("GetViewInfo"),
+            );
+            if (
+              current.level !== level ||
+              JSON.stringify(current.bounds) !== JSON.stringify(b)
+            )
+              break;
+          }
           await adapter.checkWorld();
           const t = performance.now(),
             chunk = await adapter.block(x, y, z),

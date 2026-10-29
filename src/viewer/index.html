@@ -22,6 +22,27 @@
           <span class="eyebrow">FORTRESS</span>
           <h2 id="world">Awaiting a fortress</h2>
         </div>
+        <fieldset class="render-mode">
+          <legend>Render view</legend>
+          <label
+            ><input
+              type="radio"
+              name="render-mode"
+              value="screen"
+              id="mode-screen"
+            />
+            DF screen</label
+          ><label
+            ><input
+              type="radio"
+              name="render-mode"
+              value="map"
+              id="mode-map"
+              checked
+            />
+            Whole map</label
+          >
+        </fieldset>
         <div class="cut">
           <label for="level"
             >Cutaway <output id="level-value" for="level">—</output></label
@@ -51,7 +72,7 @@
           Drag to orbit · Right-drag to pan · Scroll to zoom · <kbd>[</kbd>
           <kbd>]</kbd> Z-level · Touch: one finger orbit, two fingers pan / zoom
         </p>
-        <p>
+        <p id="scope">
           Read-only · Full local map · Three levels streamed at the selected
           cutaway
         </p>

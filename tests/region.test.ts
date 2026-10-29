@@ -1,7 +1,55 @@
 import { it, expect } from "vitest";
-import { blockOrder, parseLevel } from "../src/bridge/region.js";
+import {
+  blockOrder,
+  parseLevel,
+  parseMode,
+  screenRegion,
+} from "../src/bridge/region.js";
 import { parseServerMessage } from "../src/shared/validation.js";
 const bounds = { x: 0, y: 0, z: 0, width: 192, depth: 192, height: 199 };
+it("accepts only the two render modes", () => {
+  expect(parseMode('{"type":"mode","mode":"screen"}')).toBe("screen");
+  expect(parseMode('{"type":"mode","mode":"map"}')).toBe("map");
+  for (const m of [
+    "null",
+    "bad",
+    '{"type":"command","mode":"map"}',
+    '{"type":"mode","mode":"all"}',
+  ])
+    expect(parseMode(m)).toBeUndefined();
+});
+it("aligns the DF viewport to blocks and clips at map edges", () => {
+  expect(
+    screenRegion(bounds, {
+      viewPosX: 17,
+      viewPosY: 35,
+      viewSizeX: 50,
+      viewSizeY: 30,
+      viewPosZ: 128,
+    }),
+  ).toEqual({
+    bounds: { ...bounds, x: 16, y: 32, width: 64, depth: 48 },
+    level: 128,
+  });
+  expect(
+    screenRegion(bounds, {
+      viewPosX: 185,
+      viewPosY: 185,
+      viewSizeX: 50,
+      viewSizeY: 30,
+      viewPosZ: 128,
+    }).bounds,
+  ).toEqual({ ...bounds, x: 176, y: 176, width: 16, depth: 16 });
+  expect(() =>
+    screenRegion(bounds, {
+      viewPosX: 0,
+      viewPosY: 0,
+      viewSizeX: 0,
+      viewSizeY: 30,
+      viewPosZ: 128,
+    }),
+  ).toThrow();
+});
 it("covers every XY block in three levels, top first without duplicates", () => {
   const order = blockOrder(bounds, 128);
   expect(order).toHaveLength(432);

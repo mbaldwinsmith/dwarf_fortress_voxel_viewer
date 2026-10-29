@@ -46,6 +46,15 @@ individual block requests. The development viewer uses port 5173.
 set. It does **not** establish the loaded world's active mod order. This milestone
 uses original geometry and fallback colours; no DF artwork is bundled or served.
 
+## Render view
+
+Use the **DF screen / Whole map** radio buttons in the toolbar. DF screen follows
+DF’s visible map area (rounded outward to 16-tile block boundaries) and current
+Z-level; the manual cutaway slider is disabled. Viewport changes are checked
+about every 12 block reads. Whole map streams the full XY footprint and enables
+the manual Z slider. Both modes load three levels and are shared by all open
+viewer tabs. Switching resets terrain to avoid mixing regions.
+
 ## Controls
 
 - Left-drag: orbit. Right-drag: pan. Wheel: zoom.

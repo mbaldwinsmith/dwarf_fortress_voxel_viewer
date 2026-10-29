@@ -42,6 +42,7 @@ scene.onSelect = (x, y, z) => {
 };
 const keydown = (e: KeyboardEvent) => {
   if (e.target instanceof HTMLInputElement) return;
+  if (slider.disabled && (e.key === "[" || e.key === "]")) return;
   if (e.key === "[" || e.key === "]") {
     slider.value = String(Number(slider.value) + (e.key === "]" ? 1 : -1));
     cut();
@@ -61,7 +62,13 @@ const disconnect = connect((m) => {
     slider.min = String(m.bounds.z);
     slider.max = String(m.bounds.z + Math.max(0, m.bounds.height - 1));
     slider.value = String(m.level ?? slider.max);
-    slider.disabled = !m.bounds.height;
+    slider.disabled = !m.bounds.height || m.mode === "screen";
+    el<HTMLInputElement>("mode-screen").checked = m.mode === "screen";
+    el<HTMLInputElement>("mode-map").checked = m.mode !== "screen";
+    el("scope").textContent =
+      m.mode === "screen"
+        ? "Read-only · Following DF screen and Z · Block-aligned tiles, three levels deep"
+        : "Read-only · Full local map · Three levels at the selected cutaway";
     level.textContent = m.bounds.height ? `Z ${slider.value}` : "—";
     empty.hidden = false;
     selection.textContent = "Click a visible tile to inspect it.";
@@ -75,6 +82,11 @@ const disconnect = connect((m) => {
   scene.update(m.chunks);
   empty.hidden = state.chunks.size > 0;
 }, setStatus);
+for (const mode of ["screen", "map"] as const)
+  el(`mode-${mode}`).addEventListener("change", () => {
+    clearTimeout(levelTimer);
+    disconnect.setMode(mode);
+  });
 window.addEventListener(
   "pagehide",
   () => {
