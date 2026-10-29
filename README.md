@@ -135,3 +135,10 @@ materials, with sRGB-to-linear conversion. Native species grass artwork includes
 floor fungus, cave moss and underlichen. Tile inspection shows material names.
 Lighting, engraved designs and adjacency variants remain approximate; hidden
 terrain and unavailable material data retain safe fallback colours.
+
+Wall caps combine neighbour-aware native wall edges/corners with dark hidden-rock
+interiors. All eight neighbours determine the directional tiles; enclosed fill
+variants remain independent of ore.
+Enclosed natural walls are sent as generic solid rock, including their inspection
+labels; material colours remain on exposed faces. Missing neighbour blocks are
+treated conservatively until a later sweep confirms exposure.

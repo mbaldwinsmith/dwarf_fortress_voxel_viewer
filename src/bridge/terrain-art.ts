@@ -1,5 +1,6 @@
 import type { Chunk } from "../shared/model.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
+import { wallTileSuffixes } from "./wall-tiles.js";
 export interface TerrainMaterial {
   id: string;
   name: string;
@@ -56,8 +57,25 @@ export function textureTerrain(
       delete t.surfaces;
       delete t.color;
       delete t.materialName;
+      delete t.wallCap;
+      delete t.wallRim;
     }
-    if (!t || t.shape === "unknown" || t.shape === "empty" || t.treeGraphic)
+    const x = chunk.x + (i % 16),
+      y = chunk.y + Math.floor(i / 16);
+    const hash =
+      (Math.imul(x, 73856093) ^
+        Math.imul(y, 19349663) ^
+        Math.imul(chunk.z, 83492791)) >>>
+      0;
+    if (t && (t.shape === "wall" || t.shape === "unknown") && !t.treeGraphic)
+      t.wallCap = graphics.get(`HIDDEN_ROCK_${(hash % 5) + 1}`);
+    if (
+      !t ||
+      t.sealed ||
+      t.shape === "unknown" ||
+      t.shape === "empty" ||
+      t.treeGraphic
+    )
       continue;
     const grass = [8, 9, 10, 11].includes(t.material);
     const actual = definition(mats[i]) ?? definition(bases[i]);
@@ -65,15 +83,7 @@ export function textureTerrain(
       grass || t.material === 12 ? (definition(layers[i]) ?? actual) : actual;
     if (ground?.color) t.color = ground.color;
     if (actual) t.materialName = actual.name;
-    const x = chunk.x + (i % 16),
-      y = chunk.y + Math.floor(i / 16);
-    const variant =
-      (((Math.imul(x, 73856093) ^
-        Math.imul(y, 19349663) ^
-        Math.imul(chunk.z, 83492791)) >>>
-        0) %
-        4) +
-      1;
+    const variant = (hash % 4) + 1;
     const wood =
       t.material === 7 &&
       Number(mats[i]?.matType) >= 419 &&
@@ -98,6 +108,24 @@ export function textureTerrain(
     if (wood) {
       floor = "WOOD_FLOOR";
       wall = "WOODEN_WALL_N_S_W_E";
+    }
+    if (t.shape === "wall" && t.wallMask) {
+      const prefix = wood
+        ? "WOODEN_WALL"
+        : t.material === 1
+          ? "SOIL_WALL"
+          : t.material === 6
+            ? "ICE_WALL"
+            : t.smooth || t.material === 7
+              ? "SMOOTHED_STONE_WALL"
+              : "STONE_WALL";
+      const rim = wallTileSuffixes(t.wallMask).flatMap((suffix) => {
+        const r =
+          graphics.get(`${prefix}_${suffix}_${variant}`) ??
+          graphics.get(`${prefix}_${suffix}`);
+        return r ? [r] : [];
+      });
+      if (rim.length) t.wallRim = rim;
     }
     const species =
       grass && Number(mats[i]?.matType) >= 419 && Number(mats[i]?.matType) < 619

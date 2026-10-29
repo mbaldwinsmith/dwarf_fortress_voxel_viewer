@@ -128,6 +128,44 @@ export function parseServerMessage(value: unknown): ServerMessage {
           throw Error("Invalid tile");
       for (const t of c.tiles) {
         if (
+          t.wallMask !== undefined &&
+          (!int(t.wallMask) ||
+            t.wallMask < 1 ||
+            t.wallMask > 255 ||
+            t.shape !== "wall")
+        )
+          throw Error("Invalid wall neighbour mask");
+        if (t.wallRim !== undefined) {
+          if (
+            t.shape !== "wall" ||
+            !t.wallMask ||
+            !Array.isArray(t.wallRim) ||
+            t.wallRim.length > 5
+          )
+            throw Error("Invalid wall rim");
+          for (const r of t.wallRim) validateSprite(r);
+        }
+        if (t.wallCap !== undefined) {
+          if (t.shape !== "wall" && t.shape !== "unknown")
+            throw Error("Invalid wall cap");
+          validateSprite(t.wallCap);
+        }
+        if (
+          t.sealed !== undefined &&
+          (t.sealed !== true ||
+            t.shape !== "wall" ||
+            t.material !== 2 ||
+            t.name !== "Solid rock" ||
+            t.color !== undefined ||
+            t.materialName !== undefined ||
+            t.surfaces !== undefined ||
+            t.smooth !== undefined ||
+            t.treeGraphic !== undefined ||
+            t.wallMask !== undefined ||
+            t.wallRim !== undefined)
+        )
+          throw Error("Unredacted enclosed wall");
+        if (
           t.materialName !== undefined &&
           (!text(t.materialName) || t.shape === "unknown")
         )

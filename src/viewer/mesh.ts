@@ -30,6 +30,7 @@ export function linearMaterialColor(rgb: number[]) {
     return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   });
 }
+export const wallCapColor = linearMaterialColor([39, 36, 44]);
 function solid(t: Tile | undefined) {
   return (t?.shape === "wall" && !t.treeGraphic) || t?.shape === "unknown";
 }
@@ -37,26 +38,42 @@ export function buildMesh(
   c: Chunk,
   chunks: Map<string, Chunk>,
   cut: number,
-  textureUV: (ref?: SpriteRef) => TerrainUV = () => [0, 0, 1, 1],
+  textureUV: (ref?: SpriteRef, transparent?: boolean) => TerrainUV = () => [
+    0, 0, 1, 1,
+  ],
 ): MeshData {
   const out: MeshData = { positions: [], colors: [], uvs: [] };
   let surfaces: Tile["surfaces"];
+  let capTexture: SpriteRef | undefined;
+  let capRim: SpriteRef[] = [];
   const treeSprites = new Set(
     (c.objects ?? [])
       .filter((o) => o.kind === "plant" && o.sprite)
       .map((o) => (o.y - c.y) * 16 + o.x - c.x),
   );
   if (c.z > cut) return out;
-  function quad(v: number[][], color: number[]) {
+  function quad(
+    v: number[][],
+    color: number[],
+    wallCap = false,
+    rim?: SpriteRef,
+  ) {
     const horizontal =
       v.every((p) => p[1] === v[0][1]) ||
       !(v.every((p) => p[0] === v[0][0]) || v.every((p) => p[2] === v[0][2]));
-    const faceColor =
-      horizontal && surfaces?.topTint
-        ? linearMaterialColor(surfaces.topTint)
-        : color;
+    const faceColor = rim
+      ? color
+      : wallCap
+        ? capTexture
+          ? [0.45, 0.45, 0.45]
+          : wallCapColor
+        : horizontal && surfaces?.topTint
+          ? linearMaterialColor(surfaces.topTint)
+          : color;
     const [left, bottom, right, top] = textureUV(
-      horizontal ? surfaces?.top : surfaces?.side,
+      rim ??
+        (wallCap ? capTexture : horizontal ? surfaces?.top : surfaces?.side),
+      !!rim,
     );
     const uv = horizontal
       ? [
@@ -81,6 +98,8 @@ export function buildMesh(
     const t = c.tiles[i];
     if (!t || t.shape === "empty") continue;
     surfaces = t.shape === "unknown" ? undefined : t.surfaces;
+    capTexture = t.wallCap;
+    capRim = t.wallRim ?? [];
     const x = c.x + (i % 16),
       y = c.y + Math.floor(i / 16),
       z = c.z;
@@ -145,7 +164,7 @@ export function buildMesh(
           ],
           color,
         );
-      if (!cull || !neighbour(x, y, z + 1))
+      if (!cull || !neighbour(x, y, z + 1)) {
         quad(
           [
             [a, u, b + d],
@@ -154,7 +173,22 @@ export function buildMesh(
             [a, u, b],
           ],
           color,
+          cull,
         );
+        if (cull)
+          for (const rim of capRim)
+            quad(
+              [
+                [a, u + 0.004, b + d],
+                [a + w, u + 0.004, b + d],
+                [a + w, u + 0.004, b],
+                [a, u + 0.004, b],
+              ],
+              color,
+              false,
+              rim,
+            );
+      }
       if (!cull || !neighbour(x, y, z - 1))
         quad(
           [

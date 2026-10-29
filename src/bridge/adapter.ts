@@ -1,6 +1,8 @@
 import type { Bounds, Chunk, Shape, Tile } from "../shared/model.js";
 import { Rpc } from "./rpc.js";
 import type { SceneryReader } from "./scenery.js";
+import { maskEnclosedWalls, openTile } from "./wall-visibility.js";
+import { key } from "../shared/model.js";
 function integer(v: unknown, name: string): number {
   if (typeof v !== "number" || !Number.isSafeInteger(v))
     throw Error(`Invalid ${name}`);
@@ -70,6 +72,7 @@ export function convertBlock(
   };
 }
 export class FortressAdapter {
+  private openTerrain = new Map<string, Uint8Array>();
   scenery?: SceneryReader;
   rpc: Rpc;
   defs = new Map<number, TileDefinition>();
@@ -153,6 +156,21 @@ export class FortressAdapter {
     const list = (blocks ?? []) as Record<string, unknown>[];
     if (list.length > 1) throw Error("Unbounded response");
     const chunk = convertBlock(list[0], x, y, z, this.defs);
+    const cacheKey = key(x, y, z);
+    this.openTerrain.delete(cacheKey);
+    this.openTerrain.set(
+      cacheKey,
+      Uint8Array.from(chunk.tiles, (t) => (list[0] && openTile(t) ? 1 : 0)),
+    );
+    if (this.openTerrain.size > 4096)
+      this.openTerrain.delete(this.openTerrain.keys().next().value!);
+    maskEnclosedWalls(chunk, (nx, ny, nz) => {
+      const cx = Math.floor(nx / 16) * 16,
+        cy = Math.floor(ny / 16) * 16;
+      return (
+        this.openTerrain.get(key(cx, cy, nz))?.[(ny - cy) * 16 + nx - cx] === 1
+      );
+    });
     await this.scenery?.decorate(chunk, list[0]);
     return chunk;
   }

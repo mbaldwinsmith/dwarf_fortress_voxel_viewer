@@ -43,15 +43,24 @@ export class TerrainAtlas {
     }
     return p;
   }
-  uv = (ref?: SpriteRef): TerrainUV => {
+  uv = (ref?: SpriteRef, transparent = false): TerrainUV => {
     if (!ref) return atlasRect(0);
-    const key = JSON.stringify(ref);
+    const key = JSON.stringify([ref, transparent]);
     let slot = this.slots.get(key);
     if (slot !== undefined) return atlasRect(slot);
     if (this.slots.size >= 1023) return atlasRect(0);
     slot = this.slots.size + 1;
     this.slots.set(key, slot);
     const assigned = slot;
+    if (transparent) {
+      this.ctx.clearRect(
+        (assigned % 60) * 34,
+        Math.floor(assigned / 60) * 34,
+        34,
+        34,
+      );
+      this.texture.needsUpdate = true;
+    }
     void this.image(ref.asset)
       .then((image) => {
         if (this.disposed) return;

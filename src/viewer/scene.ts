@@ -25,6 +25,7 @@ export class FortressScene {
   material = new THREE.MeshLambertMaterial({
     vertexColors: true,
     map: this.terrainAtlas.texture,
+    alphaTest: 0.3,
   });
   observer: ResizeObserver;
   frameId = 0;

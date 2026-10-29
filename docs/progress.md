@@ -284,3 +284,33 @@ gabbro, sphalerite, native silver/gold and microcline. Browser preview had no
 console warnings/errors. No constructed terrain was present in these samples;
 construction precedence/wood tinting is covered by regression tests and native
 static-material semantics. All 76 tests and production build pass.
+
+## Textured wall caps and enclosed-ore masking � 29 October 2026
+
+Wall tops now use the game's dark hidden-rock textures rather than full material
+textures or a flat fill. Five coordinate-stable variants remain independent of
+the underlying ore. Exposed material colours remain on side faces. Generic cap
+art is permitted on unknown/fully enclosed cells without disclosing their data.
+
+Enclosed natural wall payloads now contain generic solid rock only; material
+colour/name, ore class and finish are stripped before the browser receives them.
+Only confirmed-open revealed neighbours qualify as exposure, including diagonal corners. Unknown
+and unloaded neighbours fail closed, including native omitted blocks. A bounded
+openness cache permits cross-block edge recovery during later terrain sweeps.
+Construction and tree handling are preserved.
+
+A live two-block top-down snapshot redacted 61 enclosed walls with zero material-name,
+colour or material-texture leaks. All 88 tests pass, including full ore metadata
+redaction, missing/unknown neighbours, subsequent boundary exposure, native
+ore-independent cap variants, shader UV/tint selection and payload validation.
+Strict TypeScript and production build pass; native game assets remain read-only.
+
+The final cap implementation includes the native neighbour-aware wall border
+art, not just hidden-rock fill. N/S/W/E edges and diagonal-only corners resolve
+from all eight adjacent tiles, with material/finish-specific directional families.
+Transparent alpha-tested rim quads reveal the dark base through their holes.
+A top-down live snapshot verifies the game-style outline pattern directly.
+The final suite has 88 tests covering edge/corner token selection, chunk-corner
+exposure, material families and transparent rim sampling as well as anti-spoiler
+masking. The two-block directional sample masks 61 enclosed walls with zero
+material metadata leaks.

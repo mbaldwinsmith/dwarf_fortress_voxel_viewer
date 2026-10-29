@@ -24,6 +24,10 @@ export interface Creature {
 }
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
+  wallCap?: SpriteRef;
+  wallMask?: number;
+  wallRim?: SpriteRef[];
+  sealed?: true;
   color?: [number, number, number];
   materialName?: string;
   smooth?: boolean;

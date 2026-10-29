@@ -331,3 +331,51 @@ select top artwork/tint instead of wall-side artwork. Constructed plant-material
 wood uses the native wooden-wall and wood-floor families with its actual RGB.
 Only the revealed tile metadata crosses the bridge; no raw hidden material or
 grass identifiers are exposed.
+
+## Spoiler-safe textured wall caps
+
+Wall top faces now use native HIDDEN_ROCK_1�5 PNG rectangles, including
+undiscovered cells. A stable coordinate hash chooses the variant independently
+of tile material, mineral, colour, smoothness or ore. A neutral 0.45 linear tint
+keeps authored cap textures dark under the viewer's lighting; native flecks remain
+visible. Enclosed cap UVs never sample material/ore artwork; directional rims
+use only the material of confirmed exposed edges. Missing cap art uses uniform
+dark colour. Exposed side faces retain their normal material texture and tint.
+The base cap reuses its existing face. Directional rims add quads without adding
+terrain material draw calls.
+
+The bridge also masks enclosed natural walls before decoration/transmission.
+Only one of the eight neighbours confirmed open and revealed exposes wall material.
+Enclosed walls become {shape:wall, material:2, name:Solid rock, sealed:true};
+material names, colours, finish, ore class and texture references are discarded.
+Terrain decoration never rehydrates sealed material from raw RFR pairs. A separate
+generic wallCap reference is allowed for sealed/unknown cells because its choice
+contains no hidden information. Wire validation rejects any sealed material
+metadata. Construction walls and tree graphics retain their existing handling.
+
+FortressAdapter keeps only 256-byte openness grids for up to 4,096 read blocks.
+Absent or unknown neighbours fail closed; missing RFR blocks never count as
+confirmed open for this purpose. Cross-block edge material can appear on the next
+sweep after the neighbouring open block arrives. Existing neighbour mesh
+invalidation keeps geometry current. Cache lifetime is one adapter connection;
+world-change checks and reconnects discard it. No additional game reads or
+gameplay commands are introduced.
+
+### Directional cap edges and diagonal corners
+
+The cap is a composite of dark hidden-rock fill and the actual transparent
+wall tiles used by the game. Openness bits are N/S/W/E/NW/NE/SW/SE. Cardinal
+openings select the matching native N, N_W, N_S_E, N_S_W_E and related tokens.
+A diagonal opening adds NW/NE/SW/SE corner art only when neither bordering
+cardinal edge is already open. This covers concave corners without double
+painting them. Rough stone, smoothed stone, soil, ice and wooden construction
+use their directional families and exposed material tint. Missing mappings keep
+the safe dark fill; absent neighbours produce no speculative edges.
+
+Native alpha silhouettes are preserved in separate transparent atlas cells.
+Pending/failed rim cells stay transparent, not white. Alpha-tested rim quads
+sit 0.004 tiles above the dark base; their holes reveal the base while their
+rock pixels use material colour. All geometry still shares one terrain material
+and per-block mesh. The rim list is bounded to five references per wall and
+validated alongside the 8-bit mask; sealed/unknown cells cannot carry rims.
+Neighbour exposure recovers on subsequent reads across block boundaries.
