@@ -9,6 +9,7 @@ import {
 import type { TerrainUV } from "./terrain-atlas.js";
 import { rampSurface, FLOOR_HEIGHT } from "./ramps.js";
 import { treeBoxes, treeGround } from "./trees.js";
+import { exposedBoxFaces } from "./box-surface.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
@@ -61,6 +62,7 @@ export function buildMesh(
     color: number[],
     wallCap = false,
     rim?: SpriteRef,
+    crop?: [number, number, number, number],
   ) {
     const horizontal =
       v.every((p) => p[1] === v[0][1]) ||
@@ -79,7 +81,7 @@ export function buildMesh(
         (wallCap ? capTexture : horizontal ? surfaces?.top : surfaces?.side),
       !!rim || foliage,
     );
-    const uv = horizontal
+    let uv = horizontal
       ? [
           [left, bottom],
           [right, bottom],
@@ -92,6 +94,20 @@ export function buildMesh(
           [right, top],
           [right, bottom],
         ];
+    if (crop) {
+      const [s0, t0, s1, t1] = crop,
+        original = uv;
+      uv = [
+        [s0, t0],
+        [s1, t0],
+        [s1, t1],
+        [s0, t1],
+      ].map(([s, t]) =>
+        original[0].map(
+          (v, k) => v + s * (original[1][k] - v) + t * (original[3][k] - v),
+        ),
+      );
+    }
     for (const i of [0, 1, 2, 0, 2, 3]) {
       out.positions.push(...v[i]);
       const shade =
@@ -195,13 +211,13 @@ export function buildMesh(
           cull,
         );
         if (cull)
-          for (const rim of capRim)
+          for (const [layer, rim] of capRim.entries())
             quad(
               [
-                [a, u + 0.004, b + d],
-                [a + w, u + 0.004, b + d],
-                [a + w, u + 0.004, b],
-                [a, u + 0.004, b],
+                [a, u + 0.004 + layer * 0.001, b + d],
+                [a + w, u + 0.004 + layer * 0.001, b + d],
+                [a + w, u + 0.004 + layer * 0.001, b],
+                [a, u + 0.004 + layer * 0.001, b],
               ],
               color,
               false,
@@ -214,10 +230,14 @@ export function buildMesh(
           firstPerson && (t.sealed || t.shape === "unknown")
             ? tileAt(chunks, x, y, z - 1)?.surfaces
             : undefined;
-        if (below)
+        if (
+          firstPerson &&
+          (t.sealed || t.shape === "unknown") &&
+          (below || c.ceilingTexture)
+        )
           surfaces = {
-            top: below.side,
-            side: below.side,
+            top: below?.side ?? c.ceilingTexture!,
+            side: below?.side ?? c.ceilingTexture!,
             topTint: [190, 190, 190],
           };
         quad(
@@ -245,7 +265,9 @@ export function buildMesh(
       color = [1, 1, 1];
       capTexture = undefined;
       capRim = [];
-      for (const part of treeBoxes(t, x, y, z, chunks)) {
+      const parts = treeBoxes(t, x, y, z, chunks);
+      const faces = exposedBoxFaces(parts);
+      for (const [index, part] of parts.entries()) {
         foliage = true;
         let ref =
           part.part === "leaves"
@@ -286,7 +308,21 @@ export function buildMesh(
               side: side!,
             }
           : undefined;
-        box(part.h, part.x, part.z, part.w, part.d, part.y);
+        for (const face of faces.filter((f) => f.box === index)) {
+          if (
+            face.vertices.every((v) => Math.abs(v[1] - 1) < 1e-9) &&
+            /TRUNK/.test(t.treeGraphic) &&
+            tileAt(chunks, x, y, z + 1)?.treeGraphic
+          )
+            continue;
+          quad(
+            face.vertices.map((v) => [x + v[0], z + v[1], y + v[2]]),
+            color,
+            false,
+            undefined,
+            face.crop,
+          );
+        }
       }
       foliage = false;
       treeFace = false;

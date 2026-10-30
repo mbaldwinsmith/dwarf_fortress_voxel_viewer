@@ -589,3 +589,19 @@ build was run.
 Final validation: all 150 tests, TypeScript/Vite/bridge build and repository
 format checks pass. The final compiled-bridge traversal run observed creature
 snapshots 267-469 ms apart and no page errors.
+
+## Wall and fungi surface cleanup
+
+Intersecting trunk and branch boxes now emit only their exposed surfaces, with
+clipped UVs preserving the original texture scale. Coplanar duplicate faces and
+hidden interior faces no longer compete in the depth buffer. Cutout leaves do
+not remove opaque bark behind their transparent pixels. Wall-rim overlays use
+distinct depth layers, and the first-person camera clips to the map footprint
+instead of a 4000-tile distance to improve depth precision.
+
+Sealed and unknown ceiling undersides fall back to the installed neutral stone
+floor texture when there is no revealed floor artwork below. This per-chunk
+reference is constant and independent of hidden ore/material data. Dark wall
+caps and discovery masking remain intact. A controlled underside view using
+native fungiwood and stone artwork verifies textured ceilings and clean branch
+joins without browser errors.

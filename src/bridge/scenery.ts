@@ -381,6 +381,8 @@ export class SceneryReader {
     };
   }
   async decorate(chunk: Chunk, raw?: Record<string, unknown>) {
+    // Constant artwork, independent of hidden tile materials and ore veins.
+    chunk.ceilingTexture = this.graphics.get("STONE_FLOOR_5");
     for (const flow of chunk.flows ?? []) {
       flow.frames = [1, 2, 3, 4].flatMap((i) => {
         const ref = this.graphics.get(`${flowTokens[flow.kind]}:${i}`);

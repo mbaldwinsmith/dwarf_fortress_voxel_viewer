@@ -204,7 +204,11 @@ export class FortressScene {
         this.orbitTarget.copy(this.controls.target);
         this.controls.enabled = false;
         this.camera.fov = 75;
-        this.camera.near = 0.025;
+        this.camera.near = 0.05;
+        this.camera.far = Math.max(
+          128,
+          Math.hypot(this.bounds?.width ?? 0, this.bounds?.depth ?? 0) + 16,
+        );
         this.camera.updateProjectionMatrix();
         this.navigation = "firstPerson";
         this.leave();
@@ -233,6 +237,7 @@ export class FortressScene {
     this.controls.enabled = true;
     this.camera.fov = 45;
     this.camera.near = 0.1;
+    this.camera.far = 4000;
     this.camera.updateProjectionMatrix();
     this.controls.update();
     this.leave();

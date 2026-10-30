@@ -55,6 +55,7 @@ export interface Tile {
   name: string;
 }
 export interface Chunk {
+  ceilingTexture?: SpriteRef;
   x: number;
   y: number;
   z: number;

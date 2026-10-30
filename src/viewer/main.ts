@@ -157,6 +157,8 @@ const disconnect = connect((m) => {
     const previous = state.chunks.get(chunkKey(c));
     return (
       !previous ||
+      JSON.stringify(previous.ceilingTexture) !==
+        JSON.stringify(c.ceilingTexture) ||
       JSON.stringify(previous.tiles) !== JSON.stringify(c.tiles) ||
       JSON.stringify(previous.flows) !== JSON.stringify(c.flows)
     );

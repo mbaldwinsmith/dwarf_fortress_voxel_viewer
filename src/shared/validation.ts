@@ -122,6 +122,8 @@ export function parseServerMessage(value: unknown): ServerMessage {
     value.chunks.length <= 45
   ) {
     for (const c of value.chunks) {
+      if (object(c) && c.ceilingTexture !== undefined)
+        validateSprite(c.ceilingTexture);
       if (
         !object(c) ||
         !int(c.x) ||
