@@ -6,7 +6,7 @@ Saved 2026-10-30 at the user's request: “Save what you've got and prepare a ha
 
 The user requested an independent furniture critic to compare **every 3D workshop/furnace/depot with its original native sprite**, score each out of 5, and iterate until **each of the 33 profiles scores at least 4.8**. The user explicitly allows **flat native item/tool textures on raised 3D tables**. Large machinery, vessels and frames still need coherent geometry.
 
-**The objective is unfinished. Do not report all models passed.** The last full critic review was `native5`: **0/33 passed, scores 2.5–4.0**. See [workshop-critic-review.md](workshop-critic-review.md) for every score and specific correction. Later changes fix some shared problems but have not received new scores.
+**The objective is unfinished. Do not report all models passed.** Continuation on 2026-10-30 has **14 profiles with independently passing captures**: Fishery, Quern, Millstone, Screw Press (`runtime12`); Tanner, Kitchen, Butcher, Jeweler, Bowyer (`runtime14`); Soap Maker, Dyer, Ashery, Carpenter, Trade Depot (`runtime16`). These targeted results still require one final all-profile regression review. The remaining 19 profiles have not passed. See [workshop-critic-review.md](workshop-critic-review.md) for the actual per-round evidence.
 
 This work is saved on branch `wip/workshop-fidelity-handover`, based on main commit `7ce8755` (“Model all vanilla workshop and furnace layouts in 3D”). Preserve this checkpoint; finish review and corrections before merging to main. The user's standing instruction is to commit and push completed work to main.
 
@@ -21,6 +21,18 @@ This work is saved on branch `wip/workshop-fidelity-handover`, based on main com
 - Do not inflate critic scores to hit the target. Keep per-profile failures explicit.
 
 ## Code in this checkpoint
+
+### Continuation checkpoint (`runtime17`, 2026-10-30)
+
+- Latest capture: `artifacts/workshop-review-runtime17/`, 33 actual-worker boards, no browser errors. Critic is reviewing the remaining profiles. `runtime16` furnace streaking was caught and corrected in runtime17 using meridional/azimuth UV coordinates; final masonry/arch treatment still needs review.
+- New modules split local-art geometry, semantic regions, props, machinery, still and structural bodies into `native-workshop-{geometry,regions,props,machines,still,structures}.ts`. Only coordinates and code are tracked; every texture still comes from the local installation.
+- Two source-region plans are now integrated, including `workshop-native-regions-extra.json`. Explicit native tables replace accidental connected-component shapes, while small flat native tools/cloth remain on their actual raised support.
+- Vessels, crates, closed cabinets, racks, cages, stone mechanisms and machinery have separate coherent geometry. Material-only crops avoid projecting an entire perspective sprite onto every face. Siege now has compact rear stock/socket assemblies and a separate front trestle; mechanic has actual toothed gears; loom has rollers/posts/heddles; still has a supported fire mouth and cylindrical/conical copper vessel.
+- Native single-tile Quern/Millstone/Press were independently passed and should be preserved. Changes to shared geometry helpers must be checked against them.
+- Latest validation at runtime17: **236 tests passed across 42 files; build passed** (existing Vite size advisory only). All 33 local-art layouts have finite coordinates, maximum height .88 and stay within their footprints. Depot retains an existing .0004 face offset around ground level. No installer built and no fortress state modified.
+- Remaining work: independent runtime17 review, finish its concrete blockers (especially furnace masonry/arch and forge body/duct/materials), rerun all 33, then merge completed work to main and push. Keep scores honest. Current work remains on the checkpoint branch.
+
+The sections below describe the original handover checkpoint and historical evidence; the continuation status above supersedes their round numbers.
 
 - `src/bridge/scenery.ts`: exposes full native completed base/decor mosaic refs in `workshop.art`, including decorative top row; supplies a native flat footprint `workshop.floor` ref instead of printing ghost workshop structure on the floor.
 - `src/shared/model.ts`, `validation.ts`: optional `workshop.art` and `workshop.floor` metadata and validation.

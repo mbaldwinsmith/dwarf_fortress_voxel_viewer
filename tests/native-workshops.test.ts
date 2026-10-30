@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { SceneryObject, SpriteRef } from "../src/shared/model.js";
 import { nativeWorkshopRelief } from "../src/viewer/native-workshop-relief.js";
 import { NativeWorkshops } from "../src/viewer/native-workshops.js";
+import { NativeWorkshopGeometry } from "../src/viewer/native-workshop-geometry.js";
 import {
   hasNativeWorkshop,
   registerNativeWorkshop,
@@ -81,6 +82,86 @@ it("keeps L-shaped worktops horizontal and native tools on their raised surface"
       f.positions.every((v, i) => i % 3 !== 0 || (v >= 15 && v <= 16)),
     ),
   ).toBe(true);
+});
+it("raises native cloth that overlaps the rear edge of a tabletop", () => {
+  const base = new Uint8ClampedArray(96 * 128 * 4),
+    decor = new Uint8ClampedArray(base.length);
+  for (let y = 26; y < 51; y++)
+    for (let x = 3; x < 31; x++)
+      base.set([165, 166, 165, 255], (y * 96 + x) * 4);
+  for (let y = 23; y < 48; y++)
+    for (let x = 4; x < 30; x++)
+      decor.set([40, 60, 140, 255], (y * 96 + x) * 4);
+  const o = object();
+  o.workshop!.type = "WORKSHOP_CLOTHES";
+  const faces = nativeWorkshopRelief(o, {
+    width: 96,
+    height: 128,
+    base,
+    decor,
+    background: new Uint8ClampedArray(base),
+  });
+  const detail = faces.filter((f) => f.sprite === o.workshop!.art!.decor);
+  expect(detail.length).toBeGreaterThan(0);
+  const ys = detail.flatMap((f) => f.positions.filter((_, i) => i % 3 === 1));
+  expect(Math.min(...ys)).toBeCloseTo(0.38);
+  expect(Math.max(...ys)).toBeCloseTo(0.405);
+  expect(
+    detail.every((f) =>
+      f.positions.every((v, i) => i % 3 !== 2 || (v >= 0.025 && v <= 0.6)),
+    ),
+  ).toBe(true);
+});
+it("selects opaque wood below the transparent decorative row for shafts", () => {
+  const base = new Uint8ClampedArray(96 * 128 * 4);
+  for (let y = 34; y < 40; y++)
+    for (let x = 12; x < 19; x++)
+      base.set([130, 85, 45, 255], (y * 96 + x) * 4);
+  const o = object(),
+    g = new NativeWorkshopGeometry(o, { width: 96, height: 128, base });
+  const skin = g.patch([8, 20, 25, 45], true, "wood");
+  expect(skin.rect[0]).toBeGreaterThanOrEqual(12);
+  expect(skin.rect[1]).toBeGreaterThanOrEqual(34);
+  expect(skin.rect[2]).toBeLessThanOrEqual(19);
+  expect(skin.rect[3]).toBeLessThanOrEqual(40);
+  g.beam([0.5, 0.3, 0.5], [0.5, 0.7, 0.5], 0.04, skin);
+  expect(g.faces.length).toBeGreaterThan(0);
+  for (const f of g.faces)
+    for (let i = 0; i < f.uvs!.length; i += 2) {
+      const x = Math.floor(f.uvs![i] * ref.pageWidth),
+        y = Math.floor((1 - f.uvs![i + 1]) * ref.pageHeight);
+      expect(base[(y * 96 + x) * 4 + 3]).toBe(255);
+    }
+});
+it("maps adjacent curved segments continuously instead of repeating the texture on each wedge", () => {
+  const g = new NativeWorkshopGeometry(object(), {
+    width: 96,
+    height: 128,
+    base: new Uint8ClampedArray(96 * 128 * 4),
+  });
+  const skin = g.skin([20, 20, 40, 40]);
+  g.projected(
+    [
+      [0, 0, 0],
+      [0, 1, 0],
+      [1, 1, 0],
+      [1, 0, 0],
+    ],
+    skin,
+    [0, 0, 2, 1],
+  );
+  g.projected(
+    [
+      [1, 0, 0],
+      [1, 1, 0],
+      [2, 1, 0],
+      [2, 0, 0],
+    ],
+    skin,
+    [0, 0, 2, 1],
+  );
+  expect(g.faces[0].uvs!.slice(4, 6)).toEqual(g.faces[1].uvs!.slice(2, 4));
+  expect(g.faces[0].uvs!.slice(6, 8)).toEqual(g.faces[1].uvs!.slice(0, 2));
 });
 it("deduplicates artwork and worker jobs while registering the completed layout", async () => {
   const messages: { id: number; sheets: Record<string, unknown> }[] = [];

@@ -1,5 +1,11 @@
 import type { SceneryObject, SpriteRef } from "../shared/model.js";
 import type { FurnitureFace } from "./furniture.js";
+import { nativeWorkshopStructures } from "./native-workshop-structures.js";
+import { nativeWorkshopProps } from "./native-workshop-props.js";
+import { nativeWorkshopMachines } from "./native-workshop-machines.js";
+import { nativeRegions, nativeTables } from "./native-workshop-regions.js";
+import { NativeWorkshopGeometry } from "./native-workshop-geometry.js";
+import { nativeWorkshopStill } from "./native-workshop-still.js";
 export interface NativeWorkshopPixels {
   width: number;
   height: number;
@@ -64,6 +70,10 @@ export function nativeWorkshopRelief(
   const w = o.workshop!,
     art = w.art;
   if (!art) return [];
+  const structure = nativeWorkshopStructures(o, data);
+  const machine =
+    nativeWorkshopMachines(o, data) ?? nativeWorkshopStill(o, data);
+  if (structure && w.width === 1) return structure;
   const W = data.width,
     H = data.height,
     faces: FurnitureFace[] = [],
@@ -497,6 +507,8 @@ export function nativeWorkshopRelief(
       g = data.base[j + 1],
       b = data.base[j + 2];
     white[i] =
+      w.type !== "WORKSHOP_STILL" &&
+      (!w.type.startsWith("FURNACE_") || Math.floor(i / W) >= 82) &&
       data.base[j + 3] > 200 &&
       Math.abs(r - 165) <= 2 &&
       Math.abs(g - 166) <= 2 &&
@@ -548,6 +560,36 @@ export function nativeWorkshopRelief(
       for (let y = best.y; y <= best.Y; y++)
         for (let x = best.x; x <= best.X; x++) mask[y * W + x] = 0;
     }
+  }
+  const tables = nativeTables[w.type];
+  if (
+    tables?.length &&
+    tables.every(({ rect: [x, y, X, Y] }) => {
+      let count = 0;
+      for (let b = y; b < Y; b++)
+        for (let a = x; a < X; a++) count += white[b * W + a] ?? 0;
+      return count >= 25;
+    })
+  ) {
+    const g = new NativeWorkshopGeometry(o, data);
+    rectangles.length = 0;
+    for (const {
+      rect: [x, y, X, Y],
+      stool,
+    } of tables) {
+      const h = stool ? 0.25 : 0.38,
+        z = Math.max(0.025, (y - 32) / 32),
+        Z = Math.min(
+          w.depth - 0.025,
+          (Y - 36) / 32 + (w.type === "WORKSHOP_ASHERY" && y < 60 ? 0.24 : 0),
+        );
+      if (Z <= z) continue;
+      const top = g.skin([x + 1, y + 1, X - 1, Y - 9], true);
+      const leg = g.patch([x + 2, Y - 8, x + 7, Y - 1], true, "dark");
+      g.table([x / 32, z, X / 32, Z], h, top, leg);
+      counters.push({ x: x / 32, z, X: X / 32, Z, height: h });
+    }
+    faces.push(...g.faces);
   }
   for (const c of rectangles) {
     // Material-coloured work surfaces are horizontal volumes, not upright art.
@@ -678,7 +720,7 @@ export function nativeWorkshopRelief(
           return x >= s.x && x <= s.X && z >= s.z && z <= s.Z;
         }).length /
           area >
-        0.65,
+        0.12,
     );
     const flat =
       options.flat ??
@@ -746,7 +788,12 @@ export function nativeWorkshopRelief(
         ? [
             x / 32,
             y0 + (back ? 0 : 0.025),
-            (y - 32) / 32 + Math.max(0, (32 - c.y) / 32 + 0.02),
+            support
+              ? Math.max(support.z, (c.y - 32) / 32) +
+                ((y - c.y) / bh) *
+                  (Math.min(support.Z, (c.Y + 1 - 32) / 32) -
+                    Math.max(support.z, (c.y - 32) / 32))
+              : (y - 32) / 32 + Math.max(0, (32 - c.y) / 32 + 0.02),
           ]
         : [
             x / 32,
@@ -855,43 +902,57 @@ export function nativeWorkshopRelief(
       h = 0.42,
     ) => {
       const tex = uv(ref, ...(source as [number, number, number, number]));
-      box(x, h - 0.055, z, X, h, Z, ref, tex);
-      const leg = uv(ref, 8, 70, 16, 90);
+      const edge = uv(ref, 7, 162, 25, 166),
+        first = faces.length;
+      box(x, h - 0.055, z, X, h, Z, ref, edge);
+      faces[first].uvs = tex;
+      const leg = uv(ref, 7, 163, 14, 168);
       for (const a of [x + 0.04, X - 0.105])
         for (const b of [z + 0.04, Z - 0.105])
           box(a, 0, b, a + 0.065, h - 0.055, b + 0.065, ref, leg);
     };
-    table(0.08, 0.68, 1.02, 4.35, [5, 48, 31, 168]);
-    table(3.98, 0.68, 4.92, 4.35, [128, 48, 156, 168]);
-    table(2.05, 2.2, 2.92, 3.0, [65, 104, 94, 130]);
-    table(2.63, 1.4, 3.15, 1.72, [86, 76, 102, 87], 0.25);
-    table(2.05, 3.32, 2.57, 3.64, [65, 137, 81, 146], 0.25);
-    for (const [x, y, X, Y, cx, cz] of [
-      [2, 10, 20, 39, 0.26, 0.32],
-      [19, 7, 40, 42, 0.85, 0.3],
-    ]) {
-      const c = sub(whole, x, y, X, Y);
-      if (c)
-        vessel(c, pixels, ref, { x: cx, z: cz, radius: 0.24, height: 0.43 });
-    }
+    table(0.08, 0.68, 1.02, 4.35, [3, 40, 32, 160]);
+    table(3.98, 0.68, 4.92, 4.35, [128, 40, 156, 160]);
+    table(2.05, 2.2, 2.92, 3.0, [66, 96, 94, 120]);
+    table(2.63, 1.4, 3.15, 1.72, [86, 68, 101, 77], 0.25);
+    table(2.05, 3.32, 2.57, 3.64, [65, 130, 81, 139], 0.25);
+    const g = new NativeWorkshopGeometry(o, data);
+    const container = (
+      r: [number, number, number, number],
+      x: number,
+      z: number,
+      radius: number,
+      h: number,
+      kind: "barrel" | "jug" | "sack",
+    ) => {
+      const [a, b, A, B] = r;
+      g.lathe(
+        [x, 0, z],
+        radius,
+        h,
+        g.patch([a + 3, b + (B - b) * 0.4, A - 3, B - 2]),
+        g.patch([a + 3, b + 2, A - 3, b + (B - b) * 0.3]),
+        kind,
+      );
+    };
+    container([2, 25, 21, 58], 0.31, 0.38, 0.25, 0.43, "barrel");
+    container([18, 16, 38, 45], 0.87, 0.3, 0.25, 0.53, "barrel");
+    container([21, 34, 40, 60], 1.02, 0.66, 0.22, 0.37, "barrel");
+    container([124, 25, 140, 47], 4.15, 0.35, 0.22, 0.4, "jug");
+    container([139, 21, 157, 47], 4.65, 0.35, 0.22, 0.48, "jug");
+    container([2, 160, 22, 180], 0.35, 4.55, 0.24, 0.37, "sack");
+    container([27, 168, 39, 183], 1.03, 4.63, 0.17, 0.29, "sack");
+    container([18, 174, 28, 187], 0.73, 4.79, 0.14, 0.26, "jug");
     for (const [x, y, X, Y] of [
-      [40, 17, 64, 47],
-      [40, 48, 60, 66],
-      [124, 174, 140, 190],
-      [141, 174, 158, 190],
+      [40, 23, 66, 53],
+      [41, 48, 60, 68],
+      [114, 163, 133, 180],
+      [135, 168, 154, 187],
     ]) {
       const c = sub(whole, x, y, X, Y);
-      if (c) nativeBox(c, pixels, ref, 0, 0.33);
+      if (c) nativeBox(c, pixels, ref, 0, y === 23 ? 0.72 : 0.32);
     }
-    for (const [x, y, X, Y, cx, cz] of [
-      [125, 13, 141, 40, 4.2, 0.3],
-      [141, 10, 159, 42, 4.7, 0.3],
-      [2, 173, 30, 191, 0.5, 4.7],
-    ]) {
-      const c = sub(whole, x, y, X, Y);
-      if (c)
-        vessel(c, pixels, ref, { x: cx, z: cz, radius: 0.23, height: 0.4 });
-    }
+    faces.push(...g.faces);
     return faces;
   }
   const baseMask = new Uint8Array(W * H);
@@ -918,7 +979,7 @@ export function nativeWorkshopRelief(
       )
         baseMask[i] = 1;
     }
-  if (w.type.startsWith("FURNACE_")) {
+  if (w.type.startsWith("FURNACE_") && !structure) {
     const wide = /KILN|LAVA/.test(w.type);
     const polygon = wide
       ? [
@@ -1042,7 +1103,9 @@ export function nativeWorkshopRelief(
     }
     return faces;
   }
-  if (w.type.startsWith("FURNACE_")) {
+  if (structure) faces.push(...structure);
+  if (machine) faces.push(...machine.faces);
+  if (w.type.startsWith("FURNACE_") && !structure) {
     const wide = /KILN|LAVA/.test(w.type),
       cx = 1.5,
       cz = 0.9,
@@ -1113,6 +1176,8 @@ export function nativeWorkshopRelief(
   for (const c of components(baseMask, W, H))
     if (
       !w.type.startsWith("FURNACE_") &&
+      !machine &&
+      !nativeRegions[w.type] &&
       c.pixels.length >= 70 &&
       c.Y - c.y > 7 &&
       c.X - c.x > 6 &&
@@ -1135,13 +1200,22 @@ export function nativeWorkshopRelief(
           : {},
       );
   if (data.decor && art.decor) {
+    const props = nativeWorkshopProps(o, data, counters);
+    faces.push(...props.faces);
     const mask = new Uint8Array(W * H);
     for (let i = 0; i < mask.length; i++)
-      mask[i] = data.decor[i * 4 + 3] > 100 ? 1 : 0;
+      mask[i] =
+        !props.mask[i] && !machine?.mask[i] && data.decor[i * 4 + 3] > 100
+          ? 1
+          : 0;
     for (const c of components(mask, W, H))
       if (c.pixels.length > 1) {
         const pixels = data.decor,
           ref = art.decor;
+        if (props.authored || machine) {
+          sculpt(c, pixels, ref, false, { flat: true });
+          continue;
+        }
         if (w.type === "WORKSHOP_STILL") {
           if (c.x < 30 && c.y >= 48 && c.Y < 70) {
             sculpt(c, pixels, ref, false, {
