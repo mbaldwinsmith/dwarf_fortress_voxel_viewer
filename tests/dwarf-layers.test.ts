@@ -83,7 +83,7 @@ it("selects held equipment only in its matching hand and preserves large-image e
     ),
   ).toHaveLength(1);
 });
-it("fails closed on special conditions and chooses age/caste sets", () => {
+it("fails closed on special conditions and falls back when no age-specific set exists", () => {
   expect(
     chooseDwarfLayers(
       parseDwarfLayers(text),
@@ -99,7 +99,7 @@ it("fails closed on special conditions and chooses age/caste sets", () => {
       resolve,
       () => "b".repeat(24),
     ),
-  ).toHaveLength(0);
+  ).toHaveLength(1);
 });
 it("remaps exact palette entries, preserves alpha and shades item colours", () => {
   const pixels = new Uint8ClampedArray([10, 20, 30, 123, 99, 99, 99, 0]);

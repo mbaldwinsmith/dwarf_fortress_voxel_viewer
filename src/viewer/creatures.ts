@@ -113,6 +113,9 @@ export class CreatureSprites {
     }
     if (message.tick <= this.tick) return;
     this.tick = message.tick;
+    this.composites.retain(
+      message.creatures.flatMap((u) => (u.layers?.length ? [u.layers] : [])),
+    );
     const ids = new Set(message.creatures.map((u) => u.id));
     for (const [id, s] of this.sprites)
       if (!ids.has(id)) {
@@ -148,7 +151,7 @@ export class CreatureSprites {
         ? compositionBounds(unit.layers)
         : undefined;
       s.object.center.set(
-        bounds ? (bounds.width - 16) / bounds.width : 0.5,
+        bounds ? bounds.anchorX / bounds.width : 0.5,
         bounds ? bounds.footFromBottom / bounds.height : 0,
       );
       s.object.scale.set(
@@ -183,6 +186,7 @@ export class CreatureSprites {
   clear() {
     this.group.clear();
     this.sprites.clear();
+    this.composites.retain([]);
     this.tick = 0;
     this.session = "";
   }

@@ -2,9 +2,24 @@ import * as THREE from "three";
 import type { SpriteLayer } from "../shared/model.js";
 import { imageBottomPadding } from "./sprite-ground.js";
 export function compositionBounds(layers: SpriteLayer[]) {
-  const width = Math.max(32, ...layers.map((l) => l.sprite.width));
-  const height = Math.max(32, ...layers.map((l) => l.sprite.height));
-  return { width, height, minY: 32 - height, footFromBottom: 0 };
+  const minX = Math.min(
+      0,
+      ...layers.map((l) => 32 - l.sprite.width + (l.offset?.[0] ?? 0)),
+    ),
+    maxX = Math.max(32, ...layers.map((l) => 32 + (l.offset?.[0] ?? 0))),
+    minY = Math.min(
+      0,
+      ...layers.map((l) => 32 - l.sprite.height + (l.offset?.[1] ?? 0)),
+    ),
+    maxY = Math.max(32, ...layers.map((l) => 32 + (l.offset?.[1] ?? 0)));
+  return {
+    width: maxX - minX,
+    height: maxY - minY,
+    minX,
+    minY,
+    anchorX: 16 - minX,
+    footFromBottom: maxY - 32,
+  };
 }
 export function recolor(
   pixels: Uint8ClampedArray,
@@ -72,8 +87,9 @@ export class CompositeSprites {
     const key = JSON.stringify(layers),
       existing = this.entries.get(key);
     if (existing) return existing.material;
-    // At capacity show markers rather than allocate unbounded equipment combinations.
-    if (this.entries.size >= 256) {
+    // The unit protocol admits at most 2000 live creatures. Stale appearances
+    // are pruned before each snapshot, leaving room for every active composite.
+    if (this.entries.size >= 2048) {
       if (!this.warnedCapacity) {
         console.warn(
           "Layered appearance cache full; additional appearances use markers until reload",
@@ -88,7 +104,7 @@ export class CompositeSprites {
     this.entries.set(key, entry);
     void this.compose(layers)
       .then((canvas) => {
-        if (this.disposed) return;
+        if (this.disposed || this.entries.get(key) !== entry) return;
         const texture = new THREE.CanvasTexture(canvas);
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.magFilter = THREE.NearestFilter;
@@ -108,6 +124,15 @@ export class CompositeSprites {
       );
     return entry.material;
   }
+  retain(appearances: SpriteLayer[][]) {
+    const active = new Set(appearances.map((layers) => JSON.stringify(layers)));
+    for (const [key, entry] of this.entries)
+      if (!active.has(key)) {
+        entry.texture?.dispose();
+        entry.material.dispose();
+        this.entries.delete(key);
+      }
+  }
   private async compose(layers: SpriteLayer[]) {
     await Promise.all(
       layers.flatMap((l) => [
@@ -115,7 +140,9 @@ export class CompositeSprites {
         ...(l.palette ? [this.image(l.palette.asset)] : []),
       ]),
     );
-    const { width, height, minY } = compositionBounds(layers);
+    const { width, height, minX, minY } = compositionBounds(layers);
+    if (width > 2048 || height > 2048)
+      throw Error("Composite bounds exceed texture budget");
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -129,7 +156,7 @@ export class CompositeSprites {
       const tile = document.createElement("canvas");
       tile.width = r.width;
       tile.height = r.height;
-      const t = tile.getContext("2d")!;
+      const t = tile.getContext("2d", { willReadFrequently: true })!;
       t.drawImage(image, r.x, r.y, r.width, r.height, 0, 0, r.width, r.height);
       let source: Uint8ClampedArray | undefined,
         target: Uint8ClampedArray | undefined;
@@ -141,7 +168,7 @@ export class CompositeSprites {
         const pc = document.createElement("canvas");
         pc.width = img.width;
         pc.height = img.height;
-        const context = pc.getContext("2d")!;
+        const context = pc.getContext("2d", { willReadFrequently: true })!;
         context.drawImage(img, 0, 0);
         source = context.getImageData(0, p.sourceRow, img.width, 1).data;
         target = context.getImageData(0, p.row, img.width, 1).data;
@@ -150,7 +177,11 @@ export class CompositeSprites {
       recolor(data.data, source, target, l.tint, l.eyeColor);
       t.putImageData(data, 0, 0);
       // Large sprites extend left/up from the normal tile, anchored bottom-right.
-      ctx.drawImage(tile, width - r.width, 32 - r.height - minY);
+      ctx.drawImage(
+        tile,
+        32 - r.width + (l.offset?.[0] ?? 0) - minX,
+        32 - r.height + (l.offset?.[1] ?? 0) - minY,
+      );
     }
     return canvas;
   }

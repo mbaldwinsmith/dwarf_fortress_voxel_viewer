@@ -7,6 +7,7 @@ import {
 import { readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { layerTemplates, expandLayerTemplates } from "./layer-templates.js";
 import type { SpriteRef } from "../shared/model.js";
 interface Page {
   file: string;
@@ -161,7 +162,8 @@ export async function permittedImage(root: string, relative: string) {
 }
 export class Graphics {
   dwarfSets: LayerSet[] = [];
-  private dwarfPages = new Map<string, SpriteRef>();
+  creatureSets = new Map<string, LayerSet[]>();
+  private layerPages = new Map<string, SpriteRef>();
   private paletteAssets = new Map<string, string>();
   files = new Map<string, string>();
   refs = new Map<string, SpriteRef>();
@@ -175,9 +177,38 @@ export class Graphics {
       sprites = new Map<string, SpriteDefinition>();
     const duplicatePages = new Set<string>(),
       duplicateSprites = new Set<string>();
-    for (const file of await readdir(root)) {
-      if (!file.endsWith(".txt")) continue;
-      const source = await readFile(path.join(root, file), "utf8");
+    const sources = await Promise.all(
+      (await readdir(root))
+        .filter((f) => f.endsWith(".txt"))
+        .map(async (file) => ({
+          file,
+          source: await readFile(path.join(root, file), "utf8"),
+        })),
+    );
+    const templates = layerTemplates(sources.map((s) => s.source));
+    for (const { source } of sources) {
+      const headers = [
+        ...source.matchAll(/\[CREATURE(?:_CASTE)?_GRAPHICS:([^\]]+)\]/g),
+      ];
+      for (const [i, h] of headers.entries()) {
+        const block = source.slice(
+          h.index! + h[0].length,
+          headers[i + 1]?.index ?? source.length,
+        );
+        const sets = parseDwarfLayers(
+          expandLayerTemplates(block, templates),
+        ).filter(
+          (set) =>
+            ["DEFAULT", "BABY", "CHILD"].includes(set.state) &&
+            (!set.context || set.context === "DEFAULT"),
+        );
+        const compatible = sets.some((set) => set.groups.length > 1);
+        if (compatible)
+          this.creatureSets.set(h[1], [
+            ...(this.creatureSets.get(h[1]) ?? []),
+            ...sets,
+          ]);
+      }
       const parsed = parseGraphics(source);
       for (const [id, body] of parseCreatureBodies(source))
         parsed.sprites.set(id, body);
@@ -220,12 +251,30 @@ export class Graphics {
         pageHeight: p.height,
       });
     }
-    this.dwarfSets = parseDwarfLayers(
-      await readFile(path.join(root, "graphics_creatures_dwarf.txt"), "utf8"),
-    );
+    this.dwarfSets = this.creatureSets.get("DWARF") ?? [];
+    const allSets = [...this.creatureSets.values()].flat();
+    // Vanilla humanoid clothes palettes are byte-identical. Template-based
+    // peoples use the same CLOTHES rows without declaring a local palette.
+    const clothes = this.dwarfSets
+      .find((s) => s.state === "DEFAULT")
+      ?.palettes.get("CLOTHES");
+    if (clothes)
+      for (const set of allSets)
+        if (
+          !set.palettes.has("CLOTHES") &&
+          set.groups.flat().some((l) => l.palette?.name === "CLOTHES")
+        )
+          set.palettes.set("CLOTHES", clothes);
     const needed = new Set(
-      this.dwarfSets.flatMap((s) =>
-        s.groups.flatMap((g) => g.map((l) => l.page)),
+      allSets.flatMap((set) =>
+        set.groups.flatMap((group) =>
+          group.flatMap((layer) => [
+            layer.page,
+            ...layer.conditions
+              .filter((c) => c[0] === "TISSUE_SWAP")
+              .map((c) => c[3]),
+          ]),
+        ),
       ),
     );
     for (const id of needed) {
@@ -234,7 +283,7 @@ export class Graphics {
       const file = await permittedImage(root, p.file),
         asset = createHash("sha256").update(file).digest("hex").slice(0, 24);
       this.files.set(asset, file);
-      this.dwarfPages.set(id, {
+      this.layerPages.set(id, {
         asset,
         x: 0,
         y: 0,
@@ -244,7 +293,7 @@ export class Graphics {
         pageHeight: p.height,
       });
     }
-    for (const set of this.dwarfSets)
+    for (const set of allSets)
       for (const p of set.palettes.values()) {
         const file = await permittedImage(root, p.file),
           asset = createHash("sha256").update(file).digest("hex").slice(0, 24);
@@ -253,11 +302,23 @@ export class Graphics {
       }
   }
   dwarf(appearance: DwarfAppearance) {
+    return this.layered("DWARF", appearance);
+  }
+  supportsLayers(race: string, caste = "") {
+    return (
+      this.creatureSets.has(`${race}:${caste}`) || this.creatureSets.has(race)
+    );
+  }
+  layered(race: string, appearance: DwarfAppearance) {
+    const sets =
+      this.creatureSets.get(`${race}:${appearance.caste}`) ??
+      this.creatureSets.get(race) ??
+      (race === "DWARF" ? this.dwarfSets : []);
     return chooseDwarfLayers(
-      this.dwarfSets,
+      sets,
       appearance,
       (id, x, y, w, h) => {
-        const base = this.dwarfPages.get(id);
+        const base = this.layerPages.get(id);
         if (!base) return;
         const ref = {
           ...base,

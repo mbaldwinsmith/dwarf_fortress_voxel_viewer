@@ -28,8 +28,9 @@ It does not issue gameplay commands or modify your game files and saves.
   terrain, including connected stairs and ramps.
 - **Authentic local artwork:** installed vanilla terrain textures, creature
   sprites, workshops, furniture, plants and supported ground items.
-- **Layered dwarves:** supported clothing, armour and equipment, plus appearance
-  details drawn from live game data.
+- **Layered peoples:** native body, clothing, armour, held weapons and shields
+  for dwarves, humans, elves, goblins, kobolds, ogres, trolls and compatible
+  animal/underground peoples, with appearance drawn from live game data.
 - **Water and magma:** native game textures on volumes filled from 1/7 to 7/7,
   with translucent water and depth-correct creature sprites.
 - **3D trees:** connected trunks, directional branches, species-specific foliage

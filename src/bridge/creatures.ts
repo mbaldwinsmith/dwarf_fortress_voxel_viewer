@@ -1,3 +1,4 @@
+import { professionCategories } from "./professions.js";
 import { hairAppearance } from "./hair.js";
 import { eyeColor, faceVariant } from "./face.js";
 import type { WornItem } from "./dwarf-layers.js";
@@ -48,6 +49,7 @@ export class CreatureReader {
     }
   >();
   private itemDefs: Map<string, string> | undefined;
+  private materialIds = new Map<string, string>();
   private materialColors = new Map<string, [number, number, number]>();
   private async metadata() {
     if (this.itemDefs) return;
@@ -65,6 +67,8 @@ export class CreatureReader {
     >[]) {
       const p = d.matPair as Record<string, unknown>,
         c = d.stateColor as Record<string, unknown> | undefined;
+      if (p && typeof d.id === "string")
+        this.materialIds.set(`${p.matType},${p.matIndex}`, d.id);
       if (p && c)
         this.materialColors.set(`${p.matType},${p.matIndex}`, [
           Number(c.red),
@@ -147,7 +151,13 @@ export class CreatureReader {
             )
           : undefined;
       let layers: ReturnType<Graphics["dwarf"]> | undefined;
-      if (raw?.id === "DWARF") {
+      if (
+        raw &&
+        this.graphics.supportsLayers(
+          raw.id,
+          raw.castes.get(Number(race.matIndex)) ?? "",
+        )
+      ) {
         const caste = raw.details.get(Number(race.matIndex)),
           appearance = u.appearance as Record<string, unknown> | undefined;
         const modifiers = (caste?.colorModifiers ?? []) as Record<
@@ -164,13 +174,13 @@ export class CreatureReader {
         const parts = (caste?.bodyParts ?? []) as Record<string, unknown>[],
           items: WornItem[] = [];
         for (const inv of (u.inventory ?? []) as Record<string, unknown>[]) {
-          if (inv.mode !== 1 && inv.mode !== 2) continue;
+          if (![0, 1, 2, 4].includes(Number(inv.mode))) continue;
           const item = inv.item as Record<string, unknown> | undefined,
             p = item?.type as Record<string, unknown> | undefined;
           if (!item || !p) continue;
           const token = this.itemDefs?.get(`${p.matType},${p.matIndex}`),
             body = parts[Number(inv.bodyPartId)];
-          if (!token || !body) continue;
+          if (!token || (!body && inv.mode !== 0)) continue;
           const [type, subtype] = token.split("/"),
             mat = item.material as Record<string, unknown> | undefined,
             dye = item.dye as Record<string, unknown> | undefined;
@@ -186,20 +196,51 @@ export class CreatureReader {
           items.push({
             type,
             subtype,
-            bodyToken: String(body.token),
-            bodyCategory: String(body.category),
+            bodyToken: String(body?.token ?? ""),
+            bodyCategory: String(body?.category ?? ""),
+            mode: Number(inv.mode),
+            materialType: mat
+              ? this.materialIds
+                  .get(`${mat.matType},${mat.matIndex}`)
+                  ?.split(":")[0]
+              : undefined,
+            materialFlags: [
+              ...(mat &&
+              /^(PLANT|CREATURE):.*:WOOD$/.test(
+                this.materialIds.get(`${mat.matType},${mat.matIndex}`) ?? "",
+              )
+                ? ["ANY_WOOD_MATERIAL"]
+                : []),
+              ...((Number(item.flags2) & 4) !== 0 ? ["GROWN_NOT_CRAFTED"] : []),
+            ],
             color,
             artifact: (Number(item.flags1) & ((1 << 18) | (1 << 27))) !== 0,
           });
         }
-        layers = this.graphics.dwarf({
+        const categories = professionCategories(Number(u.professionId ?? -1));
+        const state = categories.includes("BABY")
+          ? "BABY"
+          : categories.includes("CHILD")
+            ? "CHILD"
+            : u.professionId !== undefined
+              ? "DEFAULT"
+              : undefined;
+        layers = this.graphics.layered(raw.id, {
           caste: raw.castes.get(Number(race.matIndex)) ?? "",
           age: Number(u.age ?? 30),
           skin,
           faceVariant: faceVariant(Number(u.id)),
+          variantSeed: Number(u.id),
           eyeColor: eyeColor(caste ?? {}, appearance ?? {}),
           ...hairAppearance(caste ?? {}, appearance ?? {}, Number(u.age ?? 0)),
           items,
+          state,
+          professionCategories: categories,
+          bodySize: Number(
+            (u.sizeInfo as Record<string, unknown> | undefined)?.sizeCur ?? 0,
+          ),
+          haulCount: items.filter((i) => i.mode === 0).length,
+          ghost: (Number(u.flags3) & (1 << 12)) !== 0,
         });
       }
       result.push({
@@ -212,7 +253,7 @@ export class CreatureReader {
             ? u.name.slice(0, 120)
             : (raw?.id ?? "Creature"),
         ...(sprite ? { sprite } : {}),
-        ...(layers && layers.length > 1 ? { layers } : {}),
+        ...(layers?.length ? { layers } : {}),
       });
     }
     return result;

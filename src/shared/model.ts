@@ -1,4 +1,5 @@
 export interface SpriteLayer {
+  offset?: [number, number];
   eyeColor?: [number, number, number];
   sprite: SpriteRef;
   palette?: { asset: string; sourceRow: number; row: number };

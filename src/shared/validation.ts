@@ -77,6 +77,13 @@ export function parseServerMessage(value: unknown): ServerMessage {
           if (!object(l)) throw Error("Invalid layer");
           validateSprite(l.sprite);
           if (
+            l.offset !== undefined &&
+            (!Array.isArray(l.offset) ||
+              l.offset.length !== 2 ||
+              !l.offset.every((v) => int(v) && Math.abs(v) <= 512))
+          )
+            throw Error("Invalid layer offset");
+          if (
             l.eyeColor !== undefined &&
             (!Array.isArray(l.eyeColor) ||
               l.eyeColor.length !== 3 ||

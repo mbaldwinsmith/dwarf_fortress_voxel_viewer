@@ -24,13 +24,14 @@ message FlowInfo {optional int32 index=1;optional int32 type=2;optional int32 de
 message MapBlock {required int32 map_x=1;required int32 map_y=2;required int32 map_z=3;repeated int32 tiles=4;repeated MatPair materials=5;repeated MatPair layer_materials=6;repeated MatPair base_materials=8;repeated int32 magma=9;repeated int32 water=10;repeated bool hidden=11;repeated BuildingInstance buildings=19;repeated int32 tree_percent=20;repeated Item items=26;repeated int32 grass_percent=29;repeated FlowInfo flows=30;}
 message BlockList {repeated MapBlock map_blocks=1;}
 message MatPair {required int32 mat_type=1;required int32 mat_index=2;}
-message UnitDefinition {required int32 id=1;optional int32 pos_x=3;optional int32 pos_y=4;optional int32 pos_z=5;optional MatPair race=6;optional uint32 flags1=8;optional string name=13;optional ColorDefinition profession_color=7;optional UnitAppearance appearance=16;repeated InventoryItem inventory=20;optional int32 age=25;}
+message UnitDefinition {required int32 id=1;optional int32 pos_x=3;optional int32 pos_y=4;optional int32 pos_z=5;optional MatPair race=6;optional uint32 flags1=8;optional uint32 flags2=9;optional uint32 flags3=10;optional BodySizeInfo size_info=12;optional int32 profession_id=17;optional string name=13;optional ColorDefinition profession_color=7;optional UnitAppearance appearance=16;repeated InventoryItem inventory=20;optional int32 age=25;}
+message BodySizeInfo {optional int32 size_cur=1;optional int32 size_base=2;}
 message UnitList {repeated UnitDefinition creature_list=1;}
 message ListRequest {optional int32 list_start=1;optional int32 list_end=2;}
 message ColorDefinition {required int32 red=1;required int32 green=2;required int32 blue=3;}
 message Hair {optional int32 length=1;optional int32 style=2;}
 message UnitAppearance {repeated int32 bp_modifiers=2;repeated int32 colors=4;optional Hair hair=5;optional Hair beard=6;optional Hair moustache=7;optional Hair sideburns=8;}
-message Item {optional int32 id=1;optional Coord pos=2;optional uint32 flags1=3;optional MatPair type=5;optional MatPair material=6;optional ColorDefinition dye=7;optional int32 stack_size=8;optional bool projectile=12;}
+message Item {optional int32 id=1;optional Coord pos=2;optional uint32 flags1=3;optional uint32 flags2=4;optional MatPair type=5;optional MatPair material=6;optional ColorDefinition dye=7;optional int32 stack_size=8;optional bool projectile=12;}
 message InventoryItem {optional int32 mode=1;optional Item item=2;optional int32 body_part_id=3;}
 message MaterialDefinition {required MatPair mat_pair=1;optional string id=2;optional string name=3;optional ColorDefinition state_color=4;}
 message MaterialList {repeated MaterialDefinition material_list=1;}

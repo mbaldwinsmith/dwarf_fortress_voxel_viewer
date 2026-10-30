@@ -158,6 +158,8 @@ it("matches beard grooming separately from scalp hair and supports large curly s
   expect(compositionBounds([body, result[0]])).toEqual({
     width: 32,
     height: 64,
+    minX: 0,
+    anchorX: 16,
     minY: -32,
     footFromBottom: 0,
   });

@@ -620,3 +620,21 @@ The audit and remaining layered-humanoid limitations are documented in
 [creature-rendering.md](creature-rendering.md). A controlled WebGL lineup of
 eleven native animals loaded successfully with no browser errors. No installer
 build was run.
+
+## Shared humanoid layering
+
+The living layer evaluator now supports all 203 compatible native race/caste
+profiles (198 species), including template-based animal and underground people.
+Native arguments, permitted limbs, pixel offsets and large weapon rectangles
+expand into a common ordered compositor. Clothing, armour, held weapons,
+shields, tools and native hauled-supply layers use live anatomy/inventory for
+every supported species. Material, profession, ghost, body-size and life-stage
+rules use the matching read-only RFR fields; unknown conditions stay closed.
+
+The appearance cache now retains active composites and releases old equipment
+variants, with capacity for the protocol's 2000-unit limit. Offset-aware bounds
+prevent cropped weapons and displaced body anchors. The native profile audit
+produced composites for all compatible sets, and a 24-composite bare/equipped
+WebGL lineup loaded without errors or sprite warnings. The live fortress retained
+artwork for all 20 visible creatures. See creature-rendering.md for fidelity
+limits, including unavailable native random-part indices and syndrome classes.

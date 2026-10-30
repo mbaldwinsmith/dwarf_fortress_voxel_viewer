@@ -9,9 +9,11 @@ export interface LayerDefinition {
   conditions: string[][];
   palette?: { name: string; row: number };
   itemPalette: boolean;
+  offset?: [number, number];
 }
 export interface LayerSet {
   state: string;
+  context?: string;
   groups: LayerDefinition[][];
   palettes: Map<string, { file: string; sourceRow: number }>;
 }
@@ -21,11 +23,17 @@ export function parseDwarfLayers(text: string): LayerSet[] {
     group: LayerDefinition[] | undefined,
     layer: LayerDefinition | undefined,
     palette: string | undefined;
+  let permitted = true,
+    offset: [number, number] = [0, 0];
   for (const m of text.matchAll(/\[([^\]\r\n]+)\]/g)) {
     const [tag, ...a] = m[1].split(":");
     if (tag === "LAYER_SET") {
       set = { state: a[0], groups: [], palettes: new Map() };
+      if (a[1]) set.context = a[1];
       sets.push(set);
+      permitted = true;
+      offset = [0, 0];
+      palette = undefined;
       group = undefined;
       layer = undefined;
     } else if (!set) continue;
@@ -37,13 +45,31 @@ export function parseDwarfLayers(text: string): LayerSet[] {
     else if (tag === "LS_PALETTE_DEFAULT" && palette)
       set.palettes.get(palette)!.sourceRow = Number(a[0]);
     else if (tag === "LAYER_GROUP") {
+      permitted = true;
+      offset = [0, 0];
       group = [];
       set.groups.push(group);
       layer = undefined;
+    } else if (tag === "LG_PERMITTED") {
+      permitted = a[0] === "YES";
+    } else if (tag === "LG_OFFSET") {
+      const values = a.map(Number);
+      if (
+        values.length !== 2 ||
+        !values.every((v) => Number.isInteger(v) && Math.abs(v) <= 512)
+      )
+        permitted = false;
+      else offset = values as [number, number];
     } else if (tag === "END_LAYER_GROUP") {
       group = undefined;
       layer = undefined;
+      permitted = true;
+      offset = [0, 0];
     } else if (tag === "LAYER") {
+      if (!permitted) {
+        layer = undefined;
+        continue;
+      }
       const large = a[2] === "LARGE_IMAGE",
         n = large ? 3 : 2,
         x = Number(a[n]),
@@ -57,6 +83,9 @@ export function parseDwarfLayers(text: string): LayerSet[] {
         height: large ? Number(a[6]) - y + 1 : 1,
         conditions: [],
         itemPalette: false,
+        ...(offset.some((v) => v !== 0)
+          ? { offset: [...offset] as [number, number] }
+          : {}),
       };
       if (!group) {
         group = [];
@@ -80,6 +109,9 @@ export interface WornItem {
   bodyCategory: string;
   color?: [number, number, number];
   artifact?: boolean;
+  mode?: number;
+  materialFlags?: string[];
+  materialType?: string;
 }
 export interface HairAppearance {
   length: number;
@@ -88,6 +120,7 @@ export interface HairAppearance {
   curly?: number;
 }
 export interface DwarfAppearance {
+  variantSeed?: number;
   faceVariant?: number;
   eyeColor?: [number, number, number];
   hair?: HairAppearance;
@@ -96,15 +129,28 @@ export interface DwarfAppearance {
   age: number;
   skin: string;
   items: WornItem[];
+  state?: string;
+  professionCategories?: string[];
+  bodySize?: number;
+  haulCount?: number;
+  ghost?: boolean;
+  syndromeClasses?: string[];
 }
 function matchItem(a: string[], item: WornItem) {
-  const [by, body, type, ...subtypes] = a;
-  return (
-    (by === "BY_CATEGORY"
+  const [by, ...args] = a;
+  const hauled = by === "ANY_HAULED" || by === "WIELD";
+  const [body, type, ...subtypes] = hauled ? ["", ...args] : args;
+  const attachment = hauled
+    ? item.mode === (by === "WIELD" ? 1 : 0)
+    : by === "BY_CATEGORY"
       ? item.bodyCategory === body
-      : by === "BY_TOKEN" && item.bodyToken === body) &&
+      : by === "BY_TOKEN" && item.bodyToken === body;
+  return (
+    attachment &&
     item.type === type &&
-    (subtypes.includes("ANY") || subtypes.includes(item.subtype))
+    (subtypes.length === 0 ||
+      subtypes.includes("ANY") ||
+      subtypes.includes(item.subtype))
   );
 }
 export function chooseDwarfLayers(
@@ -119,10 +165,14 @@ export function chooseDwarfLayers(
   ) => SpriteRef | undefined,
   paletteAsset: (file: string) => string | undefined,
 ): SpriteLayer[] {
-  // Vanilla life stages are BABY:1 and CHILD:18. Other species do not use this evaluator.
+  // Native profession state supplies species-specific life stages. Age remains
+  // the legacy dwarf fallback when a caller has no native profession record.
   const state =
-      appearance.age < 1 ? "BABY" : appearance.age < 18 ? "CHILD" : "DEFAULT",
-    set = sets.find((s) => s.state === state);
+      appearance.state ??
+      (appearance.age < 1 ? "BABY" : appearance.age < 18 ? "CHILD" : "DEFAULT"),
+    set =
+      sets.find((s) => s.state === state) ??
+      sets.find((s) => s.state === "DEFAULT");
   if (!set) return [];
   const layers: SpriteLayer[] = [];
   for (const group of set.groups) {
@@ -156,7 +206,23 @@ export function chooseDwarfLayers(
       };
       for (const [tag, ...a] of layer.conditions) {
         if (tag === "CONDITION_ITEM_WORN") continue;
-        if (tag === "CONDITION_CASTE") ok &&= a.includes(appearance.caste);
+        if (tag === "CONDITION_PROFESSION_CATEGORY")
+          ok &&= a.some((c) => appearance.professionCategories?.includes(c));
+        else if (tag === "CONDITION_BODY_SIZE_MIN")
+          ok &&= (appearance.bodySize ?? 0) >= Number(a[0]);
+        else if (tag === "CONDITION_HAUL_COUNT_MIN")
+          ok &&= (appearance.haulCount ?? 0) >= Number(a[0]);
+        else if (tag === "CONDITION_HAUL_COUNT_MAX")
+          ok &&= (appearance.haulCount ?? 0) <= Number(a[0]);
+        else if (tag === "CONDITION_CHILD")
+          ok &&= state === "CHILD" || state === "BABY";
+        else if (tag === "CONDITION_NOT_CHILD") ok &&= state === "DEFAULT";
+        else if (tag === "CONDITION_GHOST") ok &&= !!appearance.ghost;
+        else if (tag === "CONDITION_SYN_CLASS")
+          ok &&= a.some((c) => appearance.syndromeClasses?.includes(c));
+        else if (tag === "CONDITION_MATERIAL_TYPE")
+          ok &&= !!matched && a.includes(matched.materialType ?? "");
+        else if (tag === "CONDITION_CASTE") ok &&= a.includes(appearance.caste);
         else if (tag === "CONDITION_TISSUE_LAYER")
           ok &&=
             a[0] === "BY_CATEGORY" &&
@@ -205,20 +271,27 @@ export function chooseDwarfLayers(
           }
         }
         // RFR omits the game's index; the bridge supplies a stable artistic variant.
-        else if (tag === "CONDITION_RANDOM_PART_INDEX")
+        else if (tag === "CONDITION_RANDOM_PART_INDEX") {
+          const count = Number(a[2]);
+          let seed = appearance.variantSeed ?? 0;
+          for (const character of a[0])
+            seed = Math.imul(seed ^ character.charCodeAt(0), 16777619);
+          const variant =
+            a[0] === "HEAD" && count === 4
+              ? (appearance.faceVariant ?? 1)
+              : ((seed >>> 0) % count) + 1;
           ok &&=
-            a[0] === "HEAD" &&
-            Number(a[1]) === (appearance.faceVariant ?? 1) &&
-            a[2] === "4";
-        else if (tag === "CONDITION_MATERIAL_FLAG")
+            Number.isInteger(count) && count > 0 && Number(a[1]) === variant;
+        } else if (tag === "CONDITION_MATERIAL_FLAG")
           ok &&=
             !!matched &&
-            a.length === 1 &&
-            (a[0] === "NOT_ARTIFACT"
-              ? !matched.artifact
-              : a[0] === "IS_CRAFTED_ARTIFACT"
-                ? !!matched.artifact
-                : false);
+            a.every((flag) =>
+              flag === "NOT_ARTIFACT"
+                ? !matched.artifact
+                : flag === "IS_CRAFTED_ARTIFACT"
+                  ? !!matched.artifact
+                  : (matched.materialFlags?.includes(flag) ?? false),
+            );
         else if (tag === "SHUT_OFF_IF_ITEM_PRESENT")
           ok &&= !appearance.items.some((i) => matchItem(a, i));
         else ok = false; // Unknown/special conditions fail closed, not silently applied.
@@ -232,12 +305,21 @@ export function chooseDwarfLayers(
         image.height,
       );
       if (!sprite) continue;
-      const out: SpriteLayer = { sprite };
+      const out: SpriteLayer = {
+        sprite,
+        ...(layer.offset ? { offset: layer.offset } : {}),
+      };
       // This mask is specific to the inspected vanilla adult/child face rows. Do not
       // tint black outlines, wearables, babies or arbitrary mod graphics.
       if (
         appearance.eyeColor &&
-        layer.page === "DWARF_BODY" &&
+        [
+          "DWARF_BODY",
+          "HUMAN_BODY",
+          "ELF_BODY",
+          "GOBLIN_BODY",
+          "KOBOLD_BODY",
+        ].includes(layer.page) &&
         (layer.y === 0 || layer.y === 3) &&
         layer.x >= 0 &&
         layer.x <= 7 &&
