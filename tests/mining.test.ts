@@ -17,6 +17,7 @@ import { type } from "../src/bridge/protocol.js";
 import type { FortressAdapter } from "../src/bridge/adapter.js";
 import { SceneryReader } from "../src/bridge/scenery.js";
 import { FirstPersonControls } from "../src/viewer/first-person.js";
+import { FortressScene } from "../src/viewer/scene.js";
 import type { Chunk } from "../src/shared/model.js";
 const bounds = { x: 0, y: 0, z: 0, width: 64, depth: 64, height: 20 };
 const request: MiningRequest = {
@@ -167,14 +168,79 @@ it("batches rectangle designations and refreshes just their intersecting columns
   const result = await mineTile(a as unknown as FortressAdapter, r, () => true);
   expect(a.rpc.mining.mock.calls[1][0].slice(8)).toEqual(["35", "2"]);
   expect(a.column.mock.calls).toEqual([
-    [16, 0, [4]],
     [16, 16, [4]],
-    [32, 0, [4]],
+    [16, 0, [4]],
     [32, 16, [4]],
+    [32, 0, [4]],
   ]);
   expect(result.state).toBe("DESIGNATED");
   expect(result.count).toBe(436);
   expect(result.chunks).toHaveLength(4);
+});
+it("publishes the edited column before waiting for neighbours and stops publishing on a world change", async () => {
+  const a = adapter();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  a.column.mockImplementation(async (x, y, levels) => {
+    if (x !== 16 || y !== 16) await gate;
+    return levels.map((z) => block(x, y, z));
+  });
+  const refreshed = vi.fn();
+  const finished = mineTile(
+    a as unknown as FortressAdapter,
+    request,
+    () => true,
+    refreshed,
+  );
+  await vi.waitFor(() => expect(refreshed).toHaveBeenCalledTimes(1));
+  expect(refreshed.mock.calls[0][0].map((c: Chunk) => [c.x, c.y, c.z])).toEqual(
+    [
+      [16, 16, 4],
+      [16, 16, 3],
+      [16, 16, 5],
+    ],
+  );
+  expect(a.block).not.toHaveBeenCalled();
+  release();
+  await finished;
+  expect(refreshed).toHaveBeenCalledTimes(9);
+  const changed = adapter(),
+    published = vi.fn();
+  // The fourth identity check is immediately after the first refreshed column.
+  changed.checkWorld.mockImplementation(async () => {
+    if (changed.checkWorld.mock.calls.length === 4)
+      throw Error("World changed");
+  });
+  await expect(
+    mineTile(
+      changed as unknown as FortressAdapter,
+      request,
+      () => true,
+      published,
+    ),
+  ).rejects.toThrow("World changed");
+  expect(published).not.toHaveBeenCalled();
+});
+it("moves mining geometry ahead of a mesh backlog without letting later normal updates displace it", () => {
+  const queue = {
+    dirty: new Set(["160,160,4", "16,16,4", "176,160,4"]),
+    flows: { update: vi.fn() },
+  };
+  FortressScene.prototype.update.call(
+    queue as unknown as FortressScene,
+    [block()],
+    true,
+  );
+  expect([...queue.dirty][0]).toBe("16,16,4");
+  expect(queue.dirty.has("160,160,4")).toBe(true);
+  expect(queue.dirty.has("16,16,3")).toBe(true);
+  FortressScene.prototype.update.call(queue as unknown as FortressScene, [
+    block(0, 0, 4),
+  ]);
+  expect([...queue.dirty][0]).toBe("16,16,4");
+  expect(queue.dirty.has("176,160,4")).toBe(true);
 });
 it("uses only the fixed Lua command over core RPC and decodes fragmented command results", async () => {
   let calls = 0;

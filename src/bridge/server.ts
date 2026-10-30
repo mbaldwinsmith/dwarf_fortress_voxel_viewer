@@ -309,33 +309,45 @@ async function processMining() {
     !!reset;
   try {
     if (!current()) return;
-    const result = await mineTile(adapter!, request, current);
+    let invalidated = false;
+    const result = await mineTile(adapter!, request, current, (refreshed) => {
+      if (!current()) return;
+      if (!invalidated) {
+        cache.invalidateAround(request.x, request.y, request.z);
+        invalidated = true;
+      }
+      if (request.x2 !== undefined)
+        for (const chunk of refreshed)
+          cache.invalidateAround(chunk.x, chunk.y, chunk.z);
+      const b = reset!.bounds,
+        level = reset!.level!;
+      const updates = refreshed
+        .filter(
+          (c) =>
+            c.x >= b.x &&
+            c.y >= b.y &&
+            c.x < b.x + b.width &&
+            c.y < b.y + b.depth &&
+            c.z >= level - LEVELS_BELOW &&
+            c.z <= level + LEVELS_ABOVE,
+        )
+        .filter((c) => cache.store(c, performance.now()));
+      if (updates.length)
+        publish({
+          type: "chunks",
+          session,
+          sequence: ++sequence,
+          chunks: updates,
+          pollMs: 0,
+          priority: refreshed.some(
+            (c) =>
+              c.x === Math.floor(request.x / 16) * 16 &&
+              c.y === Math.floor(request.y / 16) * 16 &&
+              c.z === request.z,
+          ),
+        });
+    });
     if (!current()) return;
-    cache.invalidateAround(request.x, request.y, request.z);
-    if (request.x2 !== undefined)
-      for (const chunk of result.chunks)
-        cache.invalidateAround(chunk.x, chunk.y, chunk.z);
-    const b = reset!.bounds,
-      level = reset!.level!;
-    const updates = result.chunks
-      .filter(
-        (c) =>
-          c.x >= b.x &&
-          c.y >= b.y &&
-          c.x < b.x + b.width &&
-          c.y < b.y + b.depth &&
-          c.z >= level - LEVELS_BELOW &&
-          c.z <= level + LEVELS_ABOVE,
-      )
-      .filter((c) => cache.store(c, performance.now()));
-    if (updates.length)
-      publish({
-        type: "chunks",
-        session,
-        sequence: ++sequence,
-        chunks: updates,
-        pollMs: 0,
-      });
     send(ws, {
       type: "mining-result",
       session,
@@ -563,7 +575,10 @@ async function run() {
             }
             reads++;
           }
-          if (performance.now() - lastCreaturePoll >= 250) {
+          if (
+            !miningQueue.length &&
+            performance.now() - lastCreaturePoll >= 250
+          ) {
             const tickStarted = performance.now();
             const snapshot = await creatures.snapshot(b, level, chunks);
             await adapter.checkWorld();
@@ -576,7 +591,7 @@ async function run() {
               });
             lastCreaturePoll = tickStarted;
           }
-          if (performance.now() - lastItemPoll >= 1000) {
+          if (!miningQueue.length && performance.now() - lastItemPoll >= 1000) {
             const tickStarted = performance.now();
             const [cx, cy] = order[0];
             const nearby = [...chunks.values()].filter(
@@ -611,7 +626,11 @@ async function run() {
               `Streaming Z ${level} · ${completed}/${order.length} blocks · sweep ${sweep + 1}`,
             );
           // Yield during initial loading; throttle batches rather than tiles.
-          await streamPause(needed.length && reads % 4 === 0 ? pollMs : 0);
+          await streamPause(
+            !miningQueue.length && needed.length && reads % 4 === 0
+              ? pollMs
+              : 0,
+          );
         }
         if (
           requestedLevel !== level ||

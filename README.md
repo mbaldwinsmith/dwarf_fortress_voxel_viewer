@@ -175,6 +175,10 @@ to open it completely. Channeling can expose lower ground; the first-person
 camera settles onto a loaded walkable surface below. Native designation icons
 remain visible on the map until the game clears them. Escape selects Inspect.
 
+After a dig, the edited column and its adjacent z-levels stream immediately,
+before the surrounding ring finishes refreshing. These meshes take priority
+over background rebuilds; the first-person digging countdown remains 0.75 seconds.
+
 These tools change the real loaded fortress. Trees, constructions, buildings,
 hidden tiles and map edges are excluded. Instant digging uses DFHack dig-now
 with standard item generation and awards no mining experience. Supported use is

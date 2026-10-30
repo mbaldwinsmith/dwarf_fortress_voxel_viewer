@@ -147,6 +147,7 @@ export type ServerMessage =
       sequence: number;
       chunks: Chunk[];
       pollMs: number;
+      priority?: boolean;
     };
 export const key = (x: number, y: number, z: number) => `${x},${y},${z}`;
 export const chunkKey = (c: Chunk) => key(c.x, c.y, c.z);

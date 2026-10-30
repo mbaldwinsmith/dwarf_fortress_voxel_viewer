@@ -138,6 +138,7 @@ export function parseServerMessage(value: unknown): ServerMessage {
     int(value.sequence) &&
     value.sequence > 0 &&
     int(value.pollMs) &&
+    (value.priority === undefined || typeof value.priority === "boolean") &&
     Array.isArray(value.chunks) &&
     value.chunks.length <= 45
   ) {

@@ -286,7 +286,7 @@ const disconnect = connect((m) => {
     state.chunks,
     scene.navigation === "firstPerson",
   );
-  scene.update(terrain);
+  scene.update(terrain, m.priority);
   empty.hidden = state.chunks.size > 0;
 }, setStatus);
 for (const mode of ["screen", "map"] as const)

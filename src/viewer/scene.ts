@@ -618,9 +618,17 @@ export class FortressScene {
       );
     this.controls.update();
   }
-  update(chunks: Chunk[]) {
+  update(chunks: Chunk[], priority = false) {
     this.flows.update(chunks);
-    for (const c of chunks) for (const k of affected(c)) this.dirty.add(k);
+    const changed = chunks.map(chunkKey);
+    const neighbours = chunks.flatMap(affected);
+    if (priority && chunks.length) {
+      // Reinsert even already queued edits at the front. The edited geometry
+      // must not wait behind cutaway/streaming rebuilds or its neighbours.
+      this.dirty = new Set([...changed, ...neighbours, ...this.dirty]);
+    } else {
+      for (const k of neighbours) this.dirty.add(k);
+    }
   }
   setCut(z: number) {
     if (this.navigation === "firstPerson") this.setFirstPerson(true);
