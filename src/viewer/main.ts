@@ -31,11 +31,16 @@ try {
 }
 const setStatus = (s: string) => {
   status.textContent = s;
-  if (/disconnected|Cannot reach/i.test(s)) {
+  if (
+    /disconnected|Cannot reach|timed out|stopped responding|resynchronising|Invalid bridge/i.test(
+      s,
+    )
+  ) {
     scene.cancelMining();
     scene.miningBusy = false;
     pendingMiningId = undefined;
     miningMode.disabled = true;
+    scene.firstPerson.waitingForTerrain = true;
   }
 };
 miningMode.addEventListener("change", () => {
@@ -235,6 +240,11 @@ const disconnect = connect((m) => {
       JSON.stringify(m.bounds) === JSON.stringify(scene.bounds);
     if (walkingRequest === m.level) walkingRequest = undefined;
     if (m.type === "reset") {
+      const resumeWalking =
+        scene.navigation === "firstPerson" &&
+        m.session === state.session &&
+        JSON.stringify(m.bounds) === JSON.stringify(scene.bounds) &&
+        m.level === scene.cut;
       miningAssets = undefined;
       miningMode.disabled = true;
       miningMode.value = "inspect";
@@ -244,7 +254,7 @@ const disconnect = connect((m) => {
       pendingMiningId = undefined;
       miningPreview.hidden = true;
       state.reset(m.session);
-      scene.reset(m.bounds, m.level);
+      scene.reset(m.bounds, m.level, resumeWalking);
       world.textContent = m.world || "Awaiting a fortress";
     } else {
       retainChunks(state.chunks, m.bounds, m.level);
@@ -281,7 +291,7 @@ const disconnect = connect((m) => {
   });
   if (!state.merge(m)) {
     setStatus("State sequence mismatch · reconnecting");
-    location.reload();
+    disconnect.reconnect();
     return;
   }
   const changedTerrain = new Set(terrain.map(chunkKey));
@@ -298,13 +308,18 @@ for (const mode of ["screen", "map"] as const)
     clearTimeout(levelTimer);
     disconnect.setMode(mode);
   });
-window.addEventListener(
-  "pagehide",
-  () => {
-    clearTimeout(levelTimer);
-    disconnect();
-    scene.dispose();
-    window.removeEventListener("keydown", keydown);
-  },
-  { once: true },
-);
+window.addEventListener("pagehide", (event) => {
+  clearTimeout(levelTimer);
+  if (event.persisted) {
+    scene.cancelMining();
+    scene.firstPerson.waitingForTerrain = true;
+    disconnect.suspend();
+    return;
+  }
+  disconnect();
+  scene.dispose();
+  window.removeEventListener("keydown", keydown);
+});
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) disconnect.resume();
+});

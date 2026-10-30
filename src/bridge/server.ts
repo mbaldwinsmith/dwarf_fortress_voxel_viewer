@@ -21,6 +21,7 @@ import {
   type MiningRequest,
 } from "../shared/mining.js";
 import { mineTile } from "./mining.js";
+import { isHeartbeat } from "../shared/heartbeat.js";
 import { inspectInstallation } from "./installation.js";
 import {
   blockOrder,
@@ -136,6 +137,18 @@ const server = http.createServer(async (req, res) => {
   }
 });
 const wss = new WebSocketServer({ noServer: true, maxPayload: 256 });
+const alive = new WeakSet<WebSocket>();
+const heartbeatTimer = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (!alive.has(ws)) {
+      ws.terminate();
+      continue;
+    }
+    alive.delete(ws);
+    if (ws.readyState === WebSocket.OPEN) ws.ping();
+  }
+}, 15000);
+heartbeatTimer.unref();
 const origins = new Set([
   `http://127.0.0.1:${port}`,
   `http://localhost:${port}`,
@@ -192,6 +205,8 @@ function setStatus(message: string) {
   }
 }
 wss.on("connection", (ws) => {
+  alive.add(ws);
+  ws.on("pong", () => alive.add(ws));
   send(ws, { type: "status", message: status });
   if (reset) {
     send(ws, reset);
@@ -206,6 +221,10 @@ wss.on("connection", (ws) => {
       value = JSON.parse(data.toString());
     } catch {
       ws.close(1008, "Invalid viewer operation");
+      return;
+    }
+    if (isHeartbeat(value, "ping")) {
+      ws.send(JSON.stringify({ type: "pong", nonce: value.nonce }));
       return;
     }
     if (
@@ -690,6 +709,7 @@ server.listen(port, "127.0.0.1", () => {
 });
 function stop() {
   stopping = true;
+  clearInterval(heartbeatTimer);
   adapter?.close();
   for (const ws of wss.clients) ws.close();
   wss.close();
