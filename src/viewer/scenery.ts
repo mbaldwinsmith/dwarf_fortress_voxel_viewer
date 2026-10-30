@@ -203,7 +203,12 @@ export class ScenerySprites {
         if (o.furniture && o.sprite) {
           const ground =
             surfaceHeight(all, o.x + 0.5, o.y + 0.5, o.z) ?? o.z + 0.12;
-          for (const face of furnitureFaces(o, ground)) {
+          const wall = (x: number, y: number) =>
+            tileAt(all, x, y, o.z)?.shape === "wall";
+          const axisZ =
+            (wall(o.x, o.y - 1) || wall(o.x, o.y + 1)) &&
+            !(wall(o.x - 1, o.y) || wall(o.x + 1, o.y));
+          for (const face of furnitureFaces(o, ground, axisZ)) {
             const k = JSON.stringify([
               face.sprite?.asset ?? "solid",
               face.sprite ? face.palette : undefined,

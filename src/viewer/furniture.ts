@@ -1,5 +1,6 @@
 import type { SceneryObject, SpriteRef } from "../shared/model.js";
 import { storageFaces } from "./storage-models.js";
+import { barrierFaces } from "./barrier-models.js";
 export interface FurnitureFace {
   uvs?: number[];
   positions: number[];
@@ -25,8 +26,11 @@ const crop = (
 export function furnitureFaces(
   o: SceneryObject,
   ground: number,
+  axisZ = false,
 ): FurnitureFace[] {
   if (!o.furniture || !o.sprite) return [];
+  const barrier = barrierFaces(o, ground, axisZ);
+  if (barrier) return barrier;
   const storage = storageFaces(o, ground);
   if (storage) return storage;
   const faces: FurnitureFace[] = [],

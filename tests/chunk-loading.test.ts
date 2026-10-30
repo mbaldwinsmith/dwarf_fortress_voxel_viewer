@@ -180,6 +180,30 @@ it("reuses recently departed levels, keeps item and terrain freshness separate, 
   cache.clear();
   expect(cache.restore("16,32,10")).toBeUndefined();
 });
+it("refreshes region-wide building states from the first partial block without replacing terrain", async () => {
+  const first = air(10),
+    second = air(11),
+    buildings = [{ index: 7, active: 0 }];
+  const withBuildings = vi.fn((c: Chunk, values: unknown) => ({
+    ...c,
+    testBuildings: values,
+  }));
+  const withItems = vi.fn((c: Chunk) => c);
+  adapter.scenery = { withBuildings, withItems } as never;
+  vi.mocked(adapter.rpc.call).mockResolvedValue({
+    mapBlocks: [{ mapX: 16, mapY: 32, mapZ: 10, buildings }],
+  });
+  const result = await adapter.items([first, second]);
+  expect(withBuildings.mock.calls).toEqual([
+    [first, buildings],
+    [second, buildings],
+  ]);
+  expect(result.map((c) => c.tiles)).toEqual([first.tiles, second.tiles]);
+  vi.mocked(adapter.rpc.call).mockResolvedValue({ mapBlocks: [] });
+  withBuildings.mockClear();
+  await adapter.items([first, second]);
+  expect(withBuildings).not.toHaveBeenCalled();
+});
 it("bounds the reserve and evicts least recently used inactive terrain", () => {
   const cache = new ChunkCache(2);
   cache.store(air(10), 0);

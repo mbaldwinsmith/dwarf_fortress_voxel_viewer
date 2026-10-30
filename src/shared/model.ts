@@ -103,6 +103,11 @@ export const FURNITURE_TYPES = [
   "armorstand",
   "nestbox",
   "hive",
+  "door",
+  "hatch",
+  "gratefloor",
+  "gratewall",
+  "floodgate",
 ] as const;
 export type FurnitureType = (typeof FURNITURE_TYPES)[number];
 export interface SceneryObject {
@@ -110,6 +115,7 @@ export interface SceneryObject {
     type: FurnitureType;
     heavy?: true;
     color?: [number, number, number];
+    open?: boolean;
   };
   palette?: SpriteLayer["palette"];
   tint?: [number, number, number];

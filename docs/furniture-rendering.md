@@ -28,6 +28,19 @@ straw; hives have rounded, ringed profiles and entrances. These models show the
 structure only: no inferred stored contents, mounted equipment, eggs or captive
 animals are fabricated. Hive buildings use the native installed-hive artwork.
 
+Doors, hatches, floodgates and floor/wall grates use RemoteFortressReader's
+`active` flag (`1` closed, `0` open). Doors swing beside their frames, hatches lift,
+and open grates/floodgates retract to their frames. Closed solid panels have opaque
+cores beneath native texture details; grates have separate bars and real gaps.
+Hatches and floor grates can render over revealed open shafts. Wall orientation
+is inferred from neighboring rock; hinge placement is a viewer interpretation.
+
+The nearby item poll also refreshes the region-wide building records carried on
+RFR's first partial block, without replacing cached terrain or postponing its
+refresh. This publishes state changes and building removals during normal nearby
+polling instead of waiting for the full terrain sweep. Missing responses retain
+the prior buildings. No game mutation is needed to read these states.
+
 Opaque interior regions of the native artwork texture the frame surfaces, with
 the existing material palettes. Simple directional face shading makes the shape
 read clearly in the unlit sprite renderer. Raised bedding volumes remain opaque

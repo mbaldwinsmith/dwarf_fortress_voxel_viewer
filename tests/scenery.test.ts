@@ -73,7 +73,7 @@ it("clips workshop mosaics to the owning block and excludes unrevealed tiles", (
   next.x = 16;
   expect(buildingObjects(next, [building()], defs, art)).toHaveLength(3);
 });
-it("uses floor furniture, upright door state art and skips stockpiles", () => {
+it("uses floor furniture, stateful door models and skips stockpiles", () => {
   art.get.mockClear();
   const c = chunk();
   const bed = building({
@@ -91,9 +91,13 @@ it("uses floor furniture, upright door state art and skips stockpiles", () => {
     buildingType: { buildingType: 8, buildingSubtype: -1, buildingCustom: -1 },
     active: 0,
   };
-  expect(buildingObjects(c, [door], defs, art)[0].kind).toBe("door");
-  expect(art.get).toHaveBeenCalledWith("ITEM_DOOR_WOOD_OPEN");
-  buildingObjects(c, [{ ...door, active: 1 }], defs, art);
+  expect(buildingObjects(c, [door], defs, art)[0]).toMatchObject({
+    kind: "ground",
+    furniture: { type: "door", open: true },
+  });
+  expect(
+    buildingObjects(c, [{ ...door, active: 1 }], defs, art)[0].furniture?.open,
+  ).toBe(false);
   expect(art.get).toHaveBeenCalledWith("ITEM_DOOR_WOOD_CLOSED:ALL");
   expect(
     buildingObjects(

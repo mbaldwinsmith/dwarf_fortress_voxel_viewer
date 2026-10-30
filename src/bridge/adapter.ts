@@ -229,8 +229,15 @@ export class FortressAdapter {
         items: byKey.get(key(c.x, c.y, c.z))?.items,
       })),
     );
+    // RFR sends the entire region's current buildings on its first partial block.
+    const buildings = records.flatMap((raw) =>
+      Array.isArray(raw.buildings) ? raw.buildings : [],
+    );
     return chunks.map((c) =>
-      this.scenery!.withItems(c, byKey.get(key(c.x, c.y, c.z))?.items),
+      this.scenery!.withItems(
+        records.length ? (this.scenery!.withBuildings?.(c, buildings) ?? c) : c,
+        byKey.get(key(c.x, c.y, c.z))?.items,
+      ),
     );
   }
   async column(x: number, y: number, levels: number[]): Promise<Chunk[]> {

@@ -52,8 +52,10 @@ const furniture: Record<string, string> = {
   Box: "BOX",
   Cabinet: "CABINET",
   Door: "DOOR",
+  Floodgate: "FLOODGATE",
   Hatch: "HATCH_COVER",
   GrateFloor: "GRATE",
+  GrateWall: "GRATE",
   Slab: "SLAB",
   Bookcase: "TOOL_BOOKCASE",
   TractionBench: "TRACTION_BENCH",
@@ -86,6 +88,18 @@ const meshFurniture = new Set([
   "Weaponrack",
   "NestBox",
   "Hive",
+  "Door",
+  "Floodgate",
+  "Hatch",
+  "GrateFloor",
+  "GrateWall",
+]);
+const barriers = new Set([
+  "Door",
+  "Floodgate",
+  "Hatch",
+  "GrateFloor",
+  "GrateWall",
 ]);
 export function buildingObjects(
   chunk: Chunk,
@@ -163,7 +177,7 @@ export function buildingObjects(
         if (
           !tile ||
           tile.shape === "unknown" ||
-          tile.shape === "empty" ||
+          (tile.shape === "empty" && !barriers.has(category)) ||
           tile.shape === "wall"
         )
           continue;
@@ -190,10 +204,13 @@ export function buildingObjects(
           sprite =
             category === "Hive"
               ? graphics.get("ITEM_TOOL_HIVE_BUILDING")
-              : category === "Door"
-                ? b.active === 0
-                  ? graphics.get(`${token}_${material}_OPEN`)
-                  : graphics.get(`${token}_${material}_CLOSED:ALL`)
+              : barriers.has(category)
+                ? category.startsWith("Grate")
+                  ? graphics.get(
+                      `${token}_${material}_${category === "GrateFloor" ? "FLOOR" : "WALL"}_CLOSED`,
+                    )
+                  : (graphics.get(`${token}_${material}_CLOSED:ALL`) ??
+                    graphics.get(`${token}_${material}_CLOSED:1`))
                 : undefined;
           sprite ??=
             (["Armorstand", "Weaponrack"].includes(category)
@@ -259,6 +276,7 @@ export function buildingObjects(
                   >["type"],
                   ...(material === "STONE" ? { heavy: true as const } : {}),
                   ...(definition?.color ? { color: definition.color } : {}),
+                  ...(barriers.has(category) ? { open: b.active === 0 } : {}),
                 },
               }
             : {}),
@@ -484,6 +502,22 @@ export class SceneryReader {
           this.corpses,
         ).slice(0, Math.max(0, 512 - objects.length)),
       ],
+    };
+  }
+  withBuildings(chunk: Chunk, buildings: unknown): Chunk {
+    const objects = (chunk.objects ?? []).filter((o) => !o.id.startsWith("b:"));
+    return {
+      ...chunk,
+      objects: [
+        ...buildingObjects(
+          chunk,
+          buildings,
+          this.definitions,
+          this.graphics,
+          this.materialDefinitions,
+        ),
+        ...objects,
+      ].slice(0, 512),
     };
   }
   async decorate(chunk: Chunk, raw?: Record<string, unknown>) {

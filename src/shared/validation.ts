@@ -347,6 +347,8 @@ export function parseServerMessage(value: unknown): ServerMessage {
               ) ||
               (o.furniture.heavy !== undefined && o.furniture.heavy !== true) ||
               (o.furniture.color !== undefined && !rgb(o.furniture.color)) ||
+              (o.furniture.open !== undefined &&
+                typeof o.furniture.open !== "boolean") ||
               o.kind !== "ground" ||
               !(o.id.startsWith("b:") || o.id.startsWith("i:")))
           )
