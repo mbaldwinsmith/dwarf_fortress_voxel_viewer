@@ -147,6 +147,16 @@ export function nativeWorkshopProps(
           "stone",
         );
       consume(r.rect);
+    } else if (type === "WORKSHOP_LEATHER" && r.id === "front-crate-hide") {
+      g.lathe(
+        [cx, 0.3, 2.58],
+        0.19,
+        0.27,
+        g.patch([51, 102, 61, 110]),
+        top,
+        "rock",
+      );
+      consume(r.rect);
     } else if (r.id.includes("hide") && r.kind === "sack") {
       for (let n = 0; n < 3; n++) {
         const yy = (r.id === "front-crate-hide" ? 0.31 : 0.055) + n * 0.055;
@@ -323,10 +333,11 @@ export function nativeWorkshopProps(
         g.beam([X, 0.035, 2.85], [xc, 0.5, z], 0.035, wood);
       g.beam([xc, cy, z - 0.26], [xc, cy, z + 0.1], 0.035, wood);
       g.beam([2.1, 0.22, 2.36], [2.85, 0.22, 2.36], 0.04, wood);
-      for (const z of [2.23, 2.45])
-        g.beam([2.17, 0.035, z], [2.17, 0.47, z], 0.035, wood, 4);
-      g.lathe([2.17, 0.42, 2.23], 0.085, 0.22, wood, wood, "spool", true);
-      g.beam([2.17, 0.4, 2.35], [2.52, 0.49, 2.66], 0.012, wood, 4);
+      for (const z of [2.55, 2.87])
+        g.beam([2.05, 0.035, z], [2.05, 0.52, z], 0.035, wood, 4);
+      g.lathe([2.05, 0.46, 2.61], 0.095, 0.2, wood, wood, "spool", true);
+      g.beam([2.05, 0.46, 2.55], [2.05, 0.46, 2.87], 0.018, wood);
+      g.beam([2.05, 0.46, 2.72], [2.52, 0.49, 2.66], 0.012, wood, 4);
       g.box([2.1, 0.035, 2.45], [2.36, 0.065, 2.88], wood);
       consume(r.rect);
     } else if (r.id.endsWith("pestle")) {
@@ -402,11 +413,9 @@ export function nativeWorkshopProps(
     } else if (r.id.includes("cage")) {
       const bar =
         type === "WORKSHOP_KENNEL"
-          ? g.patch(
-              r.id.includes("metal")
-                ? [117, 95, 119, 102]
-                : [125, 110, 127, 118],
-            )
+          ? r.id.includes("metal")
+            ? g.patch([117, 95, 119, 102])
+            : g.skin([14, 137, 23, 139])
           : material;
       const z = cz - 0.18,
         Z = cz + 0.18,
@@ -505,12 +514,10 @@ export function nativeWorkshopProps(
   if (type === "WORKSHOP_CRAFTS" && hasArt([63, 93, 94, 112])) {
     const stone = g.patch([71, 98, 77, 103]),
       pale = g.patch([72, 94, 78, 96]);
-    for (const [x, z, h, r] of [
-      [2.23, 2.43, 0.18, 0.14],
-      [2.53, 2.63, 0.15, 0.12],
-      [2.76, 2.49, 0.24, 0.1],
-    ])
-      g.lathe([x, 0.19, z], r, h, stone, pale, "rock");
+    g.lathe([2.23, 0.19, 2.43], 0.085, 0.3, stone, pale, "pipe");
+    g.lathe([2.53, 0.19, 2.63], 0.12, 0.15, stone, pale, "rock");
+    g.beam([2.61, 0.23, 2.65], [2.82, 0.44, 2.43], 0.035, pale, 5);
+    g.box([2.64, 0.24, 2.46], [2.77, 0.36, 2.58], stone, pale);
   }
   if (type === "WORKSHOP_DYER") {
     for (const [x, r] of [
@@ -597,9 +604,9 @@ export function nativeWorkshopProps(
       ])
         g.lathe([x, 0.46, z], 0.14, h, coal, coal, "rock");
       prop({ id: "front-logs", rect: [2, 91, 23, 125], kind: "rack" });
-      prop({ id: "chopping-block", rect: [75, 111, 92, 126], kind: "vessel" });
+      prop({ id: "front-axe-pail", rect: [75, 111, 92, 126], kind: "vessel" });
       const handle = g.patch([71, 91, 89, 113], false, "wood");
-      g.beam([2.6, 0.25, 2.72], [2.37, 0.56, 2.5], 0.025, handle);
+      g.beam([2.6, 0.25, 2.72], [2.26, 0.58, 2.84], 0.025, handle);
       g.beam(
         [2.54, 0.29, 2.68],
         [2.7, 0.29, 2.68],
@@ -646,6 +653,21 @@ export function nativeWorkshopProps(
           });
         }
       } else {
+        const side = g.skin([17, 100, 24, 103]),
+          top = g.skin([15, 94, 22, 98]);
+        for (const [x, z] of [
+          [0.3, 2.13],
+          [0.62, 2.13],
+          [0.48, 2.65],
+          [0.8, 2.65],
+        ]) {
+          const a = x - 0.14,
+            b = x + 0.14,
+            c = z - 0.24,
+            d = z + 0.24;
+          g.box([a, 0.015, c], [b, z < 2.4 ? 0.22 : 0.14, d], side, top);
+        }
+        consume([0, 89, 37, 128]);
         prop({ id: "front-open-tray", rect: [39, 104, 70, 125], kind: "box" });
         prop({ id: "front-open-bin", rect: [74, 104, 94, 125], kind: "box" });
       }

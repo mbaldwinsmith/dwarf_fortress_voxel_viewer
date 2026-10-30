@@ -143,6 +143,11 @@ export function nativeWorkshopStructures(
     true,
   );
   const dark = g.patch([39, 55, 59, 68], true, "dark");
+  const flank = g.patch(smelter ? [23, 43, 32, 52] : [26, 49, 34, 60], true),
+    shoulder = g.patch(
+      smelter ? [59, 23, 65, 32] : wood ? [25, 35, 36, 43] : [34, 31, 41, 39],
+      true,
+    );
   const ir = wood ? 0.23 : 0.36,
     ih = wood ? 0.28 : 0.38;
   const p = (r: number, H: number, a: number, z: number): Point => [
@@ -196,7 +201,7 @@ export function nativeWorkshopStructures(
             p(rx * S, h * S, b, Z),
             p(rx * s, h * s, b, z),
           ],
-          masonry,
+          Math.sin((a + b) / 2) > 0.7 ? shoulder : flank,
           [
             a * rx * 22,
             (front - z) * 22,
@@ -244,11 +249,15 @@ export function nativeWorkshopStructures(
         ];
         g.tiled(
           points,
-          masonry,
-          points.flatMap((p, i) => [
-            (i === 0 || i === 3 ? a : b) * rx * 22,
-            Math.asin(Math.min(1, (p[1] - foot) / h)) * h * 22,
-          ]),
+          j > 6 ? shoulder : flank,
+          points.flatMap((p, i) =>
+            j > 6
+              ? [p[0] * 32, p[2] * 32]
+              : [
+                  (i === 0 || i === 3 ? a : b) * rx * 32,
+                  Math.asin(Math.min(1, (p[1] - foot) / h)) * h * 32,
+                ],
+          ),
           0.96,
         );
       }
@@ -261,6 +270,34 @@ export function nativeWorkshopStructures(
           0.7,
         );
       }
+    }
+    // Dark masonry follows the cut opening and leaves a visible recessed lip.
+    const mouth = (r: number, H: number, a: number): Point => {
+      const x = r * Math.cos(a),
+        y = H * Math.sin(a);
+      return [
+        cx + x,
+        foot + y,
+        cz +
+          rz * Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (y / h) ** 2)) +
+          0.006,
+      ];
+    };
+    for (let i = 0; i < 20; i++) {
+      const a = (i * Math.PI) / 20,
+        b = ((i + 1) * Math.PI) / 20;
+      const pts = [
+        mouth(ir + 0.075, ih + 0.065, a),
+        mouth(ir, ih, a),
+        mouth(ir, ih, b),
+        mouth(ir + 0.075, ih + 0.065, b),
+      ];
+      g.tiled(
+        pts,
+        flank,
+        pts.flatMap((p) => [p[0] * 32, p[1] * 32]),
+        0.72,
+      );
     }
   }
   const baseStart = g.faces.length;
@@ -298,18 +335,18 @@ export function nativeWorkshopStructures(
     if (X > x)
       g.face(
         [
-          [cx - ir * 0.93, foot + ih * 0.9, front - 0.05],
-          [cx - ir * 0.93, foot, front - 0.05],
-          [cx + ir * 0.93, foot, front - 0.05],
-          [cx + ir * 0.93, foot + ih * 0.9, front - 0.05],
+          [cx - ir * 0.93, foot + ih * 0.9, front - 0.15],
+          [cx - ir * 0.93, foot, front - 0.15],
+          [cx + ir * 0.93, foot, front - 0.15],
+          [cx + ir * 0.93, foot + ih * 0.9, front - 0.15],
         ],
         g.skin([x, y, X, Y]),
       );
   }
   if (magma) {
-    const column = g.patch([3, 32, 13, 46], true);
+    const column = g.patch([5, 46, 11, 55], true);
     for (const x of [0.28, 2.72]) {
-      g.lathe([x, 0, 0.66], 0.22, 0.48, column, masonry, "stone");
+      g.lathe([x, 0, 0.66], 0.18, 0.42, column, masonry, "stone");
       const direction = x < 1 ? 1 : -1;
       const path: Point[] = [
         [x, 0.41, 0.66],
@@ -319,12 +356,31 @@ export function nativeWorkshopStructures(
         [x + direction * 0.27, 0.55, 0.74],
         [x + direction * 0.4, 0.47, 0.78],
       ];
-      for (let i = 0; i < path.length - 1; i++)
-        g.beam(path[i], path[i + 1], 0.095, column, 10);
+      g.tube(path, 0.16, column);
     }
-    g.box([1.23, 0.61, 0.62], [1.77, 0.77, 1.02], dark);
-    for (let x = 1.28; x < 1.76; x += 0.1)
-      g.box([x, 0.77, 0.62], [x + 0.038, 0.805, 1.02], masonry);
+    const grilleStart = g.faces.length;
+    g.box([1.22, 0.54, 0.8], [1.78, 0.79, 0.96], flank, shoulder);
+    g.box([1.29, 0.57, 0.96], [1.71, 0.75, 0.97], dark);
+    g.face(
+      [
+        [1.3, 0.74, 0.979],
+        [1.3, 0.58, 0.979],
+        [1.7, 0.58, 0.979],
+        [1.7, 0.74, 0.979],
+      ],
+      g.skin(smelter ? [40, 20, 57, 27] : [39, 33, 57, 43]),
+    );
+    if (smelter)
+      for (const pixel of [40, 43.5, 46.5, 49.5, 52.5, 56]) {
+        const x = 1.3 + ((pixel - 40) / 17) * 0.4;
+        g.box([x, 0.57, 0.98], [x + 0.018, 0.76, 1.015], masonry);
+      }
+    else
+      for (let x = 1.3; x < 1.73; x += 0.1)
+        g.box([x, 0.57, 0.98], [x + 0.035, 0.76, 1.015], masonry);
+    if (smelter)
+      for (const f of g.faces.slice(grilleStart))
+        for (let i = 2; i < f.positions.length; i += 3) f.positions[i] += 0.65;
   } else {
     const chimney = wood
       ? [42, 26, 55, 37]
@@ -332,12 +388,15 @@ export function nativeWorkshopStructures(
         ? [40, 8, 55, 25]
         : [40, 9, 55, 25];
     const rim = g.patch(chimney as Rect, true),
-      wall = g.patch(wood ? [44, 34, 52, 39] : [43, 23, 53, 29], true),
-      z = 0.57,
+      wall = g.patch(
+        wood ? [44, 34, 52, 39] : smelter ? [43, 23, 53, 29] : [44, 28, 51, 36],
+        true,
+      ),
+      z = wood ? 0.55 : 0.3,
       t = 0.065;
     const lo = 1.3,
       hi = 1.7,
-      H = wood ? 0.79 : 0.86;
+      H = wood ? 0.79 : 0.88;
     g.box([lo, 0.3, z], [lo + t, H, z + 0.4], wall, rim);
     g.box([hi - t, 0.3, z], [hi, H, z + 0.4], wall, rim);
     g.box([lo, 0.3, z], [hi, H, z + t], wall, rim);

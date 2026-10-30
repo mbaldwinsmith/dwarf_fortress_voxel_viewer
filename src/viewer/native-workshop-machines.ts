@@ -111,15 +111,15 @@ export function nativeWorkshopMachines(
     block([4.13, 0, 1.19], [4.47, 0.055, 1.51]);
     beam([4.3, 0.64, 1.35], [4.87, 0.57, 1.63], 0.12);
     // Only the foreground engine has a triangular trestle.
-    for (const z of [4.73, 4.86]) {
-      beam([3.16, 0.1, z], [3.63, 0.7, z - 0.42], 0.125);
-      beam([4.13, 0.1, z], [3.63, 0.7, z - 0.42], 0.125);
+    for (const z of [4.86]) {
+      beam([3.16, 0.1, z], [3.63, 0.7, z - 0.42], 0.1);
+      beam([4.13, 0.1, z], [3.63, 0.7, z - 0.42], 0.1);
     }
     block([3.73, 0.3, 4.26], [4.28, 0.42, 4.65]);
-    for (const z of [4.23, 4.48]) block([3.76, 0.42, z], [4, 0.76, z + 0.08]);
+    for (const z of [4.1, 4.32]) block([3.78, 0.42, z], [3.9, 0.76, z + 0.06]);
     g.beam([3.87, 0.7, 4.21], [3.87, 0.7, 4.59], 0.085, side, 10);
     beam([3.65, 0.71, 4.49], [4.87, 0.79, 3.88], 0.12);
-    block([3.76, 0.6, 4.33], [3.98, 0.82, 4.53]);
+    block([3.78, 0.65, 4.36], [3.92, 0.79, 4.5]);
     // Loose cup-ended lever lies on the floor at the opposite front corner.
     g.lathe([0.23, 0.035, 4.48], 0.18, 0.12, wood, side, "bowl");
     beam([0.32, 0.08, 4.52], [1.35, 0.08, 4.88], 0.06);
@@ -133,8 +133,9 @@ export function nativeWorkshopMachines(
     ] as Rect[])
       consume(region);
   } else if (/METALSMITH|MAGMAFORGE/.test(type)) {
-    const metal = g.patch([43, 48, 58, 52]),
-      top = g.patch([44, 38, 57, 41]);
+    const anvilStart = g.faces.length;
+    const metal = g.skin([44, 46, 56, 50]),
+      top = g.skin([45, 39, 56, 42]);
     // Broad feet taper into a narrow waist below the overhanging anvil face.
     const rings = [
       [1.14, 1.91, 0.42, 0.8, 0.025],
@@ -213,14 +214,64 @@ export function nativeWorkshopMachines(
       ],
       metal,
     );
+    for (const f of g.faces.slice(anvilStart))
+      for (let i = 0; i < f.positions.length; i += 3) {
+        f.positions[i] = 1.5 + (f.positions[i] - 1.5) * 0.78;
+        f.positions[i + 2] = 0.6 + (f.positions[i + 2] - 0.6) * 0.8;
+      }
+    for (const f of g.faces.splice(anvilStart)) {
+      const pts = Array.from(
+        { length: 4 },
+        (_, i) =>
+          f.positions.slice(i * 3, i * 3 + 3) as [number, number, number],
+      );
+      const extent = (axis: number) =>
+        Math.max(...pts.map((p) => p[axis])) -
+        Math.min(...pts.map((p) => p[axis]));
+      if (extent(1) < 0.001) g.faces.push(f);
+      else {
+        const axis = extent(0) > extent(2) ? 0 : 2;
+        g.tiled(
+          pts,
+          metal,
+          pts.flatMap((p) => [p[axis] * 32, p[1] * 32]),
+          f.brightness,
+        );
+      }
+    }
     consume([31, 35, 65, 58]);
-    const masonry = g.patch([75, 76, 88, 85], true),
-      dark = g.patch([78, 84, 89, 90], true);
-    g.box([2.1, 0, 1.23], [2.92, 0.16, 2.13], masonry);
-    g.box([2.17, 0.16, 1.25], [2.32, 0.57, 2.03], masonry);
-    g.box([2.76, 0.16, 1.25], [2.91, 0.57, 2.03], masonry);
-    g.box([2.32, 0.16, 1.25], [2.76, 0.57, 1.37], masonry);
-    g.box([2.17, 0.5, 1.25], [2.91, 0.59, 2.03], masonry);
+    const masonry = g.skin([78, 87, 90, 91], true),
+      roof = g.skin([77, 77, 82, 81], true),
+      dark = g.skin([78, 87, 90, 91], true);
+    const stoneBox = (
+      a: [number, number, number],
+      b: [number, number, number],
+    ) => {
+      const start = g.faces.length;
+      g.box(a, b, masonry, roof);
+      for (const f of g.faces.splice(start)) {
+        const pts = Array.from(
+          { length: 4 },
+          (_, i) =>
+            f.positions.slice(i * 3, i * 3 + 3) as [number, number, number],
+        );
+        const flat = pts.every((p) => p[1] === pts[0][1]),
+          side = pts.every((p) => p[0] === pts[0][0]);
+        g.tiled(
+          pts,
+          flat ? roof : masonry,
+          pts.flatMap((p) =>
+            flat ? [p[0] * 32, p[2] * 32] : [p[side ? 2 : 0] * 32, p[1] * 32],
+          ),
+          f.brightness,
+        );
+      }
+    };
+    stoneBox([2.1, 0, 1.23], [2.92, 0.16, 2.13]);
+    stoneBox([2.17, 0.16, 1.25], [2.32, 0.57, 2.03]);
+    stoneBox([2.76, 0.16, 1.25], [2.91, 0.57, 2.03]);
+    stoneBox([2.32, 0.16, 1.25], [2.76, 0.57, 1.37]);
+    stoneBox([2.17, 0.5, 1.25], [2.91, 0.59, 2.03]);
     g.box([2.32, 0.16, 1.37], [2.76, 0.18, 2.04], dark);
     // The hearth mouth is an actual arch into the hot chamber.
     for (let i = 0; i < 12; i++) {
@@ -231,35 +282,51 @@ export function nativeWorkshopMachines(
         0.16 + h * Math.sin(t),
         2.04,
       ];
-      g.face(
-        [
-          p(0.37, 0.43, a),
-          p(0.22, 0.28, a),
-          p(0.22, 0.28, b),
-          p(0.37, 0.43, b),
-        ],
+      const points: [number, number, number][] = [
+        p(0.37, 0.43, a),
+        p(0.22, 0.28, a),
+        p(0.22, 0.28, b),
+        p(0.37, 0.43, b),
+      ];
+      g.tiled(
+        points,
         masonry,
+        points.flatMap((p) => [p[0] * 32, p[1] * 32]),
       );
     }
     if (type.includes("MAGMA")) {
       const lava = g.patch([76, 74, 80, 80]);
       g.box([2.34, 0.18, 1.39], [2.74, 0.2, 2.02], lava);
       const path: [number, number, number][] = [
-        [2.8, 0.4, 1.92],
-        [2.85, 0.4, 2.1],
-        [2.85, 0.37, 2.22],
-        [2.85, 0.28, 2.27],
-        [2.85, 0.12, 2.27],
+        [2.78, 0.18, 2.18],
+        [2.25, 0.18, 2.18],
+        [2.12, 0.17, 2.18],
+        [2.02, 0.14, 2.18],
+        [2.02, 0, 2.18],
       ];
-      for (let i = 0; i < path.length - 1; i++)
-        g.beam(path[i], path[i + 1], 0.095, masonry, 10);
+      const tube = g.skin([80, 98, 88, 105], true);
+      g.tube(path, 0.14, tube);
+      for (const x of [2.4, 2.61])
+        g.tube(
+          [
+            [x, 0.18, 2.18],
+            [x + 0.035, 0.18, 2.18],
+          ],
+          0.151,
+          roof,
+          12,
+        );
       for (let x = 2.34; x < 2.75; x += 0.1)
         g.box([x, 0.22, 1.4], [x + 0.035, 0.25, 2.03], metal);
+      g.cutout([70, 70, 78, 85], [2.52, 0.27, 2.025], 0.34, 0.17, 0.012);
+      g.box([2.55, 0.59, 1.45], [2.84, 0.6, 1.88], dark);
+      g.decal([83, 65, 93, 78], [2.56, 1.46, 2.83, 1.87], 0.605);
     } else {
       g.cutout([70, 70, 78, 85], [2.52, 0.17, 2.025], 0.34, 0.26, 0.012);
-      const chimney = g.patch([84, 66, 91, 75], true);
-      g.lathe([2.65, 0.57, 1.46], 0.14, 0.25, chimney, dark, "open");
+      const chimney = g.skin([84, 70, 91, 74], true);
+      g.lathe([2.65, 0.5, 1.46], 0.14, 0.32, chimney, dark, "pipe");
     }
+    consume([69, 64, 96, 93]);
   } else if (type === "WORKSHOP_MECHANIC") {
     const wood = g.patch([22, 26, 45, 30], false, "wood"),
       metal = g.skin([47, 28, 53, 32]);

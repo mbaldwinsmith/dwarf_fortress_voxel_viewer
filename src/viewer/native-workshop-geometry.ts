@@ -392,6 +392,92 @@ export class NativeWorkshopGeometry {
     }
   }
 
+  /** A continuous tube has shared bend rings and no overlapping internal caps. */
+  tube(path: Point[], radius: number, skin: NativeSkin, sides = 12) {
+    if (path.length < 2) return;
+    let distance = 0;
+    const rings = path.map((p, i) => {
+      const before = path[Math.max(0, i - 1)],
+        after = path[Math.min(path.length - 1, i + 1)];
+      const delta = after.map((v, k) => v - before[k]),
+        length = Math.hypot(...delta);
+      const axis = delta.map((v) => v / length);
+      const seed = Math.abs(axis[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+      const dot = seed.reduce((s, v, k) => s + v * axis[k], 0);
+      const u = seed.map((v, k) => v - dot * axis[k]),
+        ul = Math.hypot(...u);
+      for (let k = 0; k < 3; k++) u[k] /= ul;
+      const v = [
+        axis[1] * u[2] - axis[2] * u[1],
+        axis[2] * u[0] - axis[0] * u[2],
+        axis[0] * u[1] - axis[1] * u[0],
+      ];
+      if (i) distance += Math.hypot(...p.map((x, k) => x - path[i - 1][k]));
+      return {
+        distance,
+        points: Array.from(
+          { length: sides },
+          (_, j) =>
+            p.map(
+              (x, k) =>
+                x +
+                radius *
+                  (u[k] * Math.cos((j * 2 * Math.PI) / sides) +
+                    v[k] * Math.sin((j * 2 * Math.PI) / sides)),
+            ) as Point,
+        ),
+      };
+    });
+    for (let i = 0; i < rings.length - 1; i++)
+      for (let j = 0; j < sides; j++) {
+        const a = rings[i],
+          b = rings[i + 1],
+          next = (j + 1) % sides;
+        const low = (j * 2 * Math.PI * radius * 32) / sides,
+          high = ((j + 1) * 2 * Math.PI * radius * 32) / sides;
+        this.tiled(
+          [a.points[j], b.points[j], b.points[next], a.points[next]],
+          skin,
+          [
+            a.distance * 32,
+            low,
+            b.distance * 32,
+            low,
+            b.distance * 32,
+            high,
+            a.distance * 32,
+            high,
+          ],
+          0.9,
+        );
+      }
+    const [x, y, X, Y] = skin.rect;
+    const uv = (a: number) => [
+      (x + X) / 2 + Math.cos(a) * (X - x) * 0.48,
+      (y + Y) / 2 + Math.sin(a) * (Y - y) * 0.48,
+    ];
+    for (const i of [0, path.length - 1])
+      for (let j = 0; j < sides; j++)
+        this.face(
+          [
+            path[i],
+            rings[i].points[j],
+            rings[i].points[(j + 1) % sides],
+            path[i],
+          ],
+          skin,
+          0.85,
+          [
+            (x + X) / 2,
+            (y + Y) / 2,
+            ...uv((j * 2 * Math.PI) / sides),
+            ...uv(((j + 1) * 2 * Math.PI) / sides),
+            (x + X) / 2,
+            (y + Y) / 2,
+          ],
+        );
+  }
+
   table(
     bounds: Rect,
     height: number,
@@ -424,12 +510,21 @@ export class NativeWorkshopGeometry {
       | "rock"
       | "crystal"
       | "pail"
+      | "pipe"
       | "vat"
       | "jug" = "barrel",
     horizontal = false,
     capTiled: boolean | number = false,
   ) {
     const profiles: Record<typeof kind, [number, number][]> = {
+      pipe: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0.68, 1],
+        [0.68, 0.5],
+        [0, 0.5],
+      ],
       pail: [
         [0, 0],
         [0.6, 0],

@@ -163,6 +163,40 @@ it("maps adjacent curved segments continuously instead of repeating the texture 
   expect(g.faces[0].uvs!.slice(4, 6)).toEqual(g.faces[1].uvs!.slice(2, 4));
   expect(g.faces[0].uvs!.slice(6, 8)).toEqual(g.faces[1].uvs!.slice(0, 2));
 });
+it("joins bent pipes without internal cap fans or UVs outside the local material", () => {
+  const g = new NativeWorkshopGeometry(object(), {
+    width: 96,
+    height: 128,
+    base: new Uint8ClampedArray(96 * 128 * 4),
+  });
+  const skin = g.skin([8, 43, 12, 47]);
+  g.tube(
+    [
+      [0.2, 0.2, 0.5],
+      [0.5, 0.2, 0.5],
+      [0.6, 0.3, 0.5],
+      [0.6, 0.6, 0.5],
+    ],
+    0.08,
+    skin,
+  );
+  expect(g.faces.length).toBeGreaterThan(0);
+  for (const f of g.faces) {
+    expect(f.positions.every(Number.isFinite)).toBe(true);
+    for (let i = 0; i < 4; i++) {
+      const p = f.positions.slice(i * 3, i * 3 + 3);
+      expect(Math.hypot(p[0] - 0.5, p[1] - 0.2, p[2] - 0.5)).toBeGreaterThan(
+        1e-6,
+      );
+      const x = f.uvs![i * 2] * 96,
+        y = (1 - f.uvs![i * 2 + 1]) * 128;
+      expect(x).toBeGreaterThanOrEqual(8 - 1e-6);
+      expect(x).toBeLessThanOrEqual(12 + 1e-6);
+      expect(y).toBeGreaterThanOrEqual(43 - 1e-6);
+      expect(y).toBeLessThanOrEqual(47 + 1e-6);
+    }
+  }
+});
 it("deduplicates artwork and worker jobs while registering the completed layout", async () => {
   const messages: { id: number; sheets: Record<string, unknown> }[] = [];
   let worker: { onmessage?: (e: unknown) => void };
