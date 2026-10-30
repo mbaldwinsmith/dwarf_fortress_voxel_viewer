@@ -242,6 +242,15 @@ export class ProjectileModels {
       if (f.object.visible) this.visibleCount++;
     }
   }
+  animating(now: number) {
+    for (const f of this.flights.values())
+      if (
+        now - this.received > PROJECTILE_EXPIRY_MS ||
+        (f.duration > 0 && now < f.at + f.duration && !f.from.equals(f.to))
+      )
+        return true;
+    return false;
+  }
   clear() {
     for (const f of this.flights.values()) this.remove(f);
     this.flights.clear();

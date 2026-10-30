@@ -4,6 +4,7 @@ import {
   type Bounds,
   type Chunk,
 } from "../shared/model.js";
+import { hash } from "node:crypto";
 
 // Visible chunks plus a bounded LRU reserve for recently departed z-levels.
 // A world/session change must clear both maps.
@@ -34,8 +35,17 @@ export class ChunkCache {
     return !!entry && now - entry.readAt < maxAge;
   }
   store(chunk: Chunk, now: number): boolean {
+    // Retain only fixed-size digests, not a second JSON copy of every tile.
+    const terrainStamp = hash(
+      "sha256",
+      JSON.stringify([chunk.ceilingTexture, chunk.tiles, chunk.flows]),
+    );
+    return this.storeWithStamp(chunk, now, terrainStamp);
+  }
+  private storeWithStamp(chunk: Chunk, now: number, terrainStamp: string) {
+    chunk.terrainStamp = terrainStamp;
     const k = chunkKey(chunk),
-      signature = JSON.stringify(chunk),
+      signature = hash("sha256", terrainStamp + JSON.stringify(chunk.objects)),
       old = this.entries.get(k);
     const changed = old?.signature !== signature || !this.active.has(k);
     const value = old?.signature === signature ? old.chunk : chunk;
@@ -53,6 +63,13 @@ export class ChunkCache {
       entry = this.entries.get(k);
     if (!entry || !this.active.has(k)) return false;
     // Item polls must not postpone refreshes of the underlying terrain.
+    if (
+      chunk.tiles === entry.chunk.tiles &&
+      chunk.flows === entry.chunk.flows &&
+      chunk.ceilingTexture === entry.chunk.ceilingTexture &&
+      entry.chunk.terrainStamp
+    )
+      return this.storeWithStamp(chunk, entry.readAt, entry.chunk.terrainStamp);
     return this.store(chunk, entry.readAt);
   }
   invalidateAround(x: number, y: number, z: number) {

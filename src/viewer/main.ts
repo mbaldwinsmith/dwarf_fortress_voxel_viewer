@@ -276,15 +276,24 @@ const disconnect = connect((m) => {
     return;
   }
   if (m.type === "projectiles") {
-    if (m.session === state.session) scene.projectiles.snapshot(m);
+    if (m.session === state.session) {
+      if (m.projectiles.length || scene.projectiles.group.children.length)
+        scene.invalidate();
+      scene.projectiles.snapshot(m);
+    }
     return;
   }
   if (m.type === "creatures") {
-    if (m.session === state.session) scene.creatures.snapshot(m);
+    if (m.session === state.session) {
+      scene.creatures.snapshot(m);
+      scene.invalidate();
+    }
     return;
   }
   const terrain = m.chunks.filter((c) => {
     const previous = state.chunks.get(chunkKey(c));
+    if (previous?.terrainStamp && c.terrainStamp)
+      return previous.terrainStamp !== c.terrainStamp;
     return (
       !previous ||
       JSON.stringify(previous.ceilingTexture) !==
@@ -299,6 +308,7 @@ const disconnect = connect((m) => {
     return;
   }
   const changedTerrain = new Set(terrain.map(chunkKey));
+  scene.invalidate();
   scene.scenery.update(
     m.chunks.filter((c) => !changedTerrain.has(chunkKey(c))),
     state.chunks,

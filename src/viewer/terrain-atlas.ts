@@ -1,28 +1,33 @@
 import * as THREE from "three";
 import type { SpriteRef } from "../shared/model.js";
+export const ATLAS_WIDTH = 2048,
+  ATLAS_HEIGHT = 1024;
 export type TerrainUV = [number, number, number, number];
 export function atlasRect(slot: number): TerrainUV {
   const x = (slot % 60) * 34 + 1,
     y = Math.floor(slot / 60) * 34 + 1;
   return [
-    (x + 0.5) / 2048,
-    1 - (y + 31.5) / 2048,
-    (x + 31.5) / 2048,
-    1 - (y + 0.5) / 2048,
+    (x + 0.5) / ATLAS_WIDTH,
+    1 - (y + 31.5) / ATLAS_HEIGHT,
+    (x + 31.5) / ATLAS_WIDTH,
+    1 - (y + 0.5) / ATLAS_HEIGHT,
   ];
 }
 export class TerrainAtlas {
   private canvas = document.createElement("canvas");
   private ctx: CanvasRenderingContext2D;
   private slots = new Map<string, number>();
+  private coordinates = new WeakMap<SpriteRef, [TerrainUV?, TerrainUV?]>();
+  private white = atlasRect(0);
   private images = new Map<string, Promise<HTMLImageElement>>();
   private disposed = false;
   texture: THREE.CanvasTexture;
   constructor() {
-    this.canvas.width = this.canvas.height = 2048;
+    this.canvas.width = ATLAS_WIDTH;
+    this.canvas.height = ATLAS_HEIGHT;
     this.ctx = this.canvas.getContext("2d")!;
     this.ctx.fillStyle = "#ffffff";
-    this.ctx.fillRect(0, 0, 2048, 2048);
+    this.ctx.fillRect(0, 0, ATLAS_WIDTH, ATLAS_HEIGHT);
     this.ctx.imageSmoothingEnabled = false;
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
@@ -44,11 +49,15 @@ export class TerrainAtlas {
     return p;
   }
   uv = (ref?: SpriteRef, transparent = false): TerrainUV => {
-    if (!ref) return atlasRect(0);
+    if (!ref) return this.white;
+    const mode = Number(transparent);
+    const resolved = this.coordinates.get(ref) ?? [];
+    if (resolved[mode]) return resolved[mode]!;
+    this.coordinates.set(ref, resolved);
     const key = JSON.stringify([ref, transparent]);
     let slot = this.slots.get(key);
-    if (slot !== undefined) return atlasRect(slot);
-    if (this.slots.size >= 1023) return atlasRect(0);
+    if (slot !== undefined) return (resolved[mode] = atlasRect(slot));
+    if (this.slots.size >= 1023) return (resolved[mode] = this.white);
     slot = this.slots.size + 1;
     this.slots.set(key, slot);
     const assigned = slot;
@@ -92,7 +101,7 @@ export class TerrainAtlas {
           String(e),
         ),
       );
-    return atlasRect(slot);
+    return (resolved[mode] = atlasRect(slot));
   };
   dispose() {
     this.disposed = true;

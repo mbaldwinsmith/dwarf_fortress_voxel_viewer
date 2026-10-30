@@ -1,3 +1,4 @@
+import { indexAttributes, type MeshIndex } from "./indexed-geometry.js";
 import { buildFungiColumns, type Column } from "./fungi-caps.js";
 import type { TerrainUV } from "./terrain-atlas.js";
 import type { Chunk } from "../shared/model.js";
@@ -16,6 +17,7 @@ export interface CapResult {
   normals: Float32Array;
   caps: Float32Array;
   undersides: Float32Array;
+  indices?: MeshIndex;
 }
 const worker = self as unknown as {
   onmessage: ((event: MessageEvent<CapJob>) => void) | null;
@@ -29,18 +31,26 @@ worker.onmessage = ({ data: job }) => {
       (ref) => rects.get(JSON.stringify(ref)) ?? [0, 0, 1, 1],
       job.cutTop,
     );
+  const packed = indexAttributes({
+    positions: { array: new Float32Array(data.positions), size: 3 },
+    normals: { array: new Float32Array(data.normals), size: 3 },
+    caps: { array: new Float32Array(data.caps), size: 4 },
+    undersides: { array: new Float32Array(data.undersides), size: 4 },
+  });
   const result: CapResult = {
     id: job.id,
     key: job.key,
-    positions: new Float32Array(data.positions),
-    normals: new Float32Array(data.normals),
-    caps: new Float32Array(data.caps),
-    undersides: new Float32Array(data.undersides),
+    positions: packed.attributes.positions.array,
+    normals: packed.attributes.normals.array,
+    caps: packed.attributes.caps.array,
+    undersides: packed.attributes.undersides.array,
+    indices: packed.index,
   };
   worker.postMessage(result, [
     result.positions.buffer,
     result.normals.buffer,
     result.caps.buffer,
     result.undersides.buffer,
+    ...(result.indices ? [result.indices.buffer] : []),
   ] as ArrayBuffer[]);
 };

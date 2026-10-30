@@ -17,7 +17,9 @@ export class TreeMesher {
   private versions = new Map<string, number>();
   private active?: Job;
   private serial = 0;
-  private snapshots = new WeakMap<Chunk, { chunk: Chunk; signature: string }>();
+  private snapshots = new WeakMap<Chunk, { chunk: Chunk; signature: number }>();
+  private signatures = new Map<string, number>();
+  private signatureSerial = 0;
   private cache = new Map<
     string,
     { signature: string; result: TreeResult; bytes: number }
@@ -31,6 +33,10 @@ export class TreeMesher {
       if (job?.request.id !== data.id) return;
       this.active = undefined;
       this.completed++;
+      if (this.versions.get(data.key) !== data.id) {
+        this.pump();
+        return;
+      }
       const rects = data.refs.map(({ ref, transparent }) =>
         job.uv(ref, transparent),
       );
@@ -45,7 +51,8 @@ export class TreeMesher {
       const bytes =
         data.positions.byteLength +
         data.colors.byteLength +
-        data.uvs.byteLength;
+        data.uvs.byteLength +
+        (data.indices?.byteLength ?? 0);
       this.cacheBytes -= this.cache.get(data.key)?.bytes ?? 0;
       this.cache.delete(data.key);
       this.cache.set(data.key, {
@@ -86,7 +93,22 @@ export class TreeMesher {
           : air,
       ),
     };
-    cached = { chunk, signature: JSON.stringify(chunk) };
+    // Intern exact sparse descriptions. Neighbour cache keys contain small
+    // IDs, rather than retaining hundreds of repeated full-chunk JSON copies.
+    const description = JSON.stringify([
+      c.x,
+      c.y,
+      c.z,
+      chunk.tiles.flatMap((t, i) => (t === air ? [] : [[i, t]])),
+    ]);
+    let signature = this.signatures.get(description);
+    if (signature === undefined) {
+      signature = ++this.signatureSerial;
+      this.signatures.set(description, signature);
+      if (this.signatures.size > 4096)
+        this.signatures.delete(this.signatures.keys().next().value!);
+    }
+    cached = { chunk, signature };
     this.snapshots.set(c, cached);
     return cached;
   }
@@ -163,6 +185,7 @@ export class TreeMesher {
     this.cache.clear();
     this.cacheBytes = 0;
     this.snapshots = new WeakMap();
+    this.signatures.clear();
   }
   dispose() {
     this.clear();

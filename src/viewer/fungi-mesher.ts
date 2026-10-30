@@ -29,11 +29,16 @@ export class FungiMesher {
       if (job?.request.id === data.id) {
         this.active = undefined;
         this.completed++;
+        if (this.versions.get(data.key) !== data.id) {
+          this.pump();
+          return;
+        }
         const bytes =
           data.positions.byteLength +
           data.normals.byteLength +
           data.caps.byteLength +
-          data.undersides.byteLength;
+          data.undersides.byteLength +
+          (data.indices?.byteLength ?? 0);
         const old = this.cache.get(data.key);
         this.cacheBytes -= old?.bytes ?? 0;
         this.cache.delete(data.key);

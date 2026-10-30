@@ -3,6 +3,8 @@ module.exports = {
   productName: "Deepwatch",
   directories: { output: "release", buildResources: "build" },
   asar: true,
+  // The application UI is English; retain both shipped English locales.
+  electronLanguages: ["en-US", "en-GB"],
   npmRebuild: false,
   files: [
     "dist/viewer/**/*",
@@ -10,7 +12,8 @@ module.exports = {
     "desktop/**/*",
     "package.json",
     "LICENSE",
-    "!node_modules/three/**/*",
+    // Runtime JS and its notices are bundled into dist/bridge.
+    "!node_modules/**/*",
   ],
   win: {
     target: ["nsis", "zip"],

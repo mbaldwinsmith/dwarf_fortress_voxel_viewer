@@ -1,3 +1,4 @@
+import { indexAttributes, type MeshIndex } from "./indexed-geometry.js";
 import type { Chunk, SpriteRef } from "../shared/model.js";
 import { buildTreeMesh } from "./tree-mesh.js";
 export interface TreeJob {
@@ -11,6 +12,7 @@ export interface TreeResult {
   positions: Float32Array;
   colors: Float32Array;
   uvs: Float32Array;
+  indices?: MeshIndex;
   refs: { ref?: SpriteRef; transparent: boolean }[];
 }
 const worker = self as unknown as {
@@ -37,17 +39,24 @@ worker.onmessage = ({ data: job }) => {
       return [slot * 2, 0, slot * 2 + 1, 1];
     },
   );
+  const packed = indexAttributes({
+    positions: { array: new Float32Array(data.positions), size: 3 },
+    colors: { array: new Float32Array(data.colors), size: 3 },
+    uvs: { array: new Float32Array(data.uvs), size: 2 },
+  });
   const result: TreeResult = {
     id: job.id,
     key: job.key,
-    positions: new Float32Array(data.positions),
-    colors: new Float32Array(data.colors),
-    uvs: new Float32Array(data.uvs),
+    positions: packed.attributes.positions.array,
+    colors: packed.attributes.colors.array,
+    uvs: packed.attributes.uvs.array,
+    indices: packed.index,
     refs,
   };
   worker.postMessage(result, [
     result.positions.buffer,
     result.colors.buffer,
     result.uvs.buffer,
+    ...(result.indices ? [result.indices.buffer] : []),
   ] as ArrayBuffer[]);
 };

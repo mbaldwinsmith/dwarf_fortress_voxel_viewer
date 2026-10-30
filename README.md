@@ -23,6 +23,9 @@ single-tile actions to the loaded fortress through DFHack.
   first, and a reserve cache for returning between levels. Creatures target
   250 ms polls; nearby ground items target 1 s polls independently of terrain.
   Actual update intervals depend on DFHack and rendering load.
+- **Resource-conscious rendering:** shared tile palettes, compact indexed geometry,
+  bounded caches and reduced rendering work while the scene is still. See the
+  [performance measurements](docs/performance-review.md).
 - **Orbit and cutaway views:** pan, zoom and inspect tiles across the map's
   Z-levels, or follow the area currently visible in DF.
 - **First-person exploration:** choose a starting point and walk through revealed

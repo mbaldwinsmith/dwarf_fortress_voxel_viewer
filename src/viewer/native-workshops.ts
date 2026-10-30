@@ -71,9 +71,9 @@ export class NativeWorkshops {
       ...(art.decor ? [art.decor.asset] : []),
     ]);
     const decoded = await Promise.all(
-      [...assets].map(
-        async (asset) => [asset, await this.image(asset)] as const,
-      ),
+      [...assets]
+        .filter((asset) => !this.sent.has(asset))
+        .map(async (asset) => [asset, await this.image(asset)] as const),
     );
     if (this.disposed) return false;
     if (!this.worker) {
@@ -107,11 +107,13 @@ export class NativeWorkshops {
     const transfers: ArrayBuffer[] = [];
     for (const [asset, sheet] of decoded)
       if (!this.sent.has(asset)) {
-        // Keep the decoded copy available if a worker needs restarting.
-        const pixels = new Uint8ClampedArray(sheet.pixels);
+        // Transfer the sole decoded pixel buffer. A failed worker can reload
+        // from the local-art endpoint instead of retaining a duplicate in RAM.
+        const pixels = sheet.pixels;
         sheets[asset] = { ...sheet, pixels };
-        transfers.push(pixels.buffer);
+        transfers.push(pixels.buffer as ArrayBuffer);
         this.sent.add(asset);
+        this.images.delete(asset);
       }
     const id = ++this.next;
     return new Promise<boolean>((resolve) => {

@@ -2,6 +2,12 @@
 
 Updated 2026-10-30 after continuing the original handover. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
 
+## Resource optimisation checkpoint
+
+The user's optimisation pass is implemented and validated; see [performance-review.md](performance-review.md). Controlled grove measurements: geometry buffers 40.94 to 16.35 MiB, main-page JS heap 26.10 to 13.65 MiB, and 868 to 24 renders over six idle seconds, preserving 351,242 rendered triangles. Improvements cover chunk palettes/digests, lossless vertex indexing, worker cache/buffer ownership, idle scheduling, palette rows, an 8 MiB smaller atlas, linear-time RPC reassembly and production bundling. Future desktop packages omit 47.7 MiB of unused locales. Existing release artifacts and critic evidence are preserved.
+
+**263 tests in 46 files and production build passed.** The isolated production bundle passed a controlled RFR exchange without `node_modules`. DFHack was offline for the final live attempt. The user explicitly requested wrapping up and checking live performance tomorrow: resume with live stream cadence, populated-fortress walking, effects/projectiles and longer memory monitoring. No installer or full fresh critic gallery was built/run during this pass.
+
 ## Completed physical projectiles follow-on
 
 Arrows, bolts, thrown items and siege ammunition now have a dedicated stream and renderer. `bridge/projectiles.ts` resolves item definitions and native artwork; `viewer/projectiles.ts` draws directional crossed native ammunition with solid shafts, material-coloured stones and native thrown items. The protocol now decodes RFR's fractional position, velocity and volume fields.

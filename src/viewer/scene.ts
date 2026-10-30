@@ -1,3 +1,5 @@
+import { RenderScheduler } from "./render-scheduler.js";
+import { indexAttributes } from "./indexed-geometry.js";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
@@ -61,6 +63,13 @@ export class FortressScene {
   });
   observer: ResizeObserver;
   frameId = 0;
+  private renderScheduler = new RenderScheduler();
+  invalidate = () => this.renderScheduler.invalidate();
+  private renderedPosition = new THREE.Vector3(Infinity, Infinity, Infinity);
+  private renderedRotation = new THREE.Quaternion();
+  private renderedProjection = new THREE.Matrix4();
+  private atlasVersion = -1;
+  private lastStats = -Infinity;
   onSelect?: (x: number, y: number, z: number) => void;
   onNavigationChange?: (mode: "orbit" | "select" | "firstPerson") => void;
   onWalkLevel?: (level: number) => void;
@@ -129,6 +138,8 @@ export class FortressScene {
   ) {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     host.append(this.renderer.domElement);
+    for (const event of ["pointermove", "pointerdown", "pointerleave"])
+      this.renderer.domElement.addEventListener(event, this.invalidate);
     this.renderer.domElement.setAttribute(
       "aria-label",
       "3D fortress terrain. WASD or left drag to pan; Q/E or right drag to rotate; scroll to zoom.",
@@ -181,6 +192,7 @@ export class FortressScene {
       const w = host.clientWidth,
         h = host.clientHeight;
       this.renderer.setSize(w, h);
+      this.invalidate();
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
     });
@@ -583,6 +595,7 @@ export class FortressScene {
     }
   }
   changeView(bounds: Bounds, level: number, keepWalking: boolean) {
+    this.invalidate();
     if (this.navigation === "firstPerson" && !keepWalking)
       this.setFirstPerson(true);
     const old = this.cut;
@@ -614,6 +627,7 @@ export class FortressScene {
     if (this.navigation === "firstPerson" && !keepWalking)
       this.setFirstPerson(true);
     this.leave();
+    this.invalidate();
     this.creatures.clear();
     this.projectiles.clear();
     this.scenery.clear();
@@ -721,6 +735,35 @@ export class FortressScene {
   animate = () => {
     this.frameId = requestAnimationFrame(this.animate);
     const start = performance.now();
+    this.firstPerson.update((start - this.lastFrame) / 1000);
+    this.orbitKeyboard.update((start - this.lastFrame) / 1000);
+    if (this.navigation === "firstPerson") {
+      const focus = `${Math.floor(this.camera.position.x / 16)},${Math.floor(this.camera.position.z / 16)}`;
+      if (focus !== this.lastFocus) {
+        this.lastFocus = focus;
+        this.onWalkLevel?.(this.cut);
+      }
+    }
+    this.lastFrame = start;
+    if (this.navigation !== "firstPerson") this.controls.update();
+    const cameraChanged =
+      !this.renderedPosition.equals(this.camera.position) ||
+      !this.renderedRotation.equals(this.camera.quaternion) ||
+      !this.renderedProjection.equals(this.camera.projectionMatrix);
+    if (
+      !this.renderScheduler.take(
+        start,
+        cameraChanged ||
+          this.dirty.size > 0 ||
+          this.miningPressed ||
+          this.selector.visible ||
+          this.flows.visibleCount > 0 ||
+          this.projectiles.animating(start) ||
+          this.atlasVersion !== this.terrainAtlas.texture.version,
+      )
+    )
+      return;
+
     if (this.rectangle && this.miningPointer)
       this.updateRectangle(this.miningPointer);
     const r = this.rectangle,
@@ -773,16 +816,6 @@ export class FortressScene {
       this.cancelMining();
       this.onMine?.(preview.target);
     }
-    this.firstPerson.update((start - this.lastFrame) / 1000);
-    this.orbitKeyboard.update((start - this.lastFrame) / 1000);
-    if (this.navigation === "firstPerson") {
-      const focus = `${Math.floor(this.camera.position.x / 16)},${Math.floor(this.camera.position.z / 16)}`;
-      if (focus !== this.lastFocus) {
-        this.lastFocus = focus;
-        this.onWalkLevel?.(this.cut);
-      }
-    }
-    this.lastFrame = start;
     if (this.selector.visible)
       this.selector.material.opacity = 0.3 + Math.sin(start / 180) * 0.12;
     let count = 0;
@@ -837,13 +870,15 @@ export class FortressScene {
         c.tiles.every((t) => t.shape === "empty" && !t.liquid && !t.treeGraphic)
       )
         this.emptyChunks.add(c);
+      const packed = indexAttributes({
+        position: { array: new Float32Array(data.positions), size: 3 },
+        color: { array: new Float32Array(data.colors), size: 3 },
+        uv: { array: new Float32Array(data.uvs), size: 2 },
+      });
       const g = new THREE.BufferGeometry();
-      g.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(data.positions, 3),
-      );
-      g.setAttribute("color", new THREE.Float32BufferAttribute(data.colors, 3));
-      g.setAttribute("uv", new THREE.Float32BufferAttribute(data.uvs, 2));
+      for (const [name, a] of Object.entries(packed.attributes))
+        g.setAttribute(name, new THREE.BufferAttribute(a.array, a.size));
+      if (packed.index) g.setIndex(new THREE.BufferAttribute(packed.index, 1));
       g.computeBoundingBox();
       const m = new THREE.Mesh(g, this.material);
       for (const cap of previousCaps) m.add(cap);
@@ -863,22 +898,25 @@ export class FortressScene {
           const capGeometry = new THREE.BufferGeometry();
           capGeometry.setAttribute(
             "position",
-            new THREE.Float32BufferAttribute(data.positions, 3),
+            new THREE.BufferAttribute(data.positions, 3),
           );
           capGeometry.setAttribute(
             "normal",
-            new THREE.Float32BufferAttribute(data.normals, 3),
+            new THREE.BufferAttribute(data.normals, 3),
           );
           capGeometry.setAttribute(
             "capRect",
-            new THREE.Float32BufferAttribute(data.caps, 4),
+            new THREE.BufferAttribute(data.caps, 4),
           );
           capGeometry.setAttribute(
             "undersideRect",
-            new THREE.Float32BufferAttribute(data.undersides, 4),
+            new THREE.BufferAttribute(data.undersides, 4),
           );
+          if (data.indices)
+            capGeometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
           capGeometry.computeBoundingSphere();
           m.add(new THREE.Mesh(capGeometry, this.capMaterial));
+          this.invalidate();
           this.emptyChunks.delete(c);
         },
         Math.hypot(
@@ -916,10 +954,13 @@ export class FortressScene {
             new THREE.BufferAttribute(tree.colors, 3),
           );
           geometry.setAttribute("uv", new THREE.BufferAttribute(tree.uvs, 2));
+          if (tree.indices)
+            geometry.setIndex(new THREE.BufferAttribute(tree.indices, 1));
           geometry.computeBoundingSphere();
           const child = new THREE.Mesh(geometry, this.material);
           child.userData.tree = true;
           m.add(child);
+          this.invalidate();
           this.emptyChunks.delete(c);
         },
         Math.hypot(
@@ -949,7 +990,6 @@ export class FortressScene {
       visibleLevel,
       this.cut - LEVELS_BELOW,
     );
-    if (this.navigation !== "firstPerson") this.controls.update();
     this.scenery.frame(this.camera, visibleLevel, this.cut - LEVELS_BELOW);
     this.liquids.frame(start, visibleLevel, this.cut - LEVELS_BELOW);
     this.flows.frame(
@@ -966,6 +1006,12 @@ export class FortressScene {
       this.cut - LEVELS_BELOW,
     );
     this.renderer.render(this.scene, this.camera);
+    this.renderedPosition.copy(this.camera.position);
+    this.renderedRotation.copy(this.camera.quaternion);
+    this.renderedProjection.copy(this.camera.projectionMatrix);
+    this.atlasVersion = this.terrainAtlas.texture.version;
+    if (start - this.lastStats < 250) return;
+    this.lastStats = start;
     this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size + this.capMesher.pending + this.treeMesher.pending} queued`;
   };
   dispose() {
@@ -1016,6 +1062,8 @@ export class FortressScene {
     this.capMesher.dispose();
     this.treeMesher.dispose();
     this.terrainAtlas.dispose();
+    for (const event of ["pointermove", "pointerdown", "pointerleave"])
+      this.renderer.domElement.removeEventListener(event, this.invalidate);
     this.renderer.dispose();
   }
 }

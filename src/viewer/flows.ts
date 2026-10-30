@@ -44,6 +44,8 @@ export class FlowSprites {
   group = new THREE.Group();
   visibleCount = 0;
   private blocks = new Map<string, FlowEffect[]>();
+  private right = new THREE.Vector3();
+  private up = new THREE.Vector3();
   private smoke: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private fire: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   constructor(
@@ -72,8 +74,8 @@ export class FlowSprites {
     min: number,
   ) {
     const counts = [0, 0];
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const right = this.right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    const up = this.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
     this.visibleCount = 0;
     for (const flows of this.blocks.values())
       for (const flow of flows) {
@@ -152,8 +154,17 @@ export class FlowSprites {
       mesh.geometry.setDrawRange(0, counts[i] * 6);
       mesh.visible = counts[i] > 0;
       if (!mesh.visible) continue;
-      mesh.geometry.getAttribute("position").needsUpdate = true;
-      mesh.geometry.getAttribute("uv").needsUpdate = true;
+      for (const [name, components] of [
+        ["position", 18],
+        ["uv", 12],
+      ] as const) {
+        const attribute = mesh.geometry.getAttribute(
+          name,
+        ) as THREE.BufferAttribute;
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, counts[i] * components);
+        attribute.needsUpdate = true;
+      }
     }
   }
   clear() {

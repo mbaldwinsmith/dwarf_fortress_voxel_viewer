@@ -1,3 +1,4 @@
+import { paletteRow } from "./palette-row.js";
 import * as THREE from "three";
 import type { SpriteLayer } from "../shared/model.js";
 import { imageBottomPadding } from "./sprite-ground.js";
@@ -163,15 +164,8 @@ export class CompositeSprites {
       if (l.palette) {
         const p = l.palette,
           img = await this.image(p.asset);
-        if (p.row >= img.height || p.sourceRow >= img.height)
-          throw Error("Palette row out of bounds");
-        const pc = document.createElement("canvas");
-        pc.width = img.width;
-        pc.height = img.height;
-        const context = pc.getContext("2d", { willReadFrequently: true })!;
-        context.drawImage(img, 0, 0);
-        source = context.getImageData(0, p.sourceRow, img.width, 1).data;
-        target = context.getImageData(0, p.row, img.width, 1).data;
+        source = paletteRow(img, p.sourceRow);
+        target = paletteRow(img, p.row);
       }
       const data = t.getImageData(0, 0, r.width, r.height);
       recolor(data.data, source, target, l.tint, l.eyeColor);

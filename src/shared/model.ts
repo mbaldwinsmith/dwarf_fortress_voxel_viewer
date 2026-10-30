@@ -73,6 +73,8 @@ export interface Tile {
   name: string;
 }
 export interface Chunk {
+  // Hash of all terrain/flow fields; scenery-only updates keep this stable.
+  terrainStamp?: string;
   ceilingTexture?: SpriteRef;
   x: number;
   y: number;

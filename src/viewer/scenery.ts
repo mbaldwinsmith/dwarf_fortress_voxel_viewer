@@ -1,3 +1,4 @@
+import { paletteRow } from "./palette-row.js";
 import * as THREE from "three";
 import { linearMaterialColor } from "./mesh.js";
 import { recolor } from "./composite-sprites.js";
@@ -126,13 +127,6 @@ export class ScenerySprites {
                   i.src = `/local-art/${palette.asset}`;
                 },
               );
-              if (palette.row >= img.height || palette.sourceRow >= img.height)
-                throw Error("Scenery palette row out of bounds");
-              const pc = document.createElement("canvas");
-              pc.width = img.width;
-              pc.height = img.height;
-              const p = pc.getContext("2d", { willReadFrequently: true })!;
-              p.drawImage(img, 0, 0);
               const canvas = document.createElement("canvas");
               const source = texture.image as HTMLImageElement;
               canvas.width = source.width;
@@ -142,8 +136,8 @@ export class ScenerySprites {
               const pixels = c.getImageData(0, 0, canvas.width, canvas.height);
               recolor(
                 pixels.data,
-                p.getImageData(0, palette.sourceRow, img.width, 1).data,
-                p.getImageData(0, palette.row, img.width, 1).data,
+                paletteRow(img, palette.sourceRow),
+                paletteRow(img, palette.row),
               );
               c.putImageData(pixels, 0, 0);
               (texture as THREE.Texture).image = canvas;

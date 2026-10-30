@@ -1,3 +1,4 @@
+import { unpackChunk } from "./chunk-codec.js";
 import type { ServerMessage, Shape } from "./model.js";
 import { FURNITURE_TYPES, WORKSHOP_MODELS } from "./model.js";
 const object = (v: unknown): v is Record<string, unknown> =>
@@ -177,7 +178,8 @@ export function parseServerMessage(value: unknown): ServerMessage {
     Array.isArray(value.chunks) &&
     value.chunks.length <= 45
   ) {
-    for (const c of value.chunks) {
+    value.chunks = value.chunks.map((c) => (object(c) ? unpackChunk(c) : c));
+    for (const c of value.chunks as unknown[]) {
       if (object(c) && c.ceilingTexture !== undefined)
         validateSprite(c.ceilingTexture);
       if (
@@ -191,7 +193,14 @@ export function parseServerMessage(value: unknown): ServerMessage {
         c.tiles.length !== 256
       )
         throw Error("Invalid chunk");
-      for (const t of c.tiles)
+      if (
+        c.terrainStamp !== undefined &&
+        (typeof c.terrainStamp !== "string" ||
+          !/^[a-f0-9]{64}$/.test(c.terrainStamp))
+      )
+        throw Error("Invalid terrain stamp");
+      const uniqueTiles = new Set(c.tiles);
+      for (const t of uniqueTiles)
         if (
           !object(t) ||
           !shapes.includes(t.shape as Shape) ||
@@ -203,7 +212,7 @@ export function parseServerMessage(value: unknown): ServerMessage {
               t.shape === "unknown"))
         )
           throw Error("Invalid tile");
-      for (const t of c.tiles) {
+      for (const t of uniqueTiles) {
         if (object(t.liquid) && t.liquid.surface !== undefined)
           validateSprite(t.liquid.surface);
         if (t.tree !== undefined) {

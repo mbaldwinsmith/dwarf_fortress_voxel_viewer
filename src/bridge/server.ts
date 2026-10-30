@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { wireMessage } from "../shared/chunk-codec.js";
 import { Graphics } from "./graphics.js";
 import { SceneryGraphics } from "./scenery-graphics.js";
 import { SceneryReader } from "./scenery.js";
@@ -192,7 +193,7 @@ function send(ws: WebSocket, m: ServerMessage) {
     counters.set(ws, sequence);
     m = { ...m, sequence };
   }
-  ws.send(JSON.stringify(m));
+  ws.send(JSON.stringify(wireMessage(m)));
 }
 function broadcast(m: ServerMessage) {
   for (const ws of wss.clients) send(ws, m);

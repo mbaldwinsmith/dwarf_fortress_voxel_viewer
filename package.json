@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"tsx watch src/bridge/server.ts\" \"vite --host 127.0.0.1\"",
-    "build": "tsc --noEmit && vite build && tsc -p tsconfig.bridge.json",
+    "build": "tsc --noEmit && vite build && node scripts/build-bridge.mjs",
     "start": "node dist/bridge/bridge/server.js",
     "check": "tsc --noEmit",
     "test": "vitest run",
@@ -34,7 +34,8 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^6.4.5",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "esbuild": "^0.28.2"
   },
   "engines": {
     "node": ">=22.12.0"
