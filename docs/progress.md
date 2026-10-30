@@ -521,3 +521,23 @@ DF textures and translucency instead of procedural shaders. Root ground and
 creature/water depth ordering are corrected. See environment-rendering-review.md
 for critic scores, exact scope and validation limitations. All new artwork is
 loaded from the user's installed game; no game sheets are copied into the repo.
+
+## Unified navigation controls
+
+Left-drag pans along the map plane and right-drag rotates in Orbit and DF Screen
+views. A drag does not trigger tile inspection or select a first-person spawn;
+a plain click still does. Shift+comma (`<`) moves up and Shift+period (`>`) moves
+down in Orbit, DF Screen and spawn-selection views, with map-bound clamping.
+In first person those same keys climb connected stairs; WASD only walks/strifes
+and continues to follow ramps automatically. Unloaded or blocked stair destinations
+remain inaccessible.
+
+DF Screen keeps following the game's XY viewport while permitting a viewer-only
+Z override. A change to the game's own viewed Z resumes native elevation following;
+switching modes also clears the override. No game camera or gameplay RPC is sent.
+
+Validation: browser gestures verified both modes, drag-versus-click selection,
+all shifted level shortcuts and stair ascent/descent using controlled map data.
+The 141-test suite includes shortcut decoding, unloaded stairs, WASD on stairs
+and DF Screen elevation-override behaviour. The dev preview remains the test target;
+no installer build was run.

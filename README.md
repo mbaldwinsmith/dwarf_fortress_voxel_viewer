@@ -90,12 +90,14 @@ may display an unrecognized-app warning.
 | Mode           | Behaviour                                                                         |
 | -------------- | --------------------------------------------------------------------------------- |
 | **Whole map**  | Loads the local map's full XY footprint and enables the manual Z-level slider.    |
-| **DF screen**  | Follows DF's visible map area and current Z-level; the manual slider is disabled. |
+| **DF screen**  | Follows DF's visible map area; shortcuts or the slider can override the viewed Z. |
 | **1st person** | Switches to Whole map and lets you choose a walkable camera starting point.       |
 
 Deepwatch streams **up to five neighbouring Z-levels**: the selected level,
 two above and two below, clipped to map bounds. Nearby columns load first;
 in first person, level-change requests prioritise the camera's neighbourhood.
+Nearby canopy columns can extend twelve levels above the cut to show tree crowns.
+In DF Screen mode, changing DF's own Z-level resumes following that elevation.
 
 Orbit view hides geometry above the selected cutaway. First person displays the
 loaded upper levels too, so ceilings, stair shafts and upper landings remain
@@ -104,14 +106,14 @@ visible. The entire vertical map is not loaded at once.
 All tabs connected to the same companion share the view mode and selected
 Z-level. The latest selection applies to everyone.
 
-### Orbit controls
+### Orbit and DF Screen controls
 
 | Action               | Control                                          |
 | -------------------- | ------------------------------------------------ |
-| Orbit                | Left-drag                                        |
-| Pan                  | Right-drag                                       |
+| Rotate               | Right-drag                                       |
+| Pan                  | Left-drag                                        |
 | Zoom                 | Mouse wheel                                      |
-| Change cutaway level | Slider or `[` / `]` in Whole map mode            |
+| Go up / down a level | `Shift+,` (`<`) / `Shift+.` (`>`), or the slider |
 | Frame terrain        | **Frame terrain** or `F`                         |
 | Inspect a tile       | Click terrain; details appear below the viewer   |
 | Touch navigation     | One finger to orbit; two fingers to pan and zoom |
@@ -124,16 +126,16 @@ horizontal position and shifts its height with the cutaway.
 Select **1st person**, then click a green floor selector to enter. Red indicates
 a blocked location or terrain/headroom data that has not yet loaded.
 
-| Action                           | Control                          |
-| -------------------------------- | -------------------------------- |
-| Walk / strafe                    | `W`, `A`, `S`, `D`               |
-| Look around                      | Mouse                            |
-| Ascend connected stairs          | Hold `W` while on the stair tile |
-| Descend connected stairs         | Hold `S` while on the stair tile |
-| Pause and release mouse capture  | `Esc`                            |
-| Resume                           | Click the viewport               |
-| Relocate                         | **Choose another point**         |
-| Return to the saved orbit camera | **Orbit view**                   |
+| Action                           | Control                           |
+| -------------------------------- | --------------------------------- |
+| Walk / strafe                    | `W`, `A`, `S`, `D`                |
+| Look around                      | Mouse                             |
+| Ascend connected stairs          | `Shift+,` (`<`) on the stair tile |
+| Descend connected stairs         | `Shift+.` (`>`) on the stair tile |
+| Pause and release mouse capture  | `Esc`                             |
+| Resume                           | Click the viewport                |
+| Relocate                         | **Choose another point**          |
+| Return to the saved orbit camera | **Orbit view**                    |
 
 Ramps follow the rendered slope. The camera and streamed Z-levels follow
 successful stair and ramp transitions. Movement waits when destination data is

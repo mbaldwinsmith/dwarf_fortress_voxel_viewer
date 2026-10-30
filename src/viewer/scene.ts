@@ -42,6 +42,7 @@ export class FortressScene {
   firstPerson: FirstPersonControls;
   private lastFrame = performance.now();
   private lastFocus = "";
+  private dragStart?: { x: number; y: number; moved: boolean };
   private orbitPosition = new THREE.Vector3();
   private orbitTarget = new THREE.Vector3();
   private spawn?: { x: number; y: number; z: number };
@@ -74,7 +75,7 @@ export class FortressScene {
     host.append(this.renderer.domElement);
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "3D fortress terrain. Drag to orbit; right drag to pan; scroll to zoom.",
+      "3D fortress terrain. Left drag to pan; right drag to rotate; scroll to zoom.",
     );
     this.scene.add(this.creatures.group);
     this.scene.add(this.scenery.group);
@@ -94,6 +95,10 @@ export class FortressScene {
     sun.position.set(-50, 100, 20);
     this.scene.add(sun);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    this.controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+    this.controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+    this.controls.screenSpacePanning = false;
     this.firstPerson = new FirstPersonControls(
       this.renderer.domElement,
       this.camera,
@@ -120,6 +125,7 @@ export class FortressScene {
     });
     this.observer.observe(host);
     this.renderer.domElement.addEventListener("click", this.pick);
+    this.renderer.domElement.addEventListener("pointerdown", this.beginDrag);
     this.renderer.domElement.addEventListener("pointermove", this.hover);
     this.renderer.domElement.addEventListener("pointerleave", this.leave);
     this.camera.position.set(30, 50, 60);
@@ -143,6 +149,11 @@ export class FortressScene {
     this.spawn = undefined;
   };
   private hover = (e: MouseEvent) => {
+    if (
+      this.dragStart &&
+      Math.hypot(e.clientX - this.dragStart.x, e.clientY - this.dragStart.y) > 4
+    )
+      this.dragStart.moved = true;
     if (this.navigation !== "select") return;
     this.spawn = undefined;
     const hit = this.rayHit(e);
@@ -168,7 +179,16 @@ export class FortressScene {
     this.selector.material.color.setHex(valid ? 0x62ffe3 : 0xff6677);
     if (valid) this.spawn = { x, y, z };
   };
+  private beginDrag = (e: PointerEvent) => {
+    this.dragStart =
+      e.button === 0 && this.navigation !== "firstPerson"
+        ? { x: e.clientX, y: e.clientY, moved: false }
+        : undefined;
+  };
   pick = (e: MouseEvent) => {
+    const dragged = this.dragStart?.moved;
+    this.dragStart = undefined;
+    if (e.button !== 0 || dragged) return;
     if (this.navigation === "firstPerson") {
       this.firstPerson.capture();
       return;
@@ -437,6 +457,7 @@ export class FortressScene {
     cancelAnimationFrame(this.frameId);
     this.observer.disconnect();
     this.renderer.domElement.removeEventListener("click", this.pick);
+    this.renderer.domElement.removeEventListener("pointerdown", this.beginDrag);
     this.renderer.domElement.removeEventListener("pointermove", this.hover);
     this.renderer.domElement.removeEventListener("pointerleave", this.leave);
     this.firstPerson.dispose();

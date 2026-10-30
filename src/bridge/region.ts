@@ -1,4 +1,21 @@
 import type { Bounds } from "../shared/model.js";
+export class ScreenElevation {
+  private native?: number;
+  private manual?: number;
+  select(level: number) {
+    this.manual = level;
+  }
+  follow(native: number) {
+    if (this.native !== undefined && native !== this.native)
+      this.manual = undefined;
+    this.native = native;
+    return this.manual ?? native;
+  }
+  reset() {
+    this.native = undefined;
+    this.manual = undefined;
+  }
+}
 export function parseMode(message: string): "screen" | "map" | undefined {
   try {
     const m = JSON.parse(message);

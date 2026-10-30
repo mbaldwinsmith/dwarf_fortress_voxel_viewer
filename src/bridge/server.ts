@@ -16,7 +16,13 @@ import {
   type ServerMessage,
 } from "../shared/model.js";
 import { inspectInstallation } from "./installation.js";
-import { blockOrder, parseLevel, parseMode, screenRegion } from "./region.js";
+import {
+  blockOrder,
+  parseLevel,
+  parseMode,
+  screenRegion,
+  ScreenElevation,
+} from "./region.js";
 import { publicFile } from "./public-files.js";
 const installation = process.env.DF_PATH
   ? await inspectInstallation(process.env.DF_PATH)
@@ -176,6 +182,7 @@ wss.on("connection", (ws) => {
   ws.on("message", (data) => {
     const mode = parseMode(data.toString());
     if (mode) {
+      if (mode !== requestedMode) screenElevation.reset();
       requestedMode = mode;
       return;
     }
@@ -185,6 +192,7 @@ wss.on("connection", (ws) => {
       return;
     }
     requestedLevel = level;
+    if (requestedMode === "screen") screenElevation.select(level);
     const m = JSON.parse(data.toString());
     requestedFocus =
       Number.isInteger(m.x) &&
@@ -208,6 +216,7 @@ function publish(m: ServerMessage) {
 let requestedMode: "screen" | "map" = "map";
 let requestedLevel = 0;
 let requestedFocus: { x: number; y: number } | undefined;
+const screenElevation = new ScreenElevation();
 async function replay(ws: WebSocket, replaySession: string) {
   for (const k of [...chunks.keys()]) {
     while (
@@ -258,6 +267,14 @@ async function run() {
       setStatus("Loading actual fortress terrain…");
 
       requestedLevel = adapter.initialLevel;
+      screenElevation.reset();
+      const readScreenRegion = async () => {
+        const region = screenRegion(
+          adapter!.bounds,
+          await adapter!.rpc.call("GetViewInfo"),
+        );
+        return { ...region, level: screenElevation.follow(region.level) };
+      };
       const creatures = new CreatureReader(adapter, graphics);
       let creatureTick = 0,
         lastCreaturePoll = 0;
@@ -272,10 +289,7 @@ async function run() {
         const mode = requestedMode;
         const region =
           mode === "screen"
-            ? screenRegion(
-                adapter.bounds,
-                await adapter.rpc.call("GetViewInfo"),
-              )
+            ? await readScreenRegion()
             : { bounds: adapter.bounds, level: requestedLevel };
         const b = region.bounds,
           level = region.level;
@@ -318,10 +332,7 @@ async function run() {
           )
             break;
           if (mode === "screen" && completed % 12 === 0) {
-            const current = screenRegion(
-              adapter.bounds,
-              await adapter.rpc.call("GetViewInfo"),
-            );
+            const current = await readScreenRegion();
             if (
               current.level !== level ||
               JSON.stringify(current.bounds) !== JSON.stringify(b)

@@ -50,7 +50,8 @@ it("waits on unloaded stairs instead of moving sideways, then descends when data
     const initial = camera.position.toArray();
     win.dispatchEvent(
       Object.assign(new Event("keydown", { cancelable: true }), {
-        code: "KeyS",
+        code: "Period",
+        shiftKey: true,
       }),
     );
     controls.update(0.05);
@@ -63,6 +64,24 @@ it("waits on unloaded stairs instead of moving sideways, then descends when data
     for (let i = 0; i < 11; i++) controls.update(0.05);
     expect(changed).toEqual([3]);
     expect(camera.position.y).toBeCloseTo(3.76);
+    win.dispatchEvent(
+      Object.assign(new Event("keydown", { cancelable: true }), {
+        code: "Comma",
+        shiftKey: true,
+      }),
+    );
+    for (let i = 0; i < 11; i++) controls.update(0.05);
+    expect(changed).toEqual([3, 4]);
+    expect(camera.position.y).toBeCloseTo(4.76);
+    // S now walks backwards on stairs, without triggering another descent.
+    win.dispatchEvent(
+      Object.assign(new Event("keydown", { cancelable: true }), {
+        code: "KeyS",
+      }),
+    );
+    controls.update(0.05);
+    expect(changed).toEqual([3, 4]);
+    expect(camera.position.y).toBeCloseTo(4.76);
     win.dispatchEvent(Object.assign(new Event("keydown"), { code: "Escape" }));
     expect(controls.active).toBe(false);
   } finally {

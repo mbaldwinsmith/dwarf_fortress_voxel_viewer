@@ -4,9 +4,21 @@ import {
   parseLevel,
   parseMode,
   screenRegion,
+  ScreenElevation,
 } from "../src/bridge/region.js";
 import { parseServerMessage } from "../src/shared/validation.js";
 const bounds = { x: 0, y: 0, z: 0, width: 192, depth: 192, height: 199 };
+it("allows manual viewer elevation in DF Screen mode until DF changes its own level", () => {
+  const elevation = new ScreenElevation();
+  expect(elevation.follow(128)).toBe(128);
+  elevation.select(129);
+  expect(elevation.follow(128)).toBe(129);
+  expect(elevation.follow(128)).toBe(129);
+  expect(elevation.follow(127)).toBe(127);
+  elevation.select(130);
+  elevation.reset();
+  expect(elevation.follow(128)).toBe(128);
+});
 it("accepts only the two render modes", () => {
   expect(parseMode('{"type":"mode","mode":"screen"}')).toBe("screen");
   expect(parseMode('{"type":"mode","mode":"map"}')).toBe("map");

@@ -2,6 +2,7 @@ import "./style.css";
 import { WorldState, tileAt, retainChunks } from "../shared/model.js";
 import { FortressScene } from "./scene.js";
 import { connect } from "./connection.js";
+import { levelDirection } from "./keyboard.js";
 const el = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const status = el("status"),
@@ -62,7 +63,7 @@ scene.onNavigationChange = (mode) => {
   el("walk-help").textContent =
     mode === "select"
       ? "Choose a camera point: click a glowing green floor tile. Red means blocked or still loading."
-      : "WASD to walk · Mouse to look · On stairs: W up, S down · Esc pauses · Click the view to resume";
+      : "WASD to walk · Mouse to look · On stairs: < up, > down (hold Shift) · Esc pauses · Click the view to resume";
 };
 el("first-person").addEventListener("click", () => {
   const enabled = scene.navigation === "orbit";
@@ -80,10 +81,24 @@ scene.onSelect = (x, y, z) => {
         : "No tile at this position";
 };
 const keydown = (e: KeyboardEvent) => {
-  if (e.target instanceof HTMLInputElement) return;
-  if (slider.disabled && (e.key === "[" || e.key === "]")) return;
-  if (e.key === "[" || e.key === "]") {
-    slider.value = String(Number(slider.value) + (e.key === "]" ? 1 : -1));
+  const target = e.target as HTMLElement;
+  if (
+    target.isContentEditable ||
+    target.tagName === "TEXTAREA" ||
+    (target instanceof HTMLInputElement &&
+      !["range", "radio", "checkbox"].includes(target.type))
+  )
+    return;
+  const direction = levelDirection(e);
+  if (direction) {
+    e.preventDefault();
+    if (scene.navigation === "firstPerson" || !scene.bounds?.height) return;
+    slider.value = String(
+      Math.max(
+        Number(slider.min),
+        Math.min(Number(slider.max), Number(slider.value) + direction),
+      ),
+    );
     cut();
   }
   if (e.key.toLowerCase() === "f") scene.frame();
@@ -113,7 +128,7 @@ const disconnect = connect((m) => {
     slider.min = String(m.bounds.z);
     slider.max = String(m.bounds.z + Math.max(0, m.bounds.height - 1));
     slider.value = String(m.level ?? slider.max);
-    slider.disabled = !m.bounds.height || m.mode === "screen";
+    slider.disabled = !m.bounds.height;
     el<HTMLInputElement>("mode-screen").checked = m.mode === "screen";
     el<HTMLInputElement>("mode-map").checked = m.mode !== "screen";
     el("scope").textContent =

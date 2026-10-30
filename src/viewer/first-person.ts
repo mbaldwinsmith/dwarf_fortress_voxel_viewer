@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { levelDirection } from "./keyboard.js";
 import { tileAt, type Chunk } from "../shared/model.js";
 import {
   surfaceHeight,
@@ -80,6 +81,7 @@ export class FirstPersonControls {
   private yaw = 0;
   private pitch = 0;
   private level = 0;
+  private stairStep = 0;
   private climbing?: { from: number; to: number; progress: number };
   constructor(
     private canvas: HTMLCanvasElement,
@@ -153,6 +155,7 @@ export class FirstPersonControls {
   }
   private clear = () => {
     this.keys.clear();
+    this.stairStep = 0;
   };
   private pause = () => {
     this.focused = false;
@@ -167,6 +170,12 @@ export class FirstPersonControls {
     this.clear();
   };
   private keydown = (e: KeyboardEvent) => {
+    const direction = levelDirection(e);
+    if (direction && this.enabled && this.active) {
+      e.preventDefault();
+      if (!this.climbing) this.stairStep = direction;
+      return;
+    }
     if (this.enabled && e.code === "Escape") {
       if (this.locked) document.exitPointerLock();
       this.pause();
@@ -219,7 +228,7 @@ export class FirstPersonControls {
     const length = Math.hypot(forward, right);
     const p = this.camera.position,
       chunks = this.chunks();
-    if (!this.climbing && forward && !right) {
+    if (!this.climbing && this.stairStep) {
       const stair = tileAt(
         chunks,
         Math.floor(p.x),
@@ -228,12 +237,14 @@ export class FirstPersonControls {
       );
       if (
         stair?.shape === "stairs" &&
-        (forward > 0 ? /up/i.test(stair.name) : /down/i.test(stair.name)) &&
+        (this.stairStep > 0
+          ? /up/i.test(stair.name)
+          : /down/i.test(stair.name)) &&
         !tileAt(
           chunks,
           Math.floor(p.x),
           Math.floor(p.z),
-          this.level + Math.sign(forward),
+          this.level + this.stairStep,
         )
       )
         return;
@@ -242,8 +253,9 @@ export class FirstPersonControls {
         p.x,
         p.z,
         this.level,
-        Math.sign(forward),
+        this.stairStep,
       );
+      this.stairStep = 0;
       if (destination !== undefined) {
         if (
           !canWalk(
