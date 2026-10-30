@@ -223,6 +223,12 @@ export class FortressAdapter {
         throw Error("Unexpected item block coordinates");
       byKey.set(k, raw);
     }
+    await this.scenery!.prepareCorpses?.(
+      chunks.map((c) => ({
+        chunk: c,
+        items: byKey.get(key(c.x, c.y, c.z))?.items,
+      })),
+    );
     return chunks.map((c) =>
       this.scenery!.withItems(c, byKey.get(key(c.x, c.y, c.z))?.items),
     );

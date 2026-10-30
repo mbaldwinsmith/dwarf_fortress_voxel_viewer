@@ -358,13 +358,28 @@ export function parseServerMessage(value: unknown): ServerMessage {
           if (o.details !== undefined) {
             if (
               !Array.isArray(o.details) ||
-              o.details.length > 4 ||
+              o.details.length > 63 ||
               o.kind !== "ground"
             )
               throw Error("Invalid scenery detail layers");
             for (const d of o.details) {
               if (!object(d)) throw Error("Invalid scenery detail");
               validateSprite(d.sprite);
+              if (d.palette !== undefined) {
+                const p = d.palette;
+                if (
+                  !object(p) ||
+                  typeof p.asset !== "string" ||
+                  !/^[a-f0-9]{24}$/.test(p.asset) ||
+                  !int(p.row) ||
+                  !int(p.sourceRow) ||
+                  p.row < 0 ||
+                  p.row > 16384 ||
+                  p.sourceRow < 0 ||
+                  p.sourceRow > 16384
+                )
+                  throw Error("Invalid detail palette");
+              }
               if (d.tint !== undefined && !rgb(d.tint))
                 throw Error("Invalid detail tint");
               if (

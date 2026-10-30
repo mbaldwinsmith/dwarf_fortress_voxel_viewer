@@ -438,6 +438,7 @@ async function run() {
         adapter.rpc,
         sceneryGraphics,
         adapter.bounds,
+        graphics,
       );
       await adapter.scenery.initialize();
       console.log("Read-only handshake verified", version);

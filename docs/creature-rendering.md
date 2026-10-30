@@ -5,6 +5,25 @@ The explicit installed vanilla profile supports native living layer sets for
 Graphics remain local to the user's DF installation. Portrait, statue and corpse
 sets are excluded from living-unit selection.
 
+## Ground corpses
+
+Whole corpse items use native `CORPSE` artwork, including caste-specific and
+child variants, plus independent layers in `LAYER_SET:CORPSE`. The installed
+vanilla audit resolves 896 simple mappings and 15 layered profiles. Corpse art
+never enters living-unit selection. Unsupported species and detached body parts
+retain the generic native remains tile.
+
+The standard RemoteFortressReader item message has no race/caste fields. A fixed
+read-only Lua lookup resolves visible ground corpse IDs to native raw identifiers
+and child/adult state at death. Requests are bounded to 512 IDs, cached per world
+(8192 entries), and skipped for hidden, contained or carried items. Normal item
+polling still controls movement, pickup and disappearance. No fortress writes or
+new entities are used for verification.
+
+Corpse bodies currently match species, caste and life stage; individual hair,
+clothing, skin variants, missing limbs and progressive decomposition are not
+reconstructed. Layered body parts and supported palettes render as ground layers.
+
 | Group                                       | Support                                                                                                                                 |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Dwarves, humans, elves, goblins and kobolds | Body, skin palettes, faces, eyes, hair/beards, clothing, armour, weapons, shields and tools                                             |

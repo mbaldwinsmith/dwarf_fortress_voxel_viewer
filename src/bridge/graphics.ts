@@ -83,8 +83,9 @@ export function parseGraphics(text: string) {
     } else if (creature && !layered) {
       const child = tag === "CHILD";
       const parent = child ? a.at(-1) : tag;
+      const dead = parent === "CORPSE";
       const priority =
-        parent === "DEFAULT"
+        parent === "DEFAULT" || dead
           ? 3
           : parent === "VERMIN"
             ? 2
@@ -93,11 +94,11 @@ export function parseGraphics(text: string) {
               : 0;
       if (
         !priority ||
-        !(child || ["DEFAULT", "VERMIN", "ANIMATED"].includes(tag))
+        !(child || ["DEFAULT", "VERMIN", "ANIMATED", "CORPSE"].includes(tag))
       )
         continue;
       const sprite = spriteDefinition(child ? a.slice(0, -1) : a);
-      const id = creature + (child ? ":CHILD" : "");
+      const id = creature + (dead ? ":CORPSE" : "") + (child ? ":CHILD" : "");
       if (sprite && priority > (priorities.get(id) ?? 0)) {
         sprites.set(id, sprite);
         priorities.set(id, priority);
@@ -163,6 +164,7 @@ export async function permittedImage(root: string, relative: string) {
 export class Graphics {
   dwarfSets: LayerSet[] = [];
   creatureSets = new Map<string, LayerSet[]>();
+  corpseSets = new Map<string, LayerSet[]>();
   private layerPages = new Map<string, SpriteRef>();
   private paletteAssets = new Map<string, string>();
   files = new Map<string, string>();
@@ -195,9 +197,19 @@ export class Graphics {
           h.index! + h[0].length,
           headers[i + 1]?.index ?? source.length,
         );
-        const sets = parseDwarfLayers(
+        const parsedSets = parseDwarfLayers(
           expandLayerTemplates(block, templates),
-        ).filter(
+        );
+        const dead = parsedSets.filter(
+          (s) =>
+            s.state === "CORPSE" && (!s.context || s.context === "DEFAULT"),
+        );
+        if (dead.length)
+          this.corpseSets.set(h[1], [
+            ...(this.corpseSets.get(h[1]) ?? []),
+            ...dead,
+          ]);
+        const sets = parsedSets.filter(
           (set) =>
             ["DEFAULT", "BABY", "CHILD"].includes(set.state) &&
             (!set.context || set.context === "DEFAULT"),
@@ -252,7 +264,10 @@ export class Graphics {
       });
     }
     this.dwarfSets = this.creatureSets.get("DWARF") ?? [];
-    const allSets = [...this.creatureSets.values()].flat();
+    const allSets = [
+      ...this.creatureSets.values(),
+      ...this.corpseSets.values(),
+    ].flat();
     // Vanilla humanoid clothes palettes are byte-identical. Template-based
     // peoples use the same CLOTHES rows without declaring a local palette.
     const clothes = this.dwarfSets
@@ -350,5 +365,57 @@ export class Graphics {
       const adult = this.refs.get(`${id}:ADULT`) ?? this.refs.get(id);
       if (adult) return adult;
     }
+  }
+  corpse(race: string, caste: string, child = false) {
+    const sets =
+      this.corpseSets.get(`${race}:${caste}`) ?? this.corpseSets.get(race);
+    if (sets) {
+      // Corpse raws use independent body-part layers, with no live layer groups.
+      const layers = chooseDwarfLayers(
+        sets.map((s) => ({
+          ...s,
+          state: "DEFAULT",
+          groups: s.groups.flat().map((l) => [l]),
+        })),
+        {
+          caste,
+          age: child ? 0 : 30,
+          state: child ? "CHILD" : "DEFAULT",
+          skin: "PINK",
+          items: [],
+        },
+        (id, x, y, w, h) => {
+          const base = this.layerPages.get(id);
+          if (
+            !base ||
+            x < 0 ||
+            y < 0 ||
+            (x + w) * base.width > base.pageWidth ||
+            (y + h) * base.height > base.pageHeight
+          )
+            return;
+          return {
+            ...base,
+            x: x * base.width,
+            y: y * base.height,
+            width: w * base.width,
+            height: h * base.height,
+          };
+        },
+        (file) => this.paletteAssets.get(file),
+      );
+      if (layers.length) return layers;
+    }
+    const keys = [`${race}:${caste}:CORPSE`, `${race}:CORPSE`];
+    if (child)
+      for (const key of keys) {
+        const sprite = this.refs.get(`${key}:CHILD`);
+        if (sprite) return [{ sprite }];
+      }
+    for (const key of keys) {
+      const sprite = this.refs.get(key);
+      if (sprite) return [{ sprite }];
+    }
+    return [];
   }
 }

@@ -1,4 +1,4 @@
-import type { Chunk, SceneryObject } from "../shared/model.js";
+import type { Chunk, SceneryObject, SpriteLayer } from "../shared/model.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
 import type { TerrainMaterial } from "./terrain-art.js";
 
@@ -11,8 +11,7 @@ const aliases: Record<string, string> = {
   BOX: "BOX",
   SKIN_TANNED: "LEATHER",
   CORPSEPIECE: "REMAINS",
-  // Whole corpses have species-specific creature art, not an ITEM_CORPSE tile.
-  // Until corpse appearance is supplied, keep them visible as native remains.
+  // Unknown/unsupported species retain the native remains fallback.
   CORPSE: "REMAINS",
   ROCK: "ROCK",
   EGG: "EGG_SIZE1",
@@ -38,6 +37,7 @@ export function groundItems(
   materials: Map<string, TerrainMaterial>,
   graphics: Pick<SceneryGraphics, "get"> &
     Partial<Pick<SceneryGraphics, "materialPalettes">>,
+  corpses?: ReadonlyMap<number, SpriteLayer[]>,
 ): SceneryObject[] {
   const cells = new Map<number, SceneryObject>();
   const items = Array.isArray(raw) ? raw : [];
@@ -82,7 +82,9 @@ export function groundItems(
     }[category];
     const token = aliases[category] ?? category;
     const family = material?.id.startsWith("INORGANIC:") ? "STONE" : "WOOD";
+    const corpse = category === "CORPSE" ? corpses?.get(item.id) : undefined;
     const sprite =
+      corpse?.[0]?.sprite ||
       (override && material && graphics.get(`${override}:${material.id}`)) ||
       (subtype && graphics.get(subtype)) ||
       graphics.get(`ITEM_${token}`) ||
@@ -96,6 +98,15 @@ export function groundItems(
       z,
       kind: "ground",
       sprite,
+      ...(corpse?.length
+        ? {
+            ...(corpse[0].tint ? { tint: corpse[0].tint } : {}),
+            ...(corpse[0].palette ? { palette: corpse[0].palette } : {}),
+            details: corpse
+              .slice(1)
+              .map((layer) => ({ ...layer, brightness: 1 })),
+          }
+        : {}),
       name: `${material?.name ?? ""} ${category.toLowerCase().replaceAll("_", " ")}`
         .trim()
         .slice(0, 120),

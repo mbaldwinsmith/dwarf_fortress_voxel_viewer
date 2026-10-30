@@ -90,6 +90,7 @@ export interface SceneryObject {
   tint?: [number, number, number];
   details?: {
     sprite: SpriteRef;
+    palette?: SpriteLayer["palette"];
     tint?: [number, number, number];
     brightness?: number;
   }[];

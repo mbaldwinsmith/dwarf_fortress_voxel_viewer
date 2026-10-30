@@ -4,6 +4,8 @@ import type { SceneryGraphics } from "./scenery-graphics.js";
 import { textureTerrain, terrainMaterials } from "./terrain-art.js";
 import { groundItems } from "./ground-items.js";
 import { flowTokens } from "./flows.js";
+import type { Graphics } from "./graphics.js";
+import type { SpriteLayer } from "../shared/model.js";
 const records = (v: unknown): Record<string, unknown>[] =>
   Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : [];
 export const buildingKey = (t: Record<string, unknown>) =>
@@ -361,6 +363,7 @@ export function plantObjects(
   return out;
 }
 export class SceneryReader {
+  private corpses = new Map<number, SpriteLayer[]>();
   private itemDefinitions = new Map<string, string>();
   private materialDefinitions = terrainMaterials([]);
   private definitions = new Map<string, string>();
@@ -371,7 +374,46 @@ export class SceneryReader {
     private rpc: Rpc,
     private graphics: SceneryGraphics,
     private bounds: Bounds,
+    private creatureGraphics?: Graphics,
   ) {}
+  async prepareCorpses(blocks: { chunk: Chunk; items: unknown }[]) {
+    if (!this.creatureGraphics) return;
+    const ids = new Set<number>();
+    for (const { chunk, items } of blocks) {
+      const visible = new Set(
+        groundItems(
+          chunk,
+          items,
+          this.itemDefinitions,
+          this.materialDefinitions,
+          this.graphics,
+        ).map((o) => Number(o.id.slice(2))),
+      );
+      for (const item of records(items)) {
+        const id = Number(item.id),
+          type = item.type as Record<string, unknown> | undefined;
+        if (
+          type &&
+          visible.has(id) &&
+          !this.corpses.has(id) &&
+          (this.itemDefinitions.get(`${type.matType},${type.matIndex}`) ??
+            this.itemDefinitions.get(`${type.matType},-1`)) === "CORPSE"
+        )
+          ids.add(id);
+      }
+    }
+    const batch = [...ids].slice(0, 512);
+    if (!batch.length) return;
+    const identities = await this.rpc.corpseIdentities(batch);
+    for (const id of batch) this.corpses.set(id, []);
+    for (const c of identities)
+      this.corpses.set(
+        c.id,
+        this.creatureGraphics.corpse(c.race, c.caste, c.child),
+      );
+    while (this.corpses.size > 8192)
+      this.corpses.delete(this.corpses.keys().next().value!);
+  }
   async initialize() {
     const items = await this.rpc.call("GetItemList");
     for (const d of records(items.materialList)) {
@@ -408,6 +450,7 @@ export class SceneryReader {
           this.itemDefinitions,
           this.materialDefinitions,
           this.graphics,
+          this.corpses,
         ).slice(0, Math.max(0, 512 - objects.length)),
       ],
     };
@@ -518,6 +561,7 @@ export class SceneryReader {
           });
       }
     }
+    await this.prepareCorpses([{ chunk, items: raw?.items }]);
     chunk.objects = this.withItems(chunk, raw?.items).objects?.slice(0, 512);
   }
 }

@@ -2,6 +2,7 @@ import net from "node:net";
 import { Frames, frame } from "./framing.js";
 import { methods, type, type Method } from "./protocol.js";
 import { miningLua } from "./mining-lua.js";
+import { corpseIdentityLua, parseCorpseIdentities } from "./corpse-identity.js";
 export class Rpc {
   private socket: net.Socket;
   private frames = new Frames();
@@ -41,7 +42,7 @@ export class Rpc {
               const fragments = notification.toObject(
                 notification.decode(f.body),
               ).fragments as { text: string }[] | undefined;
-              if (this.miningText.join("").length < 65536)
+              if (this.miningText.join("").length < 262144)
                 this.miningText.push(...(fragments ?? []).map((p) => p.text));
             }
             continue;
@@ -131,6 +132,35 @@ export class Rpc {
   }
   close() {
     this.socket.destroy();
+  }
+  async corpseIdentities(ids: number[]) {
+    if (
+      ids.length > 512 ||
+      ids.some((id) => !Number.isSafeInteger(id) || id < 0)
+    )
+      throw Error("Invalid corpse item IDs");
+    if (!ids.length) return [];
+    if (this.busy) throw Error("Concurrent DFHack requests forbidden");
+    this.miningText = [];
+    try {
+      const request = type("dfproto.CoreRunCommandRequest");
+      await this.wait(() =>
+        this.socket.write(
+          frame(
+            1,
+            request
+              .encode({
+                command: "lua",
+                arguments: [corpseIdentityLua, ...ids.map(String)],
+              })
+              .finish(),
+          ),
+        ),
+      );
+      return parseCorpseIdentities(this.miningText.join(""), ids);
+    } finally {
+      this.miningText = undefined;
+    }
   }
   async mining(
     args: string[],
