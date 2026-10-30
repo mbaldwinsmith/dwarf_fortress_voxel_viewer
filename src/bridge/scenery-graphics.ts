@@ -12,6 +12,19 @@ export function sceneryMappings(text: string) {
     const [tag, ...a] = m[1].split(":");
     if (tag === "TOOL_GRAPHICS") tool = a.slice(3).join(":");
     if (
+      tool &&
+      tag === "TOOL_GRAPHICS_HIVE_BLD" &&
+      a.length === 3 &&
+      /^\d+$/.test(a[1]) &&
+      /^\d+$/.test(a[2])
+    )
+      entries.push({
+        key: `${tool}_BUILDING`,
+        page: a[0],
+        x: Number(a[1]),
+        y: Number(a[2]),
+      });
+    if (
       /^TOOL_GRAPHICS_(WOOD|STONE|METAL|GLASS)$/.test(tag) &&
       tool &&
       a.length === 4 &&
@@ -94,6 +107,7 @@ export class SceneryGraphics {
   materialPalettes = new Map<string, NonNullable<SpriteLayer["palette"]>>();
   gemIds = new Set<string>();
   oreIds = new Set<string>();
+  metalIds = new Set<string>();
   refs = new Map<string, SpriteRef>();
   constructor(private files: Map<string, string>) {}
   async load(installation: string) {
@@ -142,6 +156,7 @@ export class SceneryGraphics {
           });
         if (/\[IS_GEM:/.test(m[2])) this.gemIds.add(`INORGANIC:${m[1]}`);
         if (/\[METAL_ORE:/.test(m[2])) this.oreIds.add(`INORGANIC:${m[1]}`);
+        if (/\[IS_METAL\]/.test(m[2])) this.metalIds.add(`INORGANIC:${m[1]}`);
       }
     }
     for (const module of [

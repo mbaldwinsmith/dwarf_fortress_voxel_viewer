@@ -2,7 +2,7 @@ import type { Bounds, Chunk, SceneryObject } from "../shared/model.js";
 import type { Rpc } from "./rpc.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
 import { textureTerrain, terrainMaterials } from "./terrain-art.js";
-import { groundItems } from "./ground-items.js";
+import { groundItems, materialFamily } from "./ground-items.js";
 import { flowTokens } from "./flows.js";
 import type { Graphics } from "./graphics.js";
 import type { SpriteLayer } from "../shared/model.js";
@@ -68,12 +68,6 @@ const furniture: Record<string, string> = {
   DisplayFurniture: "TOOL_PEDESTAL",
 };
 const uprightFurniture = new Set([
-  "NestBox",
-  "Hive",
-  "Armorstand",
-  "Weaponrack",
-  "Cage",
-  "AnimalTrap",
   "Statue",
   "OfferingPlace",
   "DisplayFurniture",
@@ -86,6 +80,12 @@ const meshFurniture = new Set([
   "Coffin",
   "Bookcase",
   "Box",
+  "Cage",
+  "AnimalTrap",
+  "Armorstand",
+  "Weaponrack",
+  "NestBox",
+  "Hive",
 ]);
 export function buildingObjects(
   chunk: Chunk,
@@ -132,7 +132,13 @@ export function buildingObjects(
     )
       continue;
     const mat = b.material as Record<string, unknown> | undefined,
-      material = mat?.matType === 0 ? "STONE" : "WOOD";
+      definition =
+        mat && materialDefinitions?.get(`${mat.matType},${mat.matIndex}`),
+      material = definition
+        ? materialFamily(definition.id, (graphics as SceneryGraphics).metalIds)
+        : mat?.matType === 0
+          ? "STONE"
+          : "WOOD";
     const prefix =
       category === "Workshop"
         ? workshop[subtype]
@@ -182,11 +188,13 @@ export function buildingObjects(
         } else if (!isShop) {
           const token = `ITEM_${furniture[category]}`;
           sprite =
-            category === "Door"
-              ? b.active === 0
-                ? graphics.get(`${token}_${material}_OPEN`)
-                : graphics.get(`${token}_${material}_CLOSED:ALL`)
-              : undefined;
+            category === "Hive"
+              ? graphics.get("ITEM_TOOL_HIVE_BUILDING")
+              : category === "Door"
+                ? b.active === 0
+                  ? graphics.get(`${token}_${material}_OPEN`)
+                  : graphics.get(`${token}_${material}_CLOSED:ALL`)
+                : undefined;
           sprite ??=
             (["Armorstand", "Weaponrack"].includes(category)
               ? graphics.get(`${token}_${material}_EMPTY`)
@@ -250,11 +258,13 @@ export function buildingObjects(
                     SceneryObject["furniture"]
                   >["type"],
                   ...(material === "STONE" ? { heavy: true as const } : {}),
+                  ...(definition?.color ? { color: definition.color } : {}),
                 },
               }
             : {}),
-          kind:
-            category === "Door"
+          kind: meshFurniture.has(category)
+            ? "ground"
+            : category === "Door"
               ? "door"
               : uprightFurniture.has(category)
                 ? "upright"

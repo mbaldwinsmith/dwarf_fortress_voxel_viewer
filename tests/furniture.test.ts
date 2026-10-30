@@ -6,6 +6,7 @@ import { buildingObjects } from "../src/bridge/scenery.js";
 import { parseServerMessage } from "../src/shared/validation.js";
 import { sceneryMappings } from "../src/bridge/scenery-graphics.js";
 import type { Chunk, SceneryObject, SpriteRef } from "../src/shared/model.js";
+import { FURNITURE_TYPES } from "../src/shared/model.js";
 const sprite: SpriteRef = {
   asset: "a".repeat(24),
   x: 0,
@@ -40,15 +41,7 @@ const object = (
   furniture: { type },
 });
 it("grounds complete furniture volumes within a tile and below the next ceiling", () => {
-  for (const type of [
-    "table",
-    "chair",
-    "bed",
-    "cabinet",
-    "coffin",
-    "bookcase",
-    "chest",
-  ] as const) {
+  for (const type of FURNITURE_TYPES) {
     const o = object(type),
       faces = furnitureFaces(o, 4.12),
       p = faces.flatMap((f) => f.positions);

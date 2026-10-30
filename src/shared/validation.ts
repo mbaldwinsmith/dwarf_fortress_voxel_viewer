@@ -1,4 +1,5 @@
 import type { ServerMessage, Shape } from "./model.js";
+import { FURNITURE_TYPES } from "./model.js";
 const object = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 const int = (v: unknown): v is number =>
@@ -341,18 +342,13 @@ export function parseServerMessage(value: unknown): ServerMessage {
           if (
             o.furniture !== undefined &&
             (!object(o.furniture) ||
-              ![
-                "table",
-                "chair",
-                "bed",
-                "cabinet",
-                "coffin",
-                "bookcase",
-                "chest",
-              ].includes(String(o.furniture.type)) ||
+              !(FURNITURE_TYPES as readonly string[]).includes(
+                String(o.furniture.type),
+              ) ||
               (o.furniture.heavy !== undefined && o.furniture.heavy !== true) ||
+              (o.furniture.color !== undefined && !rgb(o.furniture.color)) ||
               o.kind !== "ground" ||
-              !o.id.startsWith("b:"))
+              !(o.id.startsWith("b:") || o.id.startsWith("i:")))
           )
             throw Error("Invalid furniture mesh");
           if (o.tint !== undefined && !rgb(o.tint))

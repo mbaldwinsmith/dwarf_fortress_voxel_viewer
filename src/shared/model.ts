@@ -85,11 +85,31 @@ export interface FlowEffect {
   density: number;
   frames?: SpriteRef[];
 }
+export const FURNITURE_TYPES = [
+  "table",
+  "chair",
+  "bed",
+  "cabinet",
+  "coffin",
+  "bookcase",
+  "chest",
+  "barrel",
+  "bin",
+  "bucket",
+  "pot",
+  "cage",
+  "animaltrap",
+  "weaponrack",
+  "armorstand",
+  "nestbox",
+  "hive",
+] as const;
+export type FurnitureType = (typeof FURNITURE_TYPES)[number];
 export interface SceneryObject {
   furniture?: {
-    type:
-      "table" | "chair" | "bed" | "cabinet" | "coffin" | "bookcase" | "chest";
+    type: FurnitureType;
     heavy?: true;
+    color?: [number, number, number];
   };
   palette?: SpriteLayer["palette"];
   tint?: [number, number, number];

@@ -131,7 +131,7 @@ it("selects species shrubs, dead plants and saplings without exposing hidden veg
   c.tiles[17].shape = "wall";
   expect(plantObjects(c, [p], plants, art)).toEqual([]);
 });
-it("loads native tool art and renders nest boxes and omitted furniture upright", () => {
+it("loads native tool art and distinguishes 3D furnishings from upright sprites", () => {
   const mappings = sceneryMappings(
     "[TOOL_GRAPHICS:TOOLS:0:10:ITEM_TOOL_NEST_BOX]" +
       "[TOOL_GRAPHICS:TOOLS:2:11:ITEM_TOOL_HIVE]",
@@ -156,9 +156,22 @@ it("loads native tool art and renders nest boxes and omitted furniture upright",
     const objects = buildingObjects(c, [b], new Map([["13,0,-1", category]]), {
       get: (key) => (key === token ? sprite : undefined),
     });
-    expect(objects).toMatchObject([{ kind: "upright", sprite }]);
-    const heights = objectQuad(objects[0]).filter((_, i) => i % 3 === 1);
-    expect(Math.max(...heights) - Math.min(...heights)).toBeCloseTo(1);
+    const model = [
+      "NestBox",
+      "Hive",
+      "Armorstand",
+      "Weaponrack",
+      "Cage",
+      "AnimalTrap",
+    ].includes(category);
+    expect(objects).toMatchObject([
+      { kind: model ? "ground" : "upright", sprite },
+    ]);
+    if (model) expect(objects[0].furniture).toBeDefined();
+    else {
+      const heights = objectQuad(objects[0]).filter((_, i) => i % 3 === 1);
+      expect(Math.max(...heights) - Math.min(...heights)).toBeCloseTo(1);
+    }
     c.objects = objects;
     expect(() =>
       parseServerMessage({

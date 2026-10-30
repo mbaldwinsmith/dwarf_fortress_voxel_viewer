@@ -1,4 +1,5 @@
 import type { SceneryObject, SpriteRef } from "../shared/model.js";
+import { storageFaces } from "./storage-models.js";
 export interface FurnitureFace {
   uvs?: number[];
   positions: number[];
@@ -26,6 +27,8 @@ export function furnitureFaces(
   ground: number,
 ): FurnitureFace[] {
   if (!o.furniture || !o.sprite) return [];
+  const storage = storageFaces(o, ground);
+  if (storage) return storage;
   const faces: FurnitureFace[] = [],
     type = o.furniture.type;
   const wood = crop(

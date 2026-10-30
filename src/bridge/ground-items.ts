@@ -1,8 +1,21 @@
-import type { Chunk, SceneryObject, SpriteLayer } from "../shared/model.js";
+import type {
+  Chunk,
+  SceneryObject,
+  SpriteLayer,
+  FurnitureType,
+} from "../shared/model.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
 import type { TerrainMaterial } from "./terrain-art.js";
 
 const key = (p: Record<string, unknown>) => `${p.matType},${p.matIndex}`;
+export const materialFamily = (id?: string, metals?: ReadonlySet<string>) =>
+  id && metals?.has(id)
+    ? "METAL"
+    : id?.includes("GLASS")
+      ? "GLASS"
+      : id?.startsWith("INORGANIC:")
+        ? "STONE"
+        : "WOOD";
 const aliases: Record<string, string> = {
   BAR: "BARS",
   ROUGH: "ROUGH_GEM",
@@ -18,6 +31,9 @@ const aliases: Record<string, string> = {
   SLAB: "SLAB_BLANK",
   STATUE: "STATUE_ITEM",
   HATCH_COVER: "HATCH_COVER",
+  ARMORSTAND: "ARMOR_STAND",
+  WEAPONRACK: "WEAPON_RACK",
+  ANIMALTRAP: "ANIMAL_TRAP",
 };
 // item_flags from the pinned df-structures: held/container contents, removed,
 // installed furniture, construction, encased, deleted, interface-hidden.
@@ -36,7 +52,7 @@ export function groundItems(
   definitions: Map<string, string>,
   materials: Map<string, TerrainMaterial>,
   graphics: Pick<SceneryGraphics, "get"> &
-    Partial<Pick<SceneryGraphics, "materialPalettes">>,
+    Partial<Pick<SceneryGraphics, "materialPalettes" | "metalIds">>,
   corpses?: ReadonlyMap<number, SpriteLayer[]>,
 ): SceneryObject[] {
   const cells = new Map<number, SceneryObject>();
@@ -81,11 +97,37 @@ export function groundItems(
       BAR: "BARS_GRAPHICS",
     }[category];
     const token = aliases[category] ?? category;
-    const family = material?.id.startsWith("INORGANIC:") ? "STONE" : "WOOD";
+    const family = materialFamily(material?.id, graphics.metalIds);
+    const model =
+      (
+        {
+          BARREL: "barrel",
+          BIN: "bin",
+          BUCKET: "bucket",
+          CAGE: "cage",
+          ANIMALTRAP: "animaltrap",
+          ARMORSTAND: "armorstand",
+          WEAPONRACK: "weaponrack",
+        } as Record<string, FurnitureType>
+      )[category] ??
+      (
+        {
+          ITEM_TOOL_LARGE_POT: "pot",
+          ITEM_TOOL_NEST_BOX: "nestbox",
+          ITEM_TOOL_HIVE: "hive",
+        } as Record<string, FurnitureType>
+      )[subtype];
+    const modelToken = subtype?.startsWith("ITEM_") ? subtype : `ITEM_${token}`;
+    const modelSprite =
+      model &&
+      (graphics.get(`${modelToken}_${family}_EMPTY`) ??
+        graphics.get(`${modelToken}_${family}`) ??
+        graphics.get(`${modelToken}_WOOD_EMPTY`));
     const corpse = category === "CORPSE" ? corpses?.get(item.id) : undefined;
     const sprite =
       corpse?.[0]?.sprite ||
       (override && material && graphics.get(`${override}:${material.id}`)) ||
+      modelSprite ||
       (subtype && graphics.get(subtype)) ||
       graphics.get(`ITEM_${token}`) ||
       graphics.get(`ITEM_${token}_${family}:1`) ||
@@ -98,6 +140,14 @@ export function groundItems(
       z,
       kind: "ground",
       sprite,
+      ...(model
+        ? {
+            furniture: {
+              type: model,
+              ...(material?.color ? { color: material.color } : {}),
+            },
+          }
+        : {}),
       ...(corpse?.length
         ? {
             ...(corpse[0].tint ? { tint: corpse[0].tint } : {}),
@@ -114,7 +164,8 @@ export function groundItems(
     const palette = material && graphics.materialPalettes?.get(material.id);
     if (
       palette &&
-      ["BOULDER", "ROUGH", "SMALLGEM", "BAR", "BLOCKS"].includes(category)
+      (model ||
+        ["BOULDER", "ROUGH", "SMALLGEM", "BAR", "BLOCKS"].includes(category))
     )
       o.palette = palette;
     else if (
