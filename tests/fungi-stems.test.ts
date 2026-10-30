@@ -3,6 +3,10 @@ import {
   appendFungalStem,
   roundFungalStem,
 } from "../src/viewer/fungi-stems.js";
+import {
+  appendFungalBranches,
+  roundFungalBranches,
+} from "../src/viewer/fungi-branches.js";
 import type { MeshData } from "../src/viewer/mesh.js";
 import {
   chunkKey,
@@ -37,6 +41,38 @@ const block = (x = 0, z = 4): Chunk => ({
   })),
 });
 const output = (): MeshData => ({ positions: [], colors: [], uvs: [] });
+it("rounds yellow fungiwood and extends branch ends inside neighbouring trunks", () => {
+  const c = block(),
+    trunk: Tile = { ...stem(), tree: { species: "fungiwood", bark } };
+  c.tiles[68] = trunk;
+  const branch: Tile = { ...trunk, treeGraphic: "TREE_BRANCH_E" };
+  c.tiles[69] = branch;
+  const all = new Map([[chunkKey(c), c]]),
+    data = output();
+  expect(roundFungalStem(trunk)).toBe(true);
+  expect(roundFungalBranches(branch)).toBe(true);
+  appendFungalBranches(data, branch, 5, 4, 4, all, () => [0, 0, 1, 1]);
+  const points = Array.from({ length: data.positions.length / 3 }, (_, i) =>
+    data.positions.slice(i * 3, i * 3 + 3),
+  );
+  const joint = points.filter((p) => p[0] < 4.6);
+  expect(joint.length).toBeGreaterThan(0);
+  expect(
+    joint.every(
+      (p) =>
+        Math.hypot(p[0] - 4.5, p[2] - 4.5) < 0.46875 && p[1] > 4 && p[1] < 5,
+    ),
+  ).toBe(true);
+  expect(data.uvs.every((v) => Number.isFinite(v) && v >= 0 && v <= 1)).toBe(
+    true,
+  );
+  c.tiles[68] = { ...trunk, shape: "unknown" };
+  const hidden = output();
+  appendFungalBranches(hidden, branch, 5, 4, 4, all, () => [0, 0, 1, 1]);
+  expect(
+    Math.min(...hidden.positions.filter((_, i) => i % 3 === 0)),
+  ).toBeGreaterThan(5);
+});
 it("extrudes the native circular stalk section and extends its top into both thick and thin caps", () => {
   for (const token of ["TREE_CAP_WALL_N", "TREE_CAP_FLOOR_1"]) {
     const c = block(),
@@ -71,6 +107,27 @@ it("extrudes the native circular stalk section and extends its top into both thi
     ).toBe(true);
     expect(roundFungalStem({ ...stem(), shape: "unknown" })).toBe(false);
   }
+});
+it("joins changing trunk widths with matching rings instead of open shoulders", () => {
+  const a = block(),
+    b = block(0, 5);
+  a.tiles[68] = stem();
+  b.tiles[68] = stem();
+  b.tiles[69] = stem();
+  const all = new Map([a, b].map((c) => [chunkKey(c), c])),
+    lower = output(),
+    upper = output();
+  appendFungalStem(lower, a.tiles[68], 4, 4, 4, all, () => [0, 0, 1, 1]);
+  appendFungalStem(upper, b.tiles[68], 4, 4, 5, all, () => [0, 0, 1, 1]);
+  const ring = (mesh: MeshData) =>
+    new Set(
+      Array.from({ length: mesh.positions.length / 3 }, (_, i) =>
+        mesh.positions.slice(i * 3, i * 3 + 3),
+      )
+        .filter((p) => Math.abs(p[1] - 5) < 1e-8)
+        .map((p) => p.map((v) => Math.round(v * 1e6)).join(",")),
+    );
+  expect(ring(lower)).toEqual(ring(upper));
 });
 it("joins broad multi-tile stalks across a chunk boundary as one rounded section", () => {
   const a = block(),

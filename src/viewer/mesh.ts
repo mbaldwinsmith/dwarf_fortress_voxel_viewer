@@ -12,6 +12,7 @@ import { treeBoxes, treeGround } from "./trees.js";
 import { exposedBoxFaces } from "./box-surface.js";
 import { buildFungiCaps, type FungiData } from "./fungi-caps.js";
 import { appendFungalStem, roundFungalStem } from "./fungi-stems.js";
+import { appendFungalBranches, roundFungalBranches } from "./fungi-branches.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
@@ -128,6 +129,14 @@ export function buildMesh(
     const t = c.tiles[i];
     if (!t || t.shape === "empty") continue;
     surfaces = t.shape === "unknown" ? undefined : t.surfaces;
+    // Hidden material identities stay redacted, but exposed geometry behind
+    // plants still needs a generic stone skin instead of flat grey faces.
+    if (t.sealed && c.ceilingTexture)
+      surfaces = {
+        top: c.ceilingTexture,
+        side: c.ceilingTexture,
+        topTint: [190, 190, 190],
+      };
     capTexture = t.wallCap;
     capRim = t.wallRim ?? [];
     rimTint = t.wallRimTint ? linearMaterialColor(t.wallRimTint) : undefined;
@@ -269,12 +278,16 @@ export function buildMesh(
       treeFace = true;
       const roundStem = roundFungalStem(t);
       if (roundStem) appendFungalStem(out, t, x, y, z, chunks, textureUV);
+      const roundBranches = roundFungalBranches(t);
+      if (roundBranches)
+        appendFungalBranches(out, t, x, y, z, chunks, textureUV);
       color = [1, 1, 1];
       capTexture = undefined;
       capRim = [];
       const parts = treeBoxes(t, x, y, z, chunks);
       const faces = exposedBoxFaces(parts);
       for (const [index, part] of parts.entries()) {
+        if (roundBranches && part.part === "bark") continue;
         if (
           roundStem &&
           part.part === "bark" &&

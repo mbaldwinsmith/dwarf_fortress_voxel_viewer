@@ -1,6 +1,6 @@
 import type { Chunk, Tile } from "../shared/model.js";
 export const openTile = (t: Tile | undefined) =>
-  !!t && t.shape !== "unknown" && t.shape !== "wall";
+  !!t && t.shape !== "unknown" && (t.shape !== "wall" || !!t.treeGraphic);
 /** Reveal natural wall material only beside confirmed open, revealed terrain.
  * Missing neighbours fail closed; a later block sweep can reveal the edge. */
 export function maskEnclosedWalls(

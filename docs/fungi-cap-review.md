@@ -37,3 +37,26 @@ Geometry checks cover closed thin caps, horizontal and vertical chunk seams,
 closed cutaways, hidden tiles, separate cap layers, native stalk textures, broad
 stalk joins and bounded penetration into thin caps. Worker tests check stale
 result rejection and coalescing. Browser captures completed without errors.
+
+## Integration corrections
+
+Walls beside revealed tree-shaped tiles now retain their exposed material
+textures. Sealed rock faces use generic stone artwork while their material
+identity stays redacted. Mixed-scene captures check stone walls behind both
+tower-caps and yellow fungiwood rather than only an isolated mushroom.
+
+Cap changes invalidate the adjacent three levels rather than all sixteen.
+Identical jobs are deduplicated; a 32 MiB bounded result cache reuses completed
+caps. Existing cap surfaces remain attached during asynchronous replacement,
+and nearby jobs take priority. Twenty repeated mixed-scene refreshes retained
+all four visible cap layers with zero additional worker mesh calculations.
+
+A captured 23-chunk sample went from 77,865 to 51,348 cap triangles (34% fewer).
+Its single-run meshing time on the development machine went from 3,025 ms to
+1,957 ms; this is a geometry benchmark, not an overall frame-rate guarantee.
+Thin-floor and chunk-boundary closure tests still pass.
+
+Yellow fungiwood trunks are round as well. Matching rings taper between changing
+trunk widths, and directional tubular branches extend inside their trunk joints.
+Native bark texture repeats along branches rather than stretching end-grain
+artwork across their undersides.

@@ -71,6 +71,50 @@ it("preserves constructed walls and tree art while leaving unknown cells redacte
   expect(c.tiles[0].sealed).toBeUndefined();
   expect(c.tiles[1].treeGraphic).toBe("TREE_TRUNK_PILLAR");
 });
+it("keeps wall textures exposed beside revealed fungal caps and spore trunks", () => {
+  for (const treeGraphic of [
+    "TREE_CAP_WALL_N",
+    "TREE_TRUNK_PILLAR",
+    "TREE_TRUNK_BRANCH_NSWE",
+  ]) {
+    const c = chunk();
+    c.tiles[136] = { shape: "wall", material: 24, name: "Fungus", treeGraphic };
+    maskEnclosedWalls(c);
+    for (const i of [135, 137, 120, 152]) {
+      expect(c.tiles[i].sealed).toBeUndefined();
+      expect(c.tiles[i].materialName).toBe("native gold");
+    }
+    expect(c.tiles[0].sealed).toBe(true);
+  }
+  const c = chunk();
+  c.tiles[136] = {
+    shape: "unknown",
+    material: 0,
+    name: "Unknown",
+    treeGraphic: "TREE_TRUNK_PILLAR",
+  };
+  maskEnclosedWalls(c);
+  expect(c.tiles[135].sealed).toBe(true);
+});
+it("textures redacted rock faces with generic stone without restoring hidden material metadata", () => {
+  const c = chunk();
+  maskEnclosedWalls(c);
+  c.ceilingTexture = ref;
+  const refs: (SpriteRef | undefined)[] = [];
+  buildMesh(
+    c,
+    new Map([["0,0,3", c]]),
+    3,
+    (r) => {
+      refs.push(r);
+      return [0, 0, 1, 1];
+    },
+    true,
+  );
+  expect(refs).toContain(ref);
+  expect(c.tiles[17].materialName).toBeUndefined();
+  expect(c.tiles[17].surfaces).toBeUndefined();
+});
 it("does not rehydrate sealed ore from raw material pairs and rejects sealed metadata leaks", () => {
   const c = chunk();
   maskEnclosedWalls(c);

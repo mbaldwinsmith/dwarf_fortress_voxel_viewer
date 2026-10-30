@@ -26,7 +26,6 @@ const cells = new WeakMap<
   { x: number; y: number; z: number; tile: Tile }[]
 >();
 const STEP = 0.25;
-const VERTICAL_STEP = 0.125;
 function capCells(c: Chunk) {
   let result = cells.get(c);
   if (!result) {
@@ -243,14 +242,19 @@ export function buildFungiColumns(
     }
     return v;
   };
+  // One near-boundary sample retains .22-tile floors; the remaining quarter
+  // steps avoid spending eight vertical slices on every thick cap voxel.
+  const heights = [0, 0.0625, 0.3125, 0.5625, 0.8125, 1].map((h) => c.z + h);
   for (let x = minX; x < maxX; x += STEP)
     for (let y = minY; y < maxY; y += STEP)
-      for (let z = c.z; z < c.z + 1; z += VERTICAL_STEP) {
+      for (let layer = 0; layer < heights.length - 1; layer++) {
+        const z = heights[layer],
+          verticalStep = heights[layer + 1] - z;
         const p = corners.map(
             (v) =>
               [
                 x + v[0] * STEP,
-                z + v[1] * VERTICAL_STEP,
+                z + v[1] * verticalStep,
                 y + v[2] * STEP,
               ] as Point,
           ),
@@ -334,9 +338,10 @@ export function fungiMaterial(atlas: THREE.Texture) {
     vec3 samplePlane(vec2 p,vec4 rect){vec2 uv=1.-abs(fract(p*.5)*2.-1.);return texture2D(atlas,mix(rect.xy,rect.zw,uv)).rgb;}
     vec3 triplanar(vec4 rect,vec3 weights,float scale){vec3 p=positionWorld*scale;return samplePlane(p.zy,rect)*weights.x+samplePlane(p.xz,rect)*weights.y+samplePlane(p.xy,rect)*weights.z;}
     void main(){vec3 n=normalize(surfaceNormal);vec3 w=pow(abs(n),vec3(3.));w/=max(dot(w,vec3(1.)),.0001);
-      vec3 skin=triplanar(capUV,w,1.),gills=triplanar(undersideUV,w,2.5);
+      vec3 skin=triplanar(capUV,w,1.);
       float underside=smoothstep(.45,.94,-n.y);
-      vec3 color=mix(skin,mix(skin,gills*.82,.72),underside);
+      vec3 color=skin;
+      if(underside>0.){vec3 gills=triplanar(undersideUV,w,2.5);color=mix(skin,mix(skin,gills*.82,.72),underside);}
       float light=.76+.24*max(dot(n,normalize(vec3(-.4,.85,.3))),0.);
       gl_FragColor=vec4(color*light,1.);
       #include <tonemapping_fragment>

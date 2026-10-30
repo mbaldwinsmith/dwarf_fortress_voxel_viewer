@@ -673,11 +673,7 @@ export class FortressScene {
       ) {
         for (let x = c.x - 16; x <= c.x + 16; x += 16)
           for (let y = c.y - 16; y <= c.y + 16; y += 16)
-            for (
-              let z = this.cut - LEVELS_BELOW;
-              z <= this.cut + LEVELS_ABOVE;
-              z++
-            ) {
+            for (let z = c.z - 1; z <= c.z + 1; z++) {
               const key = `${x},${y},${z}`,
                 other = this.state.chunks.get(key);
               if (other) {
@@ -790,6 +786,9 @@ export class FortressScene {
       }
       count++;
       const old = this.meshes.get(k);
+      // Keep the last complete cap on screen while a changed surface is meshed.
+      const previousCaps = old ? [...old.children] : [];
+      for (const cap of previousCaps) old!.remove(cap);
       if (old) {
         this.scene.remove(old);
         disposeTerrain(old);
@@ -827,13 +826,19 @@ export class FortressScene {
       g.setAttribute("uv", new THREE.Float32BufferAttribute(data.uvs, 2));
       g.computeBoundingBox();
       const m = new THREE.Mesh(g, this.material);
+      for (const cap of previousCaps) m.add(cap);
       const hasCap = this.capMesher.request(
         c,
         this.state.chunks,
         this.terrainAtlas.uv,
         this.navigation !== "firstPerson" && c.z === this.cut,
         (data) => {
-          if (this.meshes.get(k) !== m || !data.positions.length) return;
+          if (this.meshes.get(k) !== m) return;
+          for (const cap of [...m.children]) {
+            m.remove(cap);
+            if (cap instanceof THREE.Mesh) disposeTerrain(cap);
+          }
+          if (!data.positions.length) return;
           const capGeometry = new THREE.BufferGeometry();
           capGeometry.setAttribute(
             "position",
@@ -855,8 +860,18 @@ export class FortressScene {
           m.add(new THREE.Mesh(capGeometry, this.capMaterial));
           this.emptyChunks.delete(c);
         },
+        Math.hypot(
+          c.x + 8 - this.camera.position.x,
+          c.y + 8 - this.camera.position.z,
+          (c.z - this.camera.position.y) * 2,
+        ),
       );
       if (hasCap) this.emptyChunks.delete(c);
+      else
+        for (const cap of [...m.children]) {
+          m.remove(cap);
+          if (cap instanceof THREE.Mesh) disposeTerrain(cap);
+        }
       if (!data.positions.length && !hasCap) {
         g.dispose();
         continue;
