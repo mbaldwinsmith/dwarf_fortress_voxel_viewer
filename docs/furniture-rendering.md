@@ -1,13 +1,20 @@
 # Furniture meshes
 
-Installed tables, chairs/thrones and beds carry explicit furniture metadata from
+Installed tables, chairs/thrones, beds, cabinets, coffins, bookcases and chests carry explicit furniture metadata from
 the companion and render as small 3D models in all views. Loose furniture items
 remain ground sprites. Unknown tiles never expose furniture.
 
-Tables have a raised top and four legs. Wooden chairs have a seat, back, legs and
-stretchers; stone thrones have thicker supports and arms. Beds have a frame,
+Tables have a raised top and four legs. Chairs and thrones are compact backless
+seats with a symmetric footprint; wooden seats have legs and stone seats use a
+solid pedestal. Beds have a frame,
 headboard, footboard, mattress, blanket and pillow. Models fit inside one tile and
 below the next ceiling, and rest on the local terrain surface.
+
+Cabinets have raised double doors and native handles. Bookcases have real
+recessed shelves with native book details at the back. Those details are native
+artwork, not a live inventory of stored books. Coffins have a closed tapered
+outline with continuous lid UVs. Chests have an overhanging lid and a front latch.
+Bookcase material variants are read from their native `TOOL_GRAPHICS` definitions.
 
 Opaque interior regions of the native artwork texture the frame surfaces, with
 the existing material palettes. Simple directional face shading makes the shape

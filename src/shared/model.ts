@@ -86,7 +86,11 @@ export interface FlowEffect {
   frames?: SpriteRef[];
 }
 export interface SceneryObject {
-  furniture?: { type: "table" | "chair" | "bed"; heavy?: true };
+  furniture?: {
+    type:
+      "table" | "chair" | "bed" | "cabinet" | "coffin" | "bookcase" | "chest";
+    heavy?: true;
+  };
   palette?: SpriteLayer["palette"];
   tint?: [number, number, number];
   details?: {

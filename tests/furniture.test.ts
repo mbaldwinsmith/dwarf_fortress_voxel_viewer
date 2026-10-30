@@ -4,6 +4,7 @@ import { furnitureFaces } from "../src/viewer/furniture.js";
 import { ScenerySprites } from "../src/viewer/scenery.js";
 import { buildingObjects } from "../src/bridge/scenery.js";
 import { parseServerMessage } from "../src/shared/validation.js";
+import { sceneryMappings } from "../src/bridge/scenery-graphics.js";
 import type { Chunk, SceneryObject, SpriteRef } from "../src/shared/model.js";
 const sprite: SpriteRef = {
   asset: "a".repeat(24),
@@ -25,7 +26,9 @@ const chunk = (): Chunk => ({
     name: "Floor",
   })),
 });
-const object = (type: "table" | "chair" | "bed"): SceneryObject => ({
+const object = (
+  type: NonNullable<SceneryObject["furniture"]>["type"],
+): SceneryObject => ({
   id: "b:1",
   x: 2,
   y: 3,
@@ -37,7 +40,15 @@ const object = (type: "table" | "chair" | "bed"): SceneryObject => ({
   furniture: { type },
 });
 it("grounds complete furniture volumes within a tile and below the next ceiling", () => {
-  for (const type of ["table", "chair", "bed"] as const) {
+  for (const type of [
+    "table",
+    "chair",
+    "bed",
+    "cabinet",
+    "coffin",
+    "bookcase",
+    "chest",
+  ] as const) {
     const o = object(type),
       faces = furnitureFaces(o, 4.12),
       p = faces.flatMap((f) => f.positions);
@@ -106,12 +117,20 @@ it("transmits explicit furniture types only for installed visible furniture", ()
     buildingType: { buildingType: 1, buildingSubtype: -1, buildingCustom: -1 },
     material: { matType: 0, matIndex: 7 },
   };
-  for (const type of ["Table", "Chair", "Bed"]) {
+  for (const type of [
+    "Table",
+    "Chair",
+    "Bed",
+    "Cabinet",
+    "Coffin",
+    "Bookcase",
+    "Box",
+  ]) {
     c.objects = buildingObjects(c, [b], new Map([["1,-1,-1", type]]), {
       get: () => sprite,
     });
     expect(c.objects[0].furniture).toEqual({
-      type: type.toLowerCase(),
+      type: type === "Box" ? "chest" : type.toLowerCase(),
       heavy: true,
     });
     const message = () => ({
@@ -131,4 +150,66 @@ it("transmits explicit furniture types only for installed visible furniture", ()
       get: () => sprite,
     }),
   ).toEqual([]);
+});
+it("closes the tapered coffin and keeps lid UVs continuous across the shoulders", () => {
+  const faces = furnitureFaces(object("coffin"), 4.12),
+    edges = new Map<string, number>();
+  for (const f of faces) {
+    const points = Array.from({ length: 4 }, (_, i) =>
+      f.positions
+        .slice(i * 3, i * 3 + 3)
+        .map((n) => n.toFixed(6))
+        .join(","),
+    );
+    for (let i = 0; i < 4; i++) {
+      const key = [points[i], points[(i + 1) % 4]].sort().join("/");
+      edges.set(key, (edges.get(key) ?? 0) + 1);
+    }
+  }
+  expect([...edges.values()].every((count) => count === 2)).toBe(true);
+  const shared = new Map<string, string>();
+  for (const f of faces.filter((f) => f.uvs))
+    for (let i = 0; i < 4; i++) {
+      const point = f.positions.slice(i * 3, i * 3 + 3).join(","),
+        uv = f.uvs!.slice(i * 2, i * 2 + 2).join(",");
+      if (shared.has(point)) expect(uv).toBe(shared.get(point));
+      else shared.set(point, uv);
+    }
+});
+it("resolves bookcase material artwork within the current native tool definition", () => {
+  expect(
+    sceneryMappings(
+      "[TOOL_GRAPHICS:BOOKS:0:1:ITEM_TOOL_BOOKCASE][TOOL_GRAPHICS_WOOD:ALL:BOOKS:0:0][TOOL_GRAPHICS_STONE:ALL:BOOKS:0:1][TOOL_GRAPHICS:TOOLS:2:3:ITEM_TOOL_HIVE][TOOL_GRAPHICS_WOOD:ALL:TOOLS:1:3]",
+    ).map((e) => e.key),
+  ).toEqual([
+    "ITEM_TOOL_BOOKCASE",
+    "ITEM_TOOL_BOOKCASE_WOOD",
+    "ITEM_TOOL_BOOKCASE_STONE",
+    "ITEM_TOOL_HIVE",
+    "ITEM_TOOL_HIVE_WOOD",
+  ]);
+});
+it("keeps smaller backless chairs and thrones symmetric in every facing direction", () => {
+  for (const heavy of [false, true]) {
+    const o = object("chair");
+    if (heavy) o.furniture!.heavy = true;
+    const p = furnitureFaces(o, 4.12).flatMap((f) => f.positions);
+    const points = Array.from({ length: p.length / 3 }, (_, i) =>
+      p.slice(i * 3, i * 3 + 3),
+    );
+    const key = ([x, y, z]: number[]) =>
+      [x, y, z].map((v) => v.toFixed(6)).join(",");
+    expect(
+      new Set(
+        points.map(([x, y, z]) =>
+          key([o.x + 0.5 - (z - o.y - 0.5), y, o.y + 0.5 + (x - o.x - 0.5)]),
+        ),
+      ),
+    ).toEqual(new Set(points.map(key)));
+    expect(Math.max(...points.map((p) => p[1])) - 4.12).toBeCloseTo(0.35);
+    expect(
+      Math.max(...points.map((p) => p[0])) -
+        Math.min(...points.map((p) => p[0])),
+    ).toBeCloseTo(0.46);
+  }
 });

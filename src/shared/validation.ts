@@ -341,7 +341,15 @@ export function parseServerMessage(value: unknown): ServerMessage {
           if (
             o.furniture !== undefined &&
             (!object(o.furniture) ||
-              !["table", "chair", "bed"].includes(String(o.furniture.type)) ||
+              ![
+                "table",
+                "chair",
+                "bed",
+                "cabinet",
+                "coffin",
+                "bookcase",
+                "chest",
+              ].includes(String(o.furniture.type)) ||
               (o.furniture.heavy !== undefined && o.furniture.heavy !== true) ||
               o.kind !== "ground" ||
               !o.id.startsWith("b:"))

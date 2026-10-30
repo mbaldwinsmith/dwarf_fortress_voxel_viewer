@@ -224,7 +224,8 @@ export class ScenerySprites {
             const base = batch.positions.length / 3;
             batch.positions.push(...face.positions);
             batch.uvs.push(
-              ...(face.sprite ? uv(face.sprite) : [0, 1, 0, 0, 1, 0, 1, 1]),
+              ...(face.uvs ??
+                (face.sprite ? uv(face.sprite) : [0, 1, 0, 0, 1, 0, 1, 1])),
             );
             const color = (
               face.tint ? linearMaterialColor(face.tint) : [1, 1, 1]

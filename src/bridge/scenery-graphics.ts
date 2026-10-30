@@ -6,9 +6,25 @@ import type { SpriteRef, SpriteLayer } from "../shared/model.js";
 
 export function sceneryMappings(text: string) {
   const entries: { key: string; page: string; x: number; y: number }[] = [];
-  let plant = "";
+  let plant = "",
+    tool = "";
   for (const m of text.matchAll(/\[([^\]\r\n]+)\]/g)) {
     const [tag, ...a] = m[1].split(":");
+    if (tag === "TOOL_GRAPHICS") tool = a.slice(3).join(":");
+    if (
+      /^TOOL_GRAPHICS_(WOOD|STONE|METAL|GLASS)$/.test(tag) &&
+      tool &&
+      a.length === 4 &&
+      a[0] === "ALL" &&
+      /^\d+$/.test(a[2]) &&
+      /^\d+$/.test(a[3])
+    )
+      entries.push({
+        key: `${tool}_${tag.slice(14)}`,
+        page: a[1],
+        x: Number(a[2]),
+        y: Number(a[3]),
+      });
     if (tag === "PLANT_GRAPHICS") plant = a[0];
     if (
       ["BOULDER_GRAPHICS", "ROUGH_GEM_GRAPHICS", "BARS_GRAPHICS"].includes(

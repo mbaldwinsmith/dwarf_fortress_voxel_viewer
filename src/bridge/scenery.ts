@@ -55,7 +55,7 @@ const furniture: Record<string, string> = {
   Hatch: "HATCH_COVER",
   GrateFloor: "GRATE",
   Slab: "SLAB",
-  Bookcase: "BOOKCASE",
+  Bookcase: "TOOL_BOOKCASE",
   TractionBench: "TRACTION_BENCH",
   NestBox: "TOOL_NEST_BOX",
   Hive: "TOOL_HIVE",
@@ -77,6 +77,15 @@ const uprightFurniture = new Set([
   "Statue",
   "OfferingPlace",
   "DisplayFurniture",
+]);
+const meshFurniture = new Set([
+  "Table",
+  "Chair",
+  "Bed",
+  "Cabinet",
+  "Coffin",
+  "Bookcase",
+  "Box",
 ]);
 export function buildingObjects(
   chunk: Chunk,
@@ -193,7 +202,7 @@ export function buildingObjects(
         const matDef =
           mat && materialDefinitions?.get(`${mat.matType},${mat.matIndex}`);
         const palette =
-          ["Table", "Chair", "Bed"].includes(category) && matDef
+          meshFurniture.has(category) && matDef
             ? (graphics as SceneryGraphics).materialPalettes?.get(matDef.id)
             : undefined;
         const details: NonNullable<SceneryObject["details"]> = [];
@@ -232,10 +241,14 @@ export function buildingObjects(
           y,
           z: chunk.z,
           name: id,
-          ...(["Table", "Chair", "Bed"].includes(category)
+          ...(meshFurniture.has(category)
             ? {
                 furniture: {
-                  type: category.toLowerCase() as "table" | "chair" | "bed",
+                  type: (category === "Box"
+                    ? "chest"
+                    : category.toLowerCase()) as NonNullable<
+                    SceneryObject["furniture"]
+                  >["type"],
                   ...(material === "STONE" ? { heavy: true as const } : {}),
                 },
               }
