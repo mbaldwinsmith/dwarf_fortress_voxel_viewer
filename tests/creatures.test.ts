@@ -78,6 +78,18 @@ it("filters undiscovered, unstreamed, off-region, inactive and ambushing creatur
   };
   expect(visibleUnit(u, b, 3, new Map([["0,0,3", hidden]]))).toBe(false);
 });
+it("includes revealed creatures five below and ten above, but not outside that window", () => {
+  const bounds = { ...b, height: 64 },
+    chunks = new Map<number, Chunk>();
+  for (const z of [2, 3, 18, 19]) chunks.set(z, { ...c, z });
+  const all = new Map(
+    [...chunks.values()].map((c) => [`${c.x},${c.y},${c.z}`, c]),
+  );
+  expect(visibleUnit({ ...u, posZ: 3 }, bounds, 8, all)).toBe(true);
+  expect(visibleUnit({ ...u, posZ: 18 }, bounds, 8, all)).toBe(true);
+  expect(visibleUnit({ ...u, posZ: 2 }, bounds, 8, all)).toBe(false);
+  expect(visibleUnit({ ...u, posZ: 19 }, bounds, 8, all)).toBe(false);
+});
 it("replaces unit snapshots, resets sessions and uses depth-tested camera-facing sprites", () => {
   const layer = new CreatureSprites();
   const unit = { id: 1, x: 2, y: 2, z: 3, name: "Test" };

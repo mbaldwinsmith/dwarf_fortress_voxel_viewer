@@ -4,6 +4,7 @@ import { recolor } from "./composite-sprites.js";
 import { SpriteFeet } from "./sprite-ground.js";
 import { surfaceHeight } from "./traversal.js";
 import {
+  LEVELS_BELOW,
   chunkKey,
   tileAt,
   type Chunk,
@@ -308,7 +309,7 @@ export class ScenerySprites {
       this.group.add(group);
     }
   }
-  frame(camera: THREE.Camera, cut: number, minLevel = cut - 2) {
+  frame(camera: THREE.Camera, cut: number, minLevel = cut - LEVELS_BELOW) {
     this.visibleCount = 0;
     for (const group of this.blocks.values()) {
       group.visible = group.userData.z <= cut && group.userData.z >= minLevel;

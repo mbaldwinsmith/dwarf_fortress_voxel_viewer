@@ -541,3 +541,14 @@ all shifted level shortcuts and stair ascent/descent using controlled map data.
 The 141-test suite includes shortcut decoding, unloaded stairs, WASD on stairs
 and DF Screen elevation-override behaviour. The dev preview remains the test target;
 no installer build was run.
+
+## Sixteen-level rendering window
+
+The shared loading/retention window now covers the current level, five below and
+ten above across the full requested footprint. This replaces the separate local
+canopy extension. Terrain, liquids, scenery, flow effects and creature queries
+use the same bounds. First person shows the upper levels; Orbit retains its
+selected cutaway. Map limits clip the window and nearby columns still load first.
+Tests verify all 2304 unique blocks for a 192×192 footprint, map-edge clipping,
+overlap retention, focus ordering and creature visibility at both range limits.
+All 142 tests pass. No installer build was run.

@@ -4,6 +4,8 @@ export interface SpriteLayer {
   palette?: { asset: string; sourceRow: number; row: number };
   tint?: [number, number, number];
 }
+export const LEVELS_BELOW = 5;
+export const LEVELS_ABOVE = 10;
 export interface SpriteRef {
   asset: string;
   x: number;
@@ -162,22 +164,17 @@ export class WorldState {
     return true;
   }
 }
-// A view change keeps the overlapping four levels; only the departing fringe
+// A view change keeps overlapping levels; only the departing fringe
 // leaves memory. A world/session reset remains a full invalidation.
 export function retainChunks(
   chunks: Map<string, Chunk>,
   bounds: Bounds,
   level: number,
-  focus?: { x: number; y: number },
 ) {
   for (const [k, c] of chunks) {
     if (
-      c.z < level - 2 ||
-      c.z > level + 12 ||
-      (c.z > level + 2 &&
-        (!focus ||
-          Math.abs(c.x / 16 - Math.floor(focus.x / 16)) > 2 ||
-          Math.abs(c.y / 16 - Math.floor(focus.y / 16)) > 2)) ||
+      c.z < Math.max(bounds.z, level - LEVELS_BELOW) ||
+      c.z > Math.min(bounds.z + bounds.height - 1, level + LEVELS_ABOVE) ||
       c.x < bounds.x ||
       c.y < bounds.y ||
       c.x >= bounds.x + bounds.width ||

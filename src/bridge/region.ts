@@ -1,4 +1,4 @@
-import type { Bounds } from "../shared/model.js";
+import { LEVELS_ABOVE, LEVELS_BELOW, type Bounds } from "../shared/model.js";
 export class ScreenElevation {
   private native?: number;
   private manual?: number;
@@ -78,11 +78,15 @@ export function blockOrder(
   b: Bounds,
   level: number,
   focus?: { x: number; y: number },
-  canopy = false,
 ): [number, number, number][] {
-  const levels = [level, level + 1, level + 2, level - 1, level - 2].filter(
-    (z) => z >= b.z && z < b.z + b.height,
-  );
+  const offsets = [0];
+  for (let i = 1; i <= Math.max(LEVELS_ABOVE, LEVELS_BELOW); i++) {
+    if (i <= LEVELS_ABOVE) offsets.push(i);
+    if (i <= LEVELS_BELOW) offsets.push(-i);
+  }
+  const levels = offsets
+    .map((offset) => level + offset)
+    .filter((z) => z >= b.z && z < b.z + b.height);
   if (Math.ceil(b.width / 16) * Math.ceil(b.depth / 16) * levels.length > 4096)
     throw Error("Map footprint exceeds the current 4096-block resident limit");
   const xy: [number, number][] = [];
@@ -98,18 +102,6 @@ export function blockOrder(
   // Returning down stairs must not wait for a map-wide overhead sweep.
   for (const [x, y] of xy) {
     for (const z of levels) order.push([x, y, z]);
-    if (
-      canopy &&
-      focus &&
-      Math.abs(x / 16 - Math.floor(focus.x / 16)) <= 2 &&
-      Math.abs(y / 16 - Math.floor(focus.y / 16)) <= 2
-    )
-      for (
-        let z = level + 3;
-        z <= Math.min(level + 12, b.z + b.height - 1);
-        z++
-      )
-        order.push([x, y, z]);
   }
   if (order.length > 4096)
     throw Error("Map footprint exceeds the current 4096-block resident limit");

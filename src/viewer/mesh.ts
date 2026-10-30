@@ -1,4 +1,6 @@
 import {
+  LEVELS_ABOVE,
+  LEVELS_BELOW,
   tileAt,
   type Chunk,
   type Tile,
@@ -51,8 +53,8 @@ export function buildMesh(
   let rimTint: number[] | undefined;
   let foliage = false;
   let treeFace = false;
-  const visibleCut = firstPerson ? cut + 12 : cut;
-  if (c.z > visibleCut) return out;
+  const visibleCut = firstPerson ? cut + LEVELS_ABOVE : cut;
+  if (c.z > visibleCut || c.z < cut - LEVELS_BELOW) return out;
 
   function quad(
     v: number[][],

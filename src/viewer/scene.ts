@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
+  LEVELS_ABOVE,
+  LEVELS_BELOW,
   affected,
   chunkKey,
   type Bounds,
@@ -268,14 +270,16 @@ export class FortressScene {
   }
   private updateVisibility(oldCut: number) {
     const firstPerson = this.navigation === "firstPerson";
-    const top = this.cut + (firstPerson ? 12 : 0);
-    const oldTop = oldCut + (firstPerson ? 12 : 0);
+    const top = this.cut + (firstPerson ? LEVELS_ABOVE : 0);
+    const oldTop = oldCut + (firstPerson ? LEVELS_ABOVE : 0);
     for (const [k, c] of this.state.chunks) {
       const mesh = this.meshes.get(k);
-      if (mesh) mesh.visible = c.z <= top && c.z >= this.cut - 2;
+      if (mesh) mesh.visible = c.z <= top && c.z >= this.cut - LEVELS_BELOW;
       if (
         (oldCut !== this.cut && (c.z === oldTop || c.z === top)) ||
-        ((!mesh || mesh.userData.stale) && c.z <= top && c.z >= this.cut - 2)
+        ((!mesh || mesh.userData.stale) &&
+          c.z <= top &&
+          c.z >= this.cut - LEVELS_BELOW)
       )
         this.dirty.add(k);
     }
@@ -394,8 +398,9 @@ export class FortressScene {
       const c = this.state.chunks.get(k);
       if (!c) continue;
       if (
-        c.z > this.cut + (this.navigation === "firstPerson" ? 12 : 0) ||
-        c.z < this.cut - 2
+        c.z >
+          this.cut + (this.navigation === "firstPerson" ? LEVELS_ABOVE : 0) ||
+        c.z < this.cut - LEVELS_BELOW
       ) {
         const hidden = this.meshes.get(k);
         if (hidden) hidden.userData.stale = true;
@@ -416,7 +421,7 @@ export class FortressScene {
       this.liquids.update(
         [c],
         this.state.chunks,
-        this.cut + (this.navigation === "firstPerson" ? 12 : 0),
+        this.cut + (this.navigation === "firstPerson" ? LEVELS_ABOVE : 0),
       );
       const data = buildMesh(
         c,
@@ -438,17 +443,21 @@ export class FortressScene {
       this.scene.add(m);
     }
     const visibleLevel =
-      this.navigation === "firstPerson" ? this.cut + 12 : this.cut;
-    this.creatures.update(this.state.chunks, visibleLevel, this.cut - 2);
+      this.navigation === "firstPerson" ? this.cut + LEVELS_ABOVE : this.cut;
+    this.creatures.update(
+      this.state.chunks,
+      visibleLevel,
+      this.cut - LEVELS_BELOW,
+    );
     if (this.navigation !== "firstPerson") this.controls.update();
-    this.scenery.frame(this.camera, visibleLevel, this.cut - 2);
-    this.liquids.frame(start, visibleLevel, this.cut - 2);
+    this.scenery.frame(this.camera, visibleLevel, this.cut - LEVELS_BELOW);
+    this.liquids.frame(start, visibleLevel, this.cut - LEVELS_BELOW);
     this.flows.frame(
       this.camera,
       this.state.chunks,
       start,
       visibleLevel,
-      this.cut - 2,
+      this.cut - LEVELS_BELOW,
     );
     this.renderer.render(this.scene, this.camera);
     this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;

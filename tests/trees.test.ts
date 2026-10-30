@@ -75,12 +75,13 @@ it("fills ground around rooted trunks without adding floating floors to branches
   const branch = { ...root, treeGraphic: "TREE_BRANCH_NS" };
   expect(treeGround(branch, 1, 1, 4, all)).toBeUndefined();
 });
-it("loads and retains taller canopy columns only near the walking focus", () => {
+it("retains crowns and lower terrain across all columns within the shared vertical window", () => {
   const bounds = { x: 0, y: 0, z: 0, width: 192, depth: 192, height: 199 };
-  const order = blockOrder(bounds, 128, { x: 40, y: 40 }, true);
-  expect(order).toHaveLength(970);
-  expect(order).toContainEqual([32, 32, 140]);
-  expect(order).not.toContainEqual([176, 176, 140]);
+  const order = blockOrder(bounds, 128, { x: 40, y: 40 });
+  expect(order).toHaveLength(2304);
+  expect(order).toContainEqual([32, 32, 138]);
+  expect(order).toContainEqual([176, 176, 138]);
+  expect(order).not.toContainEqual([32, 32, 139]);
   const chunks = new Map(
     order.map(([x, y, z]) => {
       const c = block(x, z);
@@ -88,8 +89,8 @@ it("loads and retains taller canopy columns only near the walking focus", () => 
       return [chunkKey(c), c] as const;
     }),
   );
-  retainChunks(chunks, bounds, 129, { x: 56, y: 40 });
-  expect(chunks.has("32,32,140")).toBe(true);
-  expect(chunks.has("0,0,140")).toBe(false);
-  expect(chunks.has("32,32,126")).toBe(false);
+  retainChunks(chunks, bounds, 129);
+  expect(chunks.has("32,32,138")).toBe(true);
+  expect(chunks.has("0,0,138")).toBe(true);
+  expect(chunks.has("32,32,123")).toBe(false);
 });

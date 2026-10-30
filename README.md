@@ -93,10 +93,9 @@ may display an unrecognized-app warning.
 | **DF screen**  | Follows DF's visible map area; shortcuts or the slider can override the viewed Z. |
 | **1st person** | Switches to Whole map and lets you choose a walkable camera starting point.       |
 
-Deepwatch streams **up to five neighbouring Z-levels**: the selected level,
-two above and two below, clipped to map bounds. Nearby columns load first;
-in first person, level-change requests prioritise the camera's neighbourhood.
-Nearby canopy columns can extend twelve levels above the cut to show tree crowns.
+Deepwatch streams **five Z-levels below and ten above** the selected level,
+plus the selected level itself (16 total), clipped to map bounds. Nearby columns
+load first; first-person level changes prioritise the camera's neighbourhood.
 In DF Screen mode, changing DF's own Z-level resumes following that elevation.
 
 Orbit view hides geometry above the selected cutaway. First person displays the
@@ -320,17 +319,17 @@ commits and release packages.
 
 ## Troubleshooting
 
-| Problem                                   | What to check                                                                                                                                                                                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Disconnected / RPC failure**            | Confirm DFHack is running, a fortress is loaded and the port is correct. The companion retries automatically. In the desktop app, check **Help → Open log folder**.                                                                  |
-| **Unsupported version**                   | Only the documented version combination is accepted. Supporting another version requires checking its protocol and semantics.                                                                                                        |
-| **Empty or opaque terrain**               | The selected levels may be sky or undiscovered rock. Try another cutaway level and allow nearby blocks to load.                                                                                                                      |
-| **Changes appear slowly**                 | Terrain is revisited block by block. A 192 × 192 footprint across five levels requires 720 block reads: the default delays alone total about 144 seconds, before RPC and processing time. DF screen mode reduces the requested area. |
-| **First-person movement is blocked**      | Wait for ground and overhead data. Choose a green starting point; hidden, disconnected and unloaded destinations are blocked.                                                                                                        |
-| **Mouse capture fails**                   | Click the viewport, then keep the pointer over it for fallback mouse look. Escape pauses; clicking resumes.                                                                                                                          |
-| **Artwork is missing or differs from DF** | Check the selected installation or `DF_PATH`. Unsupported graphics use fallbacks; active mod overrides are not resolved yet.                                                                                                         |
-| **WebGL is unavailable**                  | Check browser/app hardware acceleration and graphics-driver support. Renderer failures appear in the status area.                                                                                                                    |
-| **Port is occupied**                      | Stop the other companion process. Browser development and production companions cannot share a port. The desktop app chooses its own available port.                                                                                 |
+| Problem                                   | What to check                                                                                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Disconnected / RPC failure**            | Confirm DFHack is running, a fortress is loaded and the port is correct. The companion retries automatically. In the desktop app, check **Help → Open log folder**.             |
+| **Unsupported version**                   | Only the documented version combination is accepted. Supporting another version requires checking its protocol and semantics.                                                   |
+| **Empty or opaque terrain**               | The selected levels may be sky or undiscovered rock. Try another cutaway level and allow nearby blocks to load.                                                                 |
+| **Changes appear slowly**                 | Terrain is revisited in batches, with nearby columns loaded first. A 192 × 192 footprint across 16 levels requires 2304 block reads. DF Screen mode reduces the requested area. |
+| **First-person movement is blocked**      | Wait for ground and overhead data. Choose a green starting point; hidden, disconnected and unloaded destinations are blocked.                                                   |
+| **Mouse capture fails**                   | Click the viewport, then keep the pointer over it for fallback mouse look. Escape pauses; clicking resumes.                                                                     |
+| **Artwork is missing or differs from DF** | Check the selected installation or `DF_PATH`. Unsupported graphics use fallbacks; active mod overrides are not resolved yet.                                                    |
+| **WebGL is unavailable**                  | Check browser/app hardware acceleration and graphics-driver support. Renderer failures appear in the status area.                                                               |
+| **Port is occupied**                      | Stop the other companion process. Browser development and production companions cannot share a port. The desktop app chooses its own available port.                            |
 
 ## Privacy and licence
 

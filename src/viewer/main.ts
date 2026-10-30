@@ -122,7 +122,7 @@ const disconnect = connect((m) => {
       scene.reset(m.bounds, m.level);
       world.textContent = m.world || "Awaiting a fortress";
     } else {
-      retainChunks(state.chunks, m.bounds, m.level, m.focus);
+      retainChunks(state.chunks, m.bounds, m.level);
       scene.changeView(m.bounds, m.level, keepWalking);
     }
     slider.min = String(m.bounds.z);
@@ -133,8 +133,8 @@ const disconnect = connect((m) => {
     el<HTMLInputElement>("mode-map").checked = m.mode !== "screen";
     el("scope").textContent =
       m.mode === "screen"
-        ? "Read-only · Following DF screen and Z · Nearby tree crowns"
-        : "Read-only · Full local map · Nearby tree crowns";
+        ? "Read-only · DF screen area · 5 levels below, 10 above"
+        : "Read-only · Full local map · 5 levels below, 10 above";
     level.textContent = m.bounds.height ? `Z ${slider.value}` : "—";
     empty.hidden = keepWalking || state.chunks.size > 0;
     selection.textContent = "Click a visible tile to inspect it.";

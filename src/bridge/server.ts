@@ -300,7 +300,7 @@ async function run() {
           JSON.stringify(reset.bounds) !== JSON.stringify(b) ||
           JSON.stringify(reset.focus) !== JSON.stringify(requestedFocus)
         ) {
-          retainChunks(chunks, b, level, requestedFocus);
+          retainChunks(chunks, b, level);
           reset = { ...reset, level, bounds: b, mode, focus: requestedFocus };
           publish({
             type: "view",
@@ -316,7 +316,7 @@ async function run() {
         let changed = 0,
           completed = 0;
         const focus = requestedFocus;
-        const order = blockOrder(b, level, focus, true);
+        const order = blockOrder(b, level, focus);
         // New terrain is needed before refreshes of already cached blocks.
         order.sort(
           (a, b) =>

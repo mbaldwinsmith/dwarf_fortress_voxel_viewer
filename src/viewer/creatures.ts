@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { bottomPadding, SpriteFeet } from "./sprite-ground.js";
 import { surfaceHeight } from "./traversal.js";
 import {
+  LEVELS_BELOW,
   tileAt,
   type Chunk,
   type Creature,
@@ -152,7 +153,11 @@ export class CreatureSprites {
       s.object.position.set(unit.x + 0.5, unit.z + 0.12, unit.y + 0.5);
     }
   }
-  update(chunks: Map<string, Chunk>, cut: number, minLevel = cut - 2) {
+  update(
+    chunks: Map<string, Chunk>,
+    cut: number,
+    minLevel = cut - LEVELS_BELOW,
+  ) {
     this.visibleCount = 0;
     for (const s of this.sprites.values()) {
       const u = s.unit,

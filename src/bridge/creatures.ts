@@ -3,6 +3,8 @@ import { eyeColor, faceVariant } from "./face.js";
 import type { WornItem } from "./dwarf-layers.js";
 import type { FortressAdapter } from "./adapter.js";
 import {
+  LEVELS_ABOVE,
+  LEVELS_BELOW,
   tileAt,
   type Bounds,
   type Chunk,
@@ -30,8 +32,8 @@ export function visibleUnit(
     Number(x) < b.x + b.width &&
     Number(y) >= b.y &&
     Number(y) < b.y + b.depth &&
-    Number(z) <= level &&
-    Number(z) >= Math.max(b.z, level - 2) &&
+    Number(z) <= Math.min(b.z + b.height - 1, level + LEVELS_ABOVE) &&
+    Number(z) >= Math.max(b.z, level - LEVELS_BELOW) &&
     !!tileAt(chunks, Number(x), Number(y), Number(z)) &&
     tileAt(chunks, Number(x), Number(y), Number(z))?.shape !== "unknown"
   );
@@ -86,8 +88,8 @@ export class CreatureReader {
       maxX: (b.x + b.width) / 16,
       minY: b.y / 16,
       maxY: (b.y + b.depth) / 16,
-      minZ: Math.max(b.z, level - 2),
-      maxZ: level + 1,
+      minZ: Math.max(b.z, level - LEVELS_BELOW),
+      maxZ: Math.min(b.z + b.height, level + LEVELS_ABOVE + 1),
     });
     // RFR emits partial out-of-region records before filtering; reject these.
     if (data.creatureList !== undefined && !Array.isArray(data.creatureList))

@@ -10,7 +10,7 @@ const bounds = { x: 0, y: 0, z: 0, width: 32, depth: 32, height: 20 };
 it("keeps overlapping terrain and sequence continuity through a view change", () => {
   const state = new WorldState();
   state.reset("world-a");
-  const chunks: Chunk[] = [3, 4, 5, 6, 7].map((z) => ({
+  const chunks: Chunk[] = Array.from({ length: 20 }, (_, i) => i).map((z) => ({
     x: 0,
     y: 0,
     z,
@@ -32,7 +32,9 @@ it("keeps overlapping terrain and sequence continuity through a view change", ()
   });
   expect(view.type).toBe("view");
   retainChunks(state.chunks, bounds, 6);
-  expect(state.chunks.size).toBe(4);
+  expect(state.chunks.size).toBe(16);
+  expect(state.chunks.has("0,0,0")).toBe(false);
+  expect(state.chunks.has("0,0,17")).toBe(false);
   expect(state.chunks.get(chunkKey(chunks[2]))).toBe(chunks[2]);
   expect(
     state.merge({

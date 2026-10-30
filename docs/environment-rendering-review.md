@@ -30,11 +30,10 @@ Species-specific alternatives are exhausted before generic artwork is considered
 Rooted trunks borrow visible neighbouring ground textures instead of leaving a
 hole around the narrower 3D stem. Airborne branches do not acquire ground slabs.
 
-The normal five-level terrain window is supplemented with nearby canopy columns
-up to twelve levels above the camera cut. This is limited to a 5×5-block area
-around the walking focus and remains within the 4096-block resident budget.
-Changing focus evicts distant canopy columns. Orbit mode keeps its cutaway;
-first person renders the loaded upper tree body.
+The shared terrain window covers five levels below and ten above the camera cut
+throughout the requested XY footprint, within the 4096-block resident budget.
+Camera-adjacent columns load first. Orbit mode keeps its cutaway; first person
+renders the loaded upper tree body.
 
 A requested independent critic reviewed actual surface-tree geometry at
 X48–63/Y64–79, including plum, peach and almond trees, against the installed native
