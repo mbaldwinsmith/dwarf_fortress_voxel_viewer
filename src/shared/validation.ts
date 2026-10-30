@@ -338,6 +338,15 @@ export function parseServerMessage(value: unknown): ServerMessage {
           )
             throw Error("Invalid scenery object");
           ids.add(o.id);
+          if (
+            o.furniture !== undefined &&
+            (!object(o.furniture) ||
+              !["table", "chair", "bed"].includes(String(o.furniture.type)) ||
+              (o.furniture.heavy !== undefined && o.furniture.heavy !== true) ||
+              o.kind !== "ground" ||
+              !o.id.startsWith("b:"))
+          )
+            throw Error("Invalid furniture mesh");
           if (o.tint !== undefined && !rgb(o.tint))
             throw Error("Invalid scenery tint");
           if (o.palette !== undefined) {

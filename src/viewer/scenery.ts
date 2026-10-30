@@ -3,6 +3,7 @@ import { linearMaterialColor } from "./mesh.js";
 import { recolor } from "./composite-sprites.js";
 import { SpriteFeet } from "./sprite-ground.js";
 import { surfaceHeight } from "./traversal.js";
+import { furnitureFaces } from "./furniture.js";
 import {
   LEVELS_BELOW,
   chunkKey,
@@ -64,6 +65,10 @@ export class ScenerySprites {
   private marker: THREE.DataTexture;
   private disposed = false;
   private feet = new SpriteFeet();
+  private furnitureSolid = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+  });
   constructor() {
     // Original neutral footprint used only for unsupported building artwork.
     const pixels = new Uint8Array(16 * 16 * 4);
@@ -195,6 +200,48 @@ export class ScenerySprites {
         if (!tile || tile.shape === "unknown") continue;
         group.userData.count++;
         const coords = o.sprite ? uv(o.sprite) : [0, 1, 0, 0, 1, 0, 1, 1];
+        if (o.furniture && o.sprite) {
+          const ground =
+            surfaceHeight(all, o.x + 0.5, o.y + 0.5, o.z) ?? o.z + 0.12;
+          for (const face of furnitureFaces(o, ground)) {
+            const k = JSON.stringify([
+              face.sprite?.asset ?? "solid",
+              face.sprite ? face.palette : undefined,
+            ]);
+            let batch = batches.get(k);
+            if (!batch) {
+              batch = {
+                positions: [],
+                colors: [],
+                uvs: [],
+                indices: [],
+                material: face.sprite
+                  ? this.material(face.sprite.asset, face.palette)
+                  : this.furnitureSolid,
+              };
+              batches.set(k, batch);
+            }
+            const base = batch.positions.length / 3;
+            batch.positions.push(...face.positions);
+            batch.uvs.push(
+              ...(face.sprite ? uv(face.sprite) : [0, 1, 0, 0, 1, 0, 1, 1]),
+            );
+            const color = (
+              face.tint ? linearMaterialColor(face.tint) : [1, 1, 1]
+            ).map((c) => c * face.brightness);
+            for (let vertex = 0; vertex < 4; vertex++)
+              batch.colors.push(...color);
+            batch.indices.push(
+              base,
+              base + 1,
+              base + 2,
+              base,
+              base + 2,
+              base + 3,
+            );
+          }
+          continue;
+        }
         if (o.kind === "plant") {
           const material = this.material(o.sprite?.asset);
           const geometry = new THREE.BufferGeometry();
@@ -354,5 +401,6 @@ export class ScenerySprites {
     this.materials.clear();
     this.sheets.clear();
     this.marker.dispose();
+    this.furnitureSolid.dispose();
   }
 }

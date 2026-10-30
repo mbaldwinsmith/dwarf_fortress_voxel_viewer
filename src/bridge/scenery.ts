@@ -193,7 +193,7 @@ export function buildingObjects(
         const matDef =
           mat && materialDefinitions?.get(`${mat.matType},${mat.matIndex}`);
         const palette =
-          ["Table", "Chair"].includes(category) && matDef
+          ["Table", "Chair", "Bed"].includes(category) && matDef
             ? (graphics as SceneryGraphics).materialPalettes?.get(matDef.id)
             : undefined;
         const details: NonNullable<SceneryObject["details"]> = [];
@@ -232,6 +232,14 @@ export function buildingObjects(
           y,
           z: chunk.z,
           name: id,
+          ...(["Table", "Chair", "Bed"].includes(category)
+            ? {
+                furniture: {
+                  type: category.toLowerCase() as "table" | "chair" | "bed",
+                  ...(material === "STONE" ? { heavy: true as const } : {}),
+                },
+              }
+            : {}),
           kind:
             category === "Door"
               ? "door"
