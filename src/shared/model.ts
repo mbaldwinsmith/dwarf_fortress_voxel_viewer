@@ -156,6 +156,8 @@ export interface SceneryObject {
     wood?: SpriteRef;
     stone?: SpriteRef;
     metal?: SpriteRef;
+    art?: { base: SpriteRef; decor?: SpriteRef };
+    floor?: SpriteRef;
   };
   furniture?: {
     type: FurnitureType;

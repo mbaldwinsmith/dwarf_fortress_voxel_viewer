@@ -2,9 +2,11 @@ import * as THREE from "three";
 import { linearMaterialColor } from "./mesh.js";
 import { recolor } from "./composite-sprites.js";
 import { SpriteFeet } from "./sprite-ground.js";
+import { NativeWorkshops } from "./native-workshops.js";
 import { surfaceHeight } from "./traversal.js";
 import { furnitureFaces } from "./furniture.js";
-import { workshopFaces } from "./workshop-models.js";
+import { workshopFaces, registerNativeWorkshop } from "./workshop-models.js";
+import type { FurnitureFace } from "./furniture.js";
 import {
   LEVELS_BELOW,
   chunkKey,
@@ -57,6 +59,9 @@ const uv = (r: SpriteRef) => {
   return [l, top, l, bottom, right, bottom, right, top];
 };
 export class ScenerySprites {
+  nativeWorkshop(o: SceneryObject, faces: FurnitureFace[]) {
+    registerNativeWorkshop(o, faces);
+  }
   group = new THREE.Group();
   visibleCount = 0;
   private blocks = new Map<string, THREE.Group>();
@@ -66,6 +71,7 @@ export class ScenerySprites {
   private marker: THREE.DataTexture;
   private disposed = false;
   private feet = new SpriteFeet();
+  private workshops = new NativeWorkshops();
   private furnitureSolid = new THREE.MeshBasicMaterial({
     vertexColors: true,
     side: THREE.DoubleSide,
@@ -183,6 +189,25 @@ export class ScenerySprites {
       const key = chunkKey(chunk);
       this.remove(key);
       const group = new THREE.Group();
+      const waiting = new Map<string, SceneryObject>();
+      for (const o of chunk.objects ?? [])
+        if (o.workshop?.art)
+          waiting.set(
+            o.workshop.type +
+              JSON.stringify(o.workshop.art) +
+              JSON.stringify(o.palette),
+            o,
+          );
+      for (const o of waiting.values())
+        void this.workshops.load(o).then((ready) => {
+          if (
+            ready &&
+            !this.disposed &&
+            this.blocks.get(key) === group &&
+            all.get(key) === chunk
+          )
+            this.update([chunk], all, firstPerson);
+        });
       group.userData.z = chunk.z;
       group.userData.count = 0;
       const batches = new Map<
@@ -404,6 +429,7 @@ export class ScenerySprites {
   }
   dispose() {
     this.disposed = true;
+    this.workshops.dispose();
     this.clear();
     for (const m of this.materials.values()) m.dispose();
     for (const t of this.sheets.values()) t.dispose();

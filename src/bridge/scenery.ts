@@ -289,6 +289,37 @@ export function buildingObjects(
                   wood: graphics.get("ITEM_TABLE_WOOD:1"),
                   stone: graphics.get("ITEM_TABLE_STONE:1"),
                   metal: graphics.get("ITEM_TABLE_METAL:1"),
+                  ...(() => {
+                    const width = right - left + 1,
+                      depth = bottom - top + 1;
+                    const start =
+                      graphics.get(`${prefix}:3:0:0`) ??
+                      graphics.get(`${prefix}:1:0`) ??
+                      graphics.get(`${prefix}:1:0:0`);
+                    const overlayStart = graphics.get(
+                      `${prefix.replace(/^(WORKSHOP_[^:]+|FURNACE_[^:]+|TRADE_DEPOT)/, "$1_OVERLAY")}:3:0:0`,
+                    );
+                    const expand = (r: typeof start) =>
+                      r &&
+                      r.x + r.width * width <= r.pageWidth &&
+                      r.y + r.height * (depth + 1) <= r.pageHeight
+                        ? {
+                            ...r,
+                            width: r.width * width,
+                            height: r.height * (depth + 1),
+                          }
+                        : undefined;
+                    const base = expand(start),
+                      decor = expand(overlayStart);
+                    return {
+                      ...(base
+                        ? { art: { base, ...(decor ? { decor } : {}) } }
+                        : {}),
+                      floor: graphics.get(
+                        `TRADE_DEPOT:3:${x === left ? 0 : x === right ? 4 : 2}:${y === top ? 1 : y === bottom ? 5 : 3}`,
+                      ),
+                    };
+                  })(),
                 },
               }
             : {}),

@@ -6,6 +6,22 @@ import type {
 import { furnitureFaces, type FurnitureFace } from "./furniture.js";
 type Material = "wood" | "stone" | "metal" | [number, number, number];
 const layouts = new Map<string, FurnitureFace[]>();
+const nativeLayouts = new Map<string, FurnitureFace[]>();
+export function hasNativeWorkshop(o: SceneryObject) {
+  return nativeLayouts.has(workshopLayoutKey(o));
+}
+export function workshopLayoutKey(o: SceneryObject) {
+  const w = o.workshop!;
+  return JSON.stringify([w.type, w.width, w.depth, w.art, o.tint, o.palette]);
+}
+export function registerNativeWorkshop(
+  o: SceneryObject,
+  faces: FurnitureFace[],
+) {
+  nativeLayouts.set(workshopLayoutKey(o), faces);
+  if (nativeLayouts.size > 96)
+    nativeLayouts.delete(nativeLayouts.keys().next().value!);
+}
 const cells = new WeakMap<FurnitureFace[], Map<string, FurnitureFace[]>>();
 const uv = (r?: SpriteRef) =>
   r
@@ -21,6 +37,8 @@ const uv = (r?: SpriteRef) =>
       ]
     : [0, 1, 0, 0, 1, 0, 1, 1];
 function layout(o: SceneryObject): FurnitureFace[] {
+  const native = nativeLayouts.get(workshopLayoutKey(o));
+  if (native) return native;
   const w = o.workshop!,
     key = JSON.stringify([
       w.type,
@@ -683,7 +701,9 @@ export function workshopFaces(
   const w = o.workshop;
   if (!w) return [];
   const result: FurnitureFace[] = [];
-  if (o.sprite && w.width > 1)
+  const native = nativeLayouts.has(workshopLayoutKey(o));
+  const floor = native ? (w.floor ?? o.sprite) : o.sprite;
+  if (floor && w.width > 1)
     result.push({
       positions: [
         o.x,
@@ -699,7 +719,7 @@ export function workshopFaces(
         ground + 0.005,
         o.y,
       ],
-      sprite: o.sprite,
+      sprite: floor,
       tint: o.tint,
       brightness: o.tint ? 1.4 : 1,
     });

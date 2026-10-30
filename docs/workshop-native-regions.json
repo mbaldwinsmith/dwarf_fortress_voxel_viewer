@@ -1,0 +1,689 @@
+{
+  "coordinateSystem": {
+    "width": 96,
+    "height": 128,
+    "origin": "native completed composite top-left, including decorative top row",
+    "rect": "[x0,y0,x1,y1], half-open",
+    "precision": "Visual grid bounds, approximately +/-1-2px; semantic source regions, not literal world footprints"
+  },
+  "guidance": [
+    "Rectangles overlap due to occlusion. Apply alpha/semantic masks and priority; never copy whole overlapping opaque rectangles into independent objects.",
+    "Separate physical vessels/racks first and remove those pixels from counter/detail masks. Ignore floor and cast shadows.",
+    "Use vessel lid/mouth interiors for top UVs and material-only body patches for circumference. Full perspective sprites contain front and top already; do not duplicate them on every face.",
+    "Native tiny tools/fish/hides/fabric flat on real horizontal supported tables are explicitly approved. Large objects still need distinct coherent volume.",
+    "Decorative top row represents height, not another floor tile. Infer contact from object bottom and table elevation.",
+    "Thin rack/net/cloth surfaces must preserve open gaps; do not extrude their complete bounding rectangle."
+  ],
+  "profiles": {
+    "WORKSHOP_FARMER": [
+      {
+        "id": "rear-closed-cask",
+        "rect": [10, 16, 34, 47],
+        "primitive": "vessel",
+        "notes": "Tall closed wooden barrel behind foreground open barrel."
+      },
+      {
+        "id": "left-open-barrel",
+        "rect": [3, 31, 27, 62],
+        "primitive": "vessel",
+        "notes": "Tall open banded wooden cylinder."
+      },
+      {
+        "id": "small-sack",
+        "rect": [25, 47, 39, 64],
+        "primitive": "sack",
+        "notes": "Tied tan sack separate from cask."
+      },
+      {
+        "id": "rear-table",
+        "rect": [33, 25, 63, 57],
+        "primitive": "table",
+        "notes": "Horizontal supported pale table; remove vessel pixels."
+      },
+      {
+        "id": "rear-table-pail",
+        "rect": [42, 19, 58, 42],
+        "primitive": "vessel",
+        "notes": "Open wooden pail on table."
+      },
+      {
+        "id": "rear-table-bowl",
+        "rect": [35, 32, 49, 45],
+        "primitive": "vessel",
+        "notes": "Shallow dark bowl in front of pail."
+      },
+      {
+        "id": "right-sack",
+        "rect": [64, 26, 91, 48],
+        "primitive": "sack",
+        "notes": "Bulbous grey tied produce sack."
+      },
+      {
+        "id": "right-greenery",
+        "rect": [68, 19, 95, 52],
+        "primitive": "flat",
+        "notes": "Thin leaves overlay sack; alpha mask."
+      },
+      {
+        "id": "front-left-table",
+        "rect": [2, 92, 32, 125],
+        "primitive": "table",
+        "notes": "Supported pale tabletop."
+      },
+      {
+        "id": "front-left-tub",
+        "rect": [7, 95, 27, 110],
+        "primitive": "vessel",
+        "notes": "Low tub with ochre fill on table."
+      },
+      {
+        "id": "front-spool",
+        "rect": [32, 97, 43, 120],
+        "primitive": "vessel",
+        "notes": "Narrow upright flanged spool."
+      },
+      {
+        "id": "front-stool",
+        "rect": [42, 105, 59, 124],
+        "primitive": "table",
+        "notes": "Wood stool with legs and gap."
+      },
+      {
+        "id": "spinning-wheel",
+        "rect": [62, 90, 95, 126],
+        "primitive": "rack",
+        "notes": "Vertical wheel, open spokes, hub, axle and splayed stand."
+      }
+    ],
+    "WORKSHOP_TANNER": [
+      {
+        "id": "rear-crate",
+        "rect": [5, 16, 25, 36],
+        "primitive": "box",
+        "notes": "Open upright wood bin."
+      },
+      {
+        "id": "rear-left-table",
+        "rect": [2, 25, 32, 57],
+        "primitive": "table",
+        "notes": "Horizontal surface under crate/scraps."
+      },
+      {
+        "id": "rear-scraps",
+        "rect": [10, 33, 26, 41],
+        "primitive": "flat",
+        "notes": "Pale scraps on table."
+      },
+      {
+        "id": "large-open-pot",
+        "rect": [3, 40, 30, 70],
+        "primitive": "vessel",
+        "notes": "Round bellied open vat; attached angled stirrer."
+      },
+      {
+        "id": "rear-lidded-pot",
+        "rect": [32, 20, 57, 45],
+        "primitive": "vessel",
+        "notes": "Grey cylinder with lid."
+      },
+      {
+        "id": "rear-spool",
+        "rect": [32, 35, 42, 52],
+        "primitive": "vessel",
+        "notes": "Narrow banded spool."
+      },
+      {
+        "id": "rear-wood-pail",
+        "rect": [56, 29, 71, 50],
+        "primitive": "vessel",
+        "notes": "Open wooden pail."
+      },
+      {
+        "id": "rear-metal-pail",
+        "rect": [41, 41, 62, 62],
+        "primitive": "vessel",
+        "notes": "Tapered grey open pail in front of lidded pot."
+      },
+      {
+        "id": "centre-stool",
+        "rect": [40, 67, 57, 85],
+        "primitive": "table",
+        "notes": "Square stool with legs, not oval puck."
+      },
+      {
+        "id": "right-hide-table",
+        "rect": [65, 69, 94, 96],
+        "primitive": "table",
+        "notes": "Horizontal supported table."
+      },
+      {
+        "id": "right-hide",
+        "rect": [68, 71, 91, 87],
+        "primitive": "flat",
+        "notes": "Native pink hide and knife on table."
+      },
+      {
+        "id": "front-left-table",
+        "rect": [2, 92, 32, 124],
+        "primitive": "table",
+        "notes": "Horizontal supported table."
+      },
+      {
+        "id": "front-hides",
+        "rect": [5, 96, 29, 112],
+        "primitive": "flat",
+        "notes": "Native hides on table."
+      },
+      {
+        "id": "front-wood-pail",
+        "rect": [32, 105, 48, 126],
+        "primitive": "vessel",
+        "notes": "Open wooden pail."
+      },
+      {
+        "id": "right-sack",
+        "rect": [57, 94, 72, 108],
+        "primitive": "sack",
+        "notes": "Small tied sack."
+      },
+      {
+        "id": "right-tin-pail",
+        "rect": [68, 100, 79, 112],
+        "primitive": "vessel",
+        "notes": "Narrow grey pail."
+      },
+      {
+        "id": "right-tan-sack",
+        "rect": [76, 90, 93, 107],
+        "primitive": "sack",
+        "notes": "Tall folded tan sack."
+      }
+    ],
+    "WORKSHOP_DYER": [
+      {
+        "id": "rear-lidded-pot",
+        "rect": [9, 20, 33, 47],
+        "primitive": "vessel",
+        "notes": "Grey lidded cylinder."
+      },
+      {
+        "id": "rear-blue-vat",
+        "rect": [2, 36, 24, 61],
+        "primitive": "vessel",
+        "notes": "Bulbous open blue dye vat."
+      },
+      {
+        "id": "rear-round-jug",
+        "rect": [17, 46, 39, 71],
+        "primitive": "vessel",
+        "notes": "Round jug with narrow open neck."
+      },
+      {
+        "id": "mortar-table",
+        "rect": [33, 26, 63, 57],
+        "primitive": "table",
+        "notes": "Horizontal supported counter."
+      },
+      {
+        "id": "mortar",
+        "rect": [40, 28, 58, 43],
+        "primitive": "vessel",
+        "notes": "Wood mortar on table."
+      },
+      {
+        "id": "pestle",
+        "rect": [47, 18, 55, 35],
+        "primitive": "rack",
+        "notes": "One connected inclined rod entering mortar."
+      },
+      {
+        "id": "rear-green-pail",
+        "rect": [64, 24, 80, 45],
+        "primitive": "vessel",
+        "notes": "Open tapered pail with green fill."
+      },
+      {
+        "id": "front-left-table",
+        "rect": [2, 93, 32, 125],
+        "primitive": "table",
+        "notes": "Horizontal supported table."
+      },
+      {
+        "id": "front-wood-pail",
+        "rect": [6, 83, 22, 101],
+        "primitive": "vessel",
+        "notes": "Small pail on counter."
+      },
+      {
+        "id": "colour-pots",
+        "rect": [5, 93, 31, 112],
+        "primitive": "flat",
+        "notes": "Tiny blue/red/green containers on table."
+      },
+      {
+        "id": "front-cloth-crate",
+        "rect": [38, 102, 65, 126],
+        "primitive": "box",
+        "notes": "Low open bin with shallow folded colourful cloth."
+      },
+      {
+        "id": "right-blue-stock",
+        "rect": [69, 68, 94, 94],
+        "primitive": "vessel",
+        "notes": "Open bucket with shallow blue lumps."
+      },
+      {
+        "id": "right-table",
+        "rect": [64, 94, 94, 125],
+        "primitive": "table",
+        "notes": "Horizontal counter."
+      },
+      {
+        "id": "right-dye-bowl",
+        "rect": [70, 96, 89, 111],
+        "primitive": "vessel",
+        "notes": "Shallow bowl of red dye."
+      }
+    ],
+    "WORKSHOP_ASHERY": [
+      {
+        "id": "rear-logs",
+        "rect": [3, 25, 25, 55],
+        "primitive": "rack",
+        "notes": "Separate upright round billets bound together."
+      },
+      {
+        "id": "rear-table",
+        "rect": [32, 26, 63, 57],
+        "primitive": "table",
+        "notes": "Supported table below two pails."
+      },
+      {
+        "id": "rear-pail",
+        "rect": [43, 14, 59, 40],
+        "primitive": "vessel",
+        "notes": "Tall grey rear pail."
+      },
+      {
+        "id": "front-table-pail",
+        "rect": [37, 25, 53, 47],
+        "primitive": "vessel",
+        "notes": "Open tapered foreground grey pail."
+      },
+      {
+        "id": "right-tub",
+        "rect": [64, 26, 89, 51],
+        "primitive": "vessel",
+        "notes": "Wide open wooden tub."
+      },
+      {
+        "id": "right-pail",
+        "rect": [76, 38, 92, 58],
+        "primitive": "vessel",
+        "notes": "Small wooden pail with pale contents."
+      },
+      {
+        "id": "right-tools",
+        "rect": [63, 45, 76, 63],
+        "primitive": "flat",
+        "notes": "Small scattered metal stock/tools."
+      },
+      {
+        "id": "central-barrel",
+        "rect": [44, 49, 67, 80],
+        "primitive": "vessel",
+        "notes": "Tall open wooden barrel; attached stirring rod."
+      },
+      {
+        "id": "front-left-table",
+        "rect": [2, 95, 32, 125],
+        "primitive": "table",
+        "notes": "Horizontal supported table."
+      },
+      {
+        "id": "front-left-box",
+        "rect": [4, 88, 30, 113],
+        "primitive": "box",
+        "notes": "Layered shallow trays on table."
+      },
+      {
+        "id": "front-logs",
+        "rect": [32, 97, 52, 126],
+        "primitive": "rack",
+        "notes": "Upright billets separate from sack."
+      },
+      {
+        "id": "front-sack",
+        "rect": [53, 98, 80, 126],
+        "primitive": "sack",
+        "notes": "Bulbous sack with narrow tied neck."
+      }
+    ],
+    "WORKSHOP_CLOTHES": [
+      {
+        "id": "rack-frame",
+        "rect": [32, 2, 93, 33],
+        "primitive": "rack",
+        "notes": "Slender side poles x32..35 and90..93; top bar y4..7 and lower bar y27..30; preserve hollow centre."
+      },
+      {
+        "id": "grey-cloth",
+        "rect": [35, 9, 45, 32],
+        "primitive": "flat",
+        "notes": "Thin vertical hanging sheet."
+      },
+      {
+        "id": "blue-cloth",
+        "rect": [44, 6, 49, 31],
+        "primitive": "flat",
+        "notes": "Thin dark blue strip."
+      },
+      {
+        "id": "red-cloth",
+        "rect": [49, 7, 55, 29],
+        "primitive": "flat",
+        "notes": "Thin red strip."
+      },
+      {
+        "id": "cyan-cloth",
+        "rect": [74, 6, 80, 36],
+        "primitive": "flat",
+        "notes": "Thin hanging cyan sheet."
+      },
+      {
+        "id": "pale-cloth",
+        "rect": [79, 6, 88, 28],
+        "primitive": "flat",
+        "notes": "Thin hanging pale sheet."
+      },
+      {
+        "id": "green-cloth",
+        "rect": [87, 13, 91, 28],
+        "primitive": "flat",
+        "notes": "Thin hanging green strip."
+      },
+      {
+        "id": "rear-left-table",
+        "rect": [2, 26, 32, 58],
+        "primitive": "table",
+        "notes": "Supported counter."
+      },
+      {
+        "id": "rear-jacket",
+        "rect": [3, 24, 31, 50],
+        "primitive": "flat",
+        "notes": "Native blue/gold garment on tabletop."
+      },
+      {
+        "id": "rear-crate",
+        "rect": [32, 32, 48, 53],
+        "primitive": "box",
+        "notes": "Small slatted wood crate."
+      },
+      {
+        "id": "rear-rope",
+        "rect": [68, 33, 93, 53],
+        "primitive": "flat",
+        "notes": "Thin rope coils near rack foot."
+      },
+      {
+        "id": "front-spool-crate",
+        "rect": [5, 89, 33, 126],
+        "primitive": "box",
+        "notes": "Open bin, tiny spools native shallow/flat detail."
+      },
+      {
+        "id": "front-counter",
+        "rect": [33, 93, 63, 125],
+        "primitive": "table",
+        "notes": "Horizontal supported counter."
+      },
+      {
+        "id": "front-fabric",
+        "rect": [35, 93, 62, 116],
+        "primitive": "flat",
+        "notes": "Native folded fabrics/spools on tabletop."
+      },
+      {
+        "id": "front-sack",
+        "rect": [78, 103, 95, 125],
+        "primitive": "sack",
+        "notes": "Rounded tan sack."
+      },
+      {
+        "id": "front-blue-cloth",
+        "rect": [73, 87, 94, 107],
+        "primitive": "flat",
+        "notes": "Folded cloth resting on sack."
+      },
+      {
+        "id": "front-supplies",
+        "rect": [64, 103, 79, 122],
+        "primitive": "flat",
+        "notes": "Tiny loose ground supplies."
+      }
+    ],
+    "WORKSHOP_FISHERY": [
+      {
+        "id": "rear-table",
+        "rect": [2, 25, 63, 57],
+        "primitive": "table",
+        "notes": "Horizontal supported broad table."
+      },
+      {
+        "id": "rear-tools",
+        "rect": [4, 26, 32, 45],
+        "primitive": "flat",
+        "notes": "Native knife/cleaver art on tabletop."
+      },
+      {
+        "id": "rear-green-fish",
+        "rect": [27, 24, 57, 44],
+        "primitive": "flat",
+        "notes": "Native fish on tabletop."
+      },
+      {
+        "id": "rear-net",
+        "rect": [39, 16, 96, 48],
+        "primitive": "rack",
+        "notes": "Thin alpha net draped between upright posts; behind fish/table in overlaps, never opaque roof."
+      },
+      {
+        "id": "rear-ochre-fish",
+        "rect": [63, 32, 91, 49],
+        "primitive": "flat",
+        "notes": "Separate fish in front of net."
+      },
+      {
+        "id": "front-open-barrel",
+        "rect": [7, 94, 32, 125],
+        "primitive": "vessel",
+        "notes": "Tall open banded wooden barrel."
+      },
+      {
+        "id": "front-table",
+        "rect": [32, 92, 63, 124],
+        "primitive": "table",
+        "notes": "Horizontal supported counter."
+      },
+      {
+        "id": "front-detail",
+        "rect": [36, 95, 61, 115],
+        "primitive": "flat",
+        "notes": "Blue fish and small tools on counter."
+      },
+      {
+        "id": "front-pail",
+        "rect": [65, 100, 81, 124],
+        "primitive": "vessel",
+        "notes": "Small tapered open wooden pail."
+      }
+    ],
+    "WORKSHOP_LEATHER": [
+      {
+        "id": "rear-large-crate",
+        "rect": [3, 21, 33, 51],
+        "primitive": "box",
+        "notes": "Slatted crate with horizontal top."
+      },
+      {
+        "id": "rear-chest",
+        "rect": [4, 47, 26, 65],
+        "primitive": "box",
+        "notes": "Small front chest with latch, separate from rear crate."
+      },
+      {
+        "id": "rear-upper-spool",
+        "rect": [33, 32, 44, 46],
+        "primitive": "vessel",
+        "notes": "Small upright flanged spool."
+      },
+      {
+        "id": "rear-lower-spool",
+        "rect": [28, 41, 39, 56],
+        "primitive": "vessel",
+        "notes": "Separate narrow spool forward/left."
+      },
+      {
+        "id": "rear-right-table",
+        "rect": [65, 26, 94, 58],
+        "primitive": "table",
+        "notes": "Horizontal counter."
+      },
+      {
+        "id": "rear-hide",
+        "rect": [68, 30, 92, 44],
+        "primitive": "flat",
+        "notes": "Native hide on tabletop."
+      },
+      {
+        "id": "right-hide-stack",
+        "rect": [69, 49, 94, 74],
+        "primitive": "sack",
+        "notes": "Separate irregular folded leather bundles."
+      },
+      {
+        "id": "left-counter",
+        "rect": [2, 68, 32, 101],
+        "primitive": "table",
+        "notes": "Horizontal supported counter."
+      },
+      {
+        "id": "left-tools",
+        "rect": [5, 73, 29, 87],
+        "primitive": "flat",
+        "notes": "Native tiny scissors/awl on tabletop."
+      },
+      {
+        "id": "left-sack",
+        "rect": [4, 88, 25, 105],
+        "primitive": "sack",
+        "notes": "Round tied sack in front of table."
+      },
+      {
+        "id": "front-low-crate",
+        "rect": [40, 108, 66, 126],
+        "primitive": "box",
+        "notes": "Low box with horizontal top."
+      },
+      {
+        "id": "front-crate-hide",
+        "rect": [49, 99, 65, 112],
+        "primitive": "sack",
+        "notes": "Folded bundle resting on low box."
+      },
+      {
+        "id": "front-right-table",
+        "rect": [65, 93, 94, 125],
+        "primitive": "table",
+        "notes": "Horizontal counter."
+      },
+      {
+        "id": "front-right-tools",
+        "rect": [70, 98, 89, 111],
+        "primitive": "flat",
+        "notes": "Native leather pieces/tool on tabletop."
+      }
+    ],
+    "WORKSHOP_CUSTOM:SOAP_MAKER": [
+      {
+        "id": "rear-closed-barrel",
+        "rect": [4, 22, 26, 51],
+        "primitive": "vessel",
+        "notes": "Large closed wood barrel."
+      },
+      {
+        "id": "rear-open-pail",
+        "rect": [24, 23, 40, 43],
+        "primitive": "vessel",
+        "notes": "Separate small open wood pail."
+      },
+      {
+        "id": "right-counter",
+        "rect": [65, 27, 94, 94],
+        "primitive": "table",
+        "notes": "Long horizontal supported counter; front fascia is vertical surface not extra footprint."
+      },
+      {
+        "id": "right-metal-pail",
+        "rect": [70, 16, 86, 37],
+        "primitive": "vessel",
+        "notes": "Open grey pail on counter."
+      },
+      {
+        "id": "right-bottle",
+        "rect": [85, 15, 91, 31],
+        "primitive": "vessel",
+        "notes": "Narrow bottle and neck."
+      },
+      {
+        "id": "right-bowl",
+        "rect": [74, 31, 93, 46],
+        "primitive": "vessel",
+        "notes": "Shallow open grey bowl."
+      },
+      {
+        "id": "right-mortar",
+        "rect": [69, 52, 85, 67],
+        "primitive": "vessel",
+        "notes": "Small round brown mortar."
+      },
+      {
+        "id": "right-pestle",
+        "rect": [75, 46, 82, 58],
+        "primitive": "rack",
+        "notes": "Single inclined attached rod."
+      },
+      {
+        "id": "right-soap",
+        "rect": [67, 41, 94, 81],
+        "primitive": "flat",
+        "notes": "Pink soap pieces; remove vessel/mortar pixels before extracting native flat detail."
+      },
+      {
+        "id": "front-large-pot",
+        "rect": [3, 96, 29, 126],
+        "primitive": "vessel",
+        "notes": "Open round bellied vat with narrow mouth and attached stirrer."
+      },
+      {
+        "id": "front-rear-jug",
+        "rect": [9, 88, 30, 108],
+        "primitive": "vessel",
+        "notes": "Dark grey jug with neck/handle behind vat."
+      },
+      {
+        "id": "front-lidded-pot",
+        "rect": [26, 95, 48, 125],
+        "primitive": "vessel",
+        "notes": "Tall lidded grey pot."
+      },
+      {
+        "id": "front-right-pot",
+        "rect": [39, 104, 63, 127],
+        "primitive": "vessel",
+        "notes": "Second lidded pot overlapping foreground."
+      }
+    ]
+  }
+}

@@ -365,6 +365,12 @@ export function parseServerMessage(value: unknown): ServerMessage {
               throw Error("Invalid workshop model");
             for (const ref of [w.wood, w.stone, w.metal])
               if (ref !== undefined) validateSprite(ref);
+            if (w.floor !== undefined) validateSprite(w.floor);
+            if (w.art !== undefined) {
+              if (!object(w.art)) throw Error("Invalid workshop art");
+              validateSprite(w.art.base);
+              if (w.art.decor !== undefined) validateSprite(w.art.decor);
+            }
           }
           if (
             o.furniture !== undefined &&
