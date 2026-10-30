@@ -10,10 +10,13 @@ import type { TerrainUV } from "./terrain-atlas.js";
 import { rampSurface, FLOOR_HEIGHT } from "./ramps.js";
 import { treeBoxes, treeGround } from "./trees.js";
 import { exposedBoxFaces } from "./box-surface.js";
+import { buildFungiCaps, type FungiData } from "./fungi-caps.js";
+import { appendFungalStem, roundFungalStem } from "./fungi-stems.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
   uvs: number[];
+  fungi?: FungiData;
 }
 const palette: Record<number, number[]> = {
   1: [0.44, 0.32, 0.22],
@@ -46,6 +49,7 @@ export function buildMesh(
     0, 0, 1, 1,
   ],
   firstPerson = false,
+  deferFungi = false,
 ): MeshData {
   const out: MeshData = { positions: [], colors: [], uvs: [] };
   let surfaces: Tile["surfaces"];
@@ -253,6 +257,7 @@ export function buildMesh(
       }
     }
     if (t.treeGraphic) {
+      if (/CAP/.test(t.treeGraphic)) continue;
       const ground = treeGround(t, x, y, z, chunks);
       if (ground) {
         surfaces = ground.surfaces;
@@ -262,12 +267,22 @@ export function buildMesh(
         box(FLOOR_HEIGHT);
       }
       treeFace = true;
+      const roundStem = roundFungalStem(t);
+      if (roundStem) appendFungalStem(out, t, x, y, z, chunks, textureUV);
       color = [1, 1, 1];
       capTexture = undefined;
       capRim = [];
       const parts = treeBoxes(t, x, y, z, chunks);
       const faces = exposedBoxFaces(parts);
       for (const [index, part] of parts.entries()) {
+        if (
+          roundStem &&
+          part.part === "bark" &&
+          part.h === 1 &&
+          part.w > 0.5 &&
+          part.d > 0.5
+        )
+          continue;
         foliage = true;
         let ref =
           part.part === "leaves"
@@ -366,6 +381,15 @@ export function buildMesh(
         color,
       );
     } else box(FLOOR_HEIGHT);
+  }
+  if (!deferFungi) {
+    const fungi = buildFungiCaps(
+      c,
+      chunks,
+      textureUV,
+      !firstPerson && c.z === cut,
+    );
+    if (fungi.positions.length) out.fungi = fungi;
   }
   return out;
 }

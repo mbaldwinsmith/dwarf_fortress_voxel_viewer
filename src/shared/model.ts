@@ -34,6 +34,8 @@ export interface Tile {
     side?: SpriteRef;
     leaves?: SpriteRef;
     cap?: SpriteRef;
+    capSurface?: SpriteRef;
+    roundStem?: true;
   };
   liquid?: { kind: "water" | "magma"; depth: number; surface?: SpriteRef };
   variant?: number;

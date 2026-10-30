@@ -266,6 +266,10 @@ export function plantObjects(
           sprite,
         leaves: ref(`TREE_TWIGS_FULL${1 + (i % 4)}`) ?? ref("TREE_TWIGS"),
         cap: sprite,
+        capSurface: ref("TREE_CAP_THICK_INTERIOR"),
+        ...(species("TREE_CAP_THICK_INTERIOR")
+          ? { roundStem: true as const }
+          : {}),
       };
       occupied.add(i);
       continue;

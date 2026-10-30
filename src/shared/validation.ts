@@ -177,13 +177,14 @@ export function parseServerMessage(value: unknown): ServerMessage {
             !t.treeGraphic ||
             !object(t.tree) ||
             (t.tree.species !== undefined && !text(t.tree.species)) ||
+            (t.tree.roundStem !== undefined && t.tree.roundStem !== true) ||
             (t.tree.progress !== undefined &&
               (!int(t.tree.progress) ||
                 t.tree.progress < 0 ||
                 t.tree.progress > 100))
           )
             throw Error("Invalid tree");
-          for (const part of ["bark", "side", "leaves", "cap"])
+          for (const part of ["bark", "side", "leaves", "cap", "capSurface"])
             if (t.tree[part] !== undefined) validateSprite(t.tree[part]);
         }
         if (

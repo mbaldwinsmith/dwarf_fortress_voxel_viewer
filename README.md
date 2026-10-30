@@ -39,6 +39,9 @@ single-tile actions to the loaded fortress through DFHack.
   with translucent water and depth-correct creature sprites.
 - **3D trees:** connected trunks, directional branches, species-specific foliage
   and giant fungi, with nearby upper crowns streamed for first-person views.
+  Giant fungal caps have continuous curved skins, textured undersides and round
+  stalks joined into the cap. Cap meshing runs in a background worker; see the
+  [fungi critic review](docs/fungi-cap-review.md).
 - **Atmospheric effects:** animated native smoke, mist, steam and fire sprites
   driven by visible DFHack flow data. Plants and creatures anchor their lowest
   visible pixels to floors and ramps.

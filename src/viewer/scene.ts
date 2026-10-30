@@ -14,6 +14,8 @@ import { CreatureSprites } from "./creatures.js";
 import { ScenerySprites } from "./scenery.js";
 import { TerrainAtlas } from "./terrain-atlas.js";
 import { buildMesh } from "./mesh.js";
+import { fungiMaterial } from "./fungi-caps.js";
+import { FungiMesher } from "./fungi-mesher.js";
 import { FirstPersonControls, canWalk, walkingHeight } from "./first-person.js";
 import { LiquidMeshes } from "./liquids.js";
 import { FlowSprites } from "./flows.js";
@@ -26,6 +28,11 @@ import {
   type MiningMode,
   type MiningTarget,
 } from "../shared/mining.js";
+function disposeTerrain(mesh: THREE.Mesh) {
+  mesh.traverse((object) => {
+    if (object instanceof THREE.Mesh) object.geometry.dispose();
+  });
+}
 export class FortressScene {
   creatures = new CreatureSprites();
   scenery = new ScenerySprites();
@@ -41,6 +48,8 @@ export class FortressScene {
   cut = 0;
   bounds?: Bounds;
   terrainAtlas = new TerrainAtlas();
+  private capMaterial = fungiMaterial(this.terrainAtlas.texture);
+  private capMesher = new FungiMesher();
   material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     map: this.terrainAtlas.texture,
@@ -539,7 +548,7 @@ export class FortressScene {
           mesh = this.meshes.get(k);
         if (mesh && c.z > this.cut) {
           this.scene.remove(mesh);
-          mesh.geometry.dispose();
+          disposeTerrain(mesh);
           this.meshes.delete(k);
         }
       }
@@ -582,7 +591,7 @@ export class FortressScene {
     for (const [k, mesh] of this.meshes) {
       if (!this.state.chunks.has(k)) {
         this.scene.remove(mesh);
-        mesh.geometry.dispose();
+        disposeTerrain(mesh);
         this.meshes.delete(k);
         this.dirty.delete(k);
       }
@@ -614,10 +623,11 @@ export class FortressScene {
       dy = bounds.y - (this.bounds?.y ?? bounds.y);
     for (const mesh of this.meshes.values()) {
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
+      disposeTerrain(mesh);
     }
     this.meshes.clear();
     this.dirty.clear();
+    this.capMesher.clear();
     this.bounds = bounds;
     this.cut = level;
     if (keepWalking) {
@@ -654,6 +664,28 @@ export class FortressScene {
     this.flows.update(chunks);
     const changed = chunks.map(chunkKey);
     const neighbours = chunks.flatMap(affected);
+    // A cap is extruded across several levels. A newly streamed top/bottom
+    // changes its continuous surface throughout that local column window.
+    for (const c of chunks)
+      if (
+        c.tiles.some((t) => /CAP/.test(t.treeGraphic ?? "")) ||
+        this.meshes?.get(chunkKey(c))?.children.length
+      ) {
+        for (let x = c.x - 16; x <= c.x + 16; x += 16)
+          for (let y = c.y - 16; y <= c.y + 16; y += 16)
+            for (
+              let z = this.cut - LEVELS_BELOW;
+              z <= this.cut + LEVELS_ABOVE;
+              z++
+            ) {
+              const key = `${x},${y},${z}`,
+                other = this.state.chunks.get(key);
+              if (other) {
+                neighbours.push(key);
+                this.emptyChunks.delete(other);
+              }
+            }
+      }
     if (priority && chunks.length) {
       // Reinsert even already queued edits at the front. The edited geometry
       // must not wait behind cutaway/streaming rebuilds or its neighbours.
@@ -760,7 +792,7 @@ export class FortressScene {
       const old = this.meshes.get(k);
       if (old) {
         this.scene.remove(old);
-        old.geometry.dispose();
+        disposeTerrain(old);
         this.meshes.delete(k);
       }
       this.scenery.update(
@@ -779,13 +811,13 @@ export class FortressScene {
         this.cut,
         this.terrainAtlas.uv,
         this.navigation === "firstPerson",
+        true,
       );
       if (
         !c.objects?.length &&
         c.tiles.every((t) => t.shape === "empty" && !t.liquid && !t.treeGraphic)
       )
         this.emptyChunks.add(c);
-      if (!data.positions.length) continue;
       const g = new THREE.BufferGeometry();
       g.setAttribute(
         "position",
@@ -795,6 +827,40 @@ export class FortressScene {
       g.setAttribute("uv", new THREE.Float32BufferAttribute(data.uvs, 2));
       g.computeBoundingBox();
       const m = new THREE.Mesh(g, this.material);
+      const hasCap = this.capMesher.request(
+        c,
+        this.state.chunks,
+        this.terrainAtlas.uv,
+        this.navigation !== "firstPerson" && c.z === this.cut,
+        (data) => {
+          if (this.meshes.get(k) !== m || !data.positions.length) return;
+          const capGeometry = new THREE.BufferGeometry();
+          capGeometry.setAttribute(
+            "position",
+            new THREE.Float32BufferAttribute(data.positions, 3),
+          );
+          capGeometry.setAttribute(
+            "normal",
+            new THREE.Float32BufferAttribute(data.normals, 3),
+          );
+          capGeometry.setAttribute(
+            "capRect",
+            new THREE.Float32BufferAttribute(data.caps, 4),
+          );
+          capGeometry.setAttribute(
+            "undersideRect",
+            new THREE.Float32BufferAttribute(data.undersides, 4),
+          );
+          capGeometry.computeBoundingSphere();
+          m.add(new THREE.Mesh(capGeometry, this.capMaterial));
+          this.emptyChunks.delete(c);
+        },
+      );
+      if (hasCap) this.emptyChunks.delete(c);
+      if (!data.positions.length && !hasCap) {
+        g.dispose();
+        continue;
+      }
       m.userData.chunkKey = k;
       this.meshes.set(k, m);
       this.scene.add(m);
@@ -817,7 +883,7 @@ export class FortressScene {
       this.cut - LEVELS_BELOW,
     );
     this.renderer.render(this.scene, this.camera);
-    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
+    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size + this.capMesher.pending} queued`;
   };
   dispose() {
     cancelAnimationFrame(this.frameId);
@@ -860,8 +926,10 @@ export class FortressScene {
     this.scenery.dispose();
     this.liquids.dispose();
     this.flows.dispose();
-    for (const m of this.meshes.values()) m.geometry.dispose();
+    for (const m of this.meshes.values()) disposeTerrain(m);
     this.material.dispose();
+    this.capMaterial.dispose();
+    this.capMesher.dispose();
     this.terrainAtlas.dispose();
     this.renderer.dispose();
   }
