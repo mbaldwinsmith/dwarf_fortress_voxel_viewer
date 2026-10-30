@@ -390,17 +390,22 @@ export function plantObjects(
       const species = (name: string) => graphics.get(`PLANT:${d.id}:${name}`);
       tile.tree = {
         ...tile.tree,
+        speciesId: d.id,
         species: d.name,
         bark: ref("TREE_TRUNK_PILLAR") ?? sprite,
         side:
+          (d.id === "TUNNEL_TUBE" ? species("TREE_TWIGS_NSWE") : undefined) ??
+          species("TREE_TRUNK_SLOPE_S") ??
+          species("TREE_TRUNK_SLOPE_N") ??
           species("TREE_TRUNK_SLOPE_NSWE") ??
           species("TREE_TRUNK_SLOPE_NSW") ??
           species("TREE_TRUNK_NSWE") ??
           species("TREE_TRUNK_THICK_INTERIOR") ??
           species("TREE_TRUNK_PILLAR") ??
+          ref("TREE_TRUNK_SLOPE_S") ??
           ref("TREE_TRUNK_SLOPE_NSWE") ??
           sprite,
-        leaves: ref(`TREE_TWIGS_FULL${1 + (i % 4)}`) ?? ref("TREE_TWIGS"),
+        leaves: ref("TREE_TWIGS_FULL1") ?? ref("TREE_TWIGS"),
         cap: sprite,
         capSurface: ref("TREE_CAP_THICK_INTERIOR"),
         ...(species("TREE_CAP_THICK_INTERIOR") || d.id === "FUNGIWOOD"

@@ -1,8 +1,20 @@
-# Astra handover: native workshop fidelity
+# Astra handover: native scenery fidelity
 
 Updated 2026-10-30 after continuing the original handover. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
 
-## Objective and current status
+## Completed tree follow-on
+
+The user's subsequent request was to improve trees with a specialised Tree Critic subagent, detailed feedback and iteration toward 4.8+/5. **Complete:** `/root/tree_critic` independently signed off all 21 controlled family/state fixtures, the actual live grove and the tower-cap regression at **4.80 minimum**, with pine, cedar and larch at **4.85**. See [tree-critic-review.md](tree-critic-review.md) for the complete rubric and detailed feedback.
+
+Nine visual rounds established the passing geometry; `artifacts/tree-review-runtime10/` verifies the final worker path. Rounded connected trunks, sloping bends, tapered branch joins and varied leafy volumes preserve the revealed occupied cells. Native material handling distinguishes empty twigs, spore nodules, cactus tips, hollow tube mouths and fungiwood. Existing tower-cap geometry and workshop models remain unchanged.
+
+Implementation lives in `tree-geometry.ts`, `tree-topology.ts`, `tree-section.ts`, `tree-wood.ts`, `tree-foliage.ts` and `tree-mesh.ts`. `tree-mesher.ts` and `tree-worker.ts` move construction off the rendering thread with coalescing, stale-result protection, priority and a bounded geometry cache. The scene retains old trees during replacement and manages tree/cap children independently. The bridge supplies stable species IDs and appropriate native material references.
+
+Validation: **246 tests across 44 files**, production build and visual worker comparison passed. Focused coverage includes concave/hidden occupancy, chunk seams, directional bare wood, outward foliage and tube-mouth winding, worker UV remapping, deduplication, caching, invalidation and disposal. No installer was built. The live worker audit recorded 3.6 ms p95 / 12.2 ms maximum main-thread request cost and verified cached reuse without rebuilding.
+
+The ignored `tree-live-snapshot.json` is a read-only 144-block snapshot (X32–79, Y48–95, Z171–186). `tree-gallery-data.ts`, `tree-critic-boards.mjs`, `tree-fungi-regression.mjs` and `tree-worker-runtime-audit.mjs` reproduce the local-art review. Keep `runtime10` immutable. Future captures must wait for both `capMesher.pending` and `treeMesher.pending`, as well as an empty scene dirty queue.
+
+## Completed workshop objective
 
 The requested objective is an independent comparison of all 33 workshop, furnace and depot profiles against their native sprites, with **each scoring at least 4.8/5**. Flat native tools, food and cloth on genuinely raised tables are accepted; major structures and machinery need coherent volume and support.
 

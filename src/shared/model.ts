@@ -28,6 +28,7 @@ export interface Creature {
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
   tree?: {
+    speciesId?: string;
     species?: string;
     progress?: number;
     bark?: SpriteRef;

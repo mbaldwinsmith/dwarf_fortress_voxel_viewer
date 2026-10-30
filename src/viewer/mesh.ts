@@ -8,11 +8,10 @@ import {
 } from "../shared/model.js";
 import type { TerrainUV } from "./terrain-atlas.js";
 import { rampSurface, FLOOR_HEIGHT } from "./ramps.js";
-import { treeBoxes, treeGround } from "./trees.js";
-import { exposedBoxFaces } from "./box-surface.js";
+import { treeGround } from "./trees.js";
 import { buildFungiCaps, type FungiData } from "./fungi-caps.js";
-import { appendFungalStem, roundFungalStem } from "./fungi-stems.js";
-import { appendFungalBranches, roundFungalBranches } from "./fungi-branches.js";
+import { appendTree } from "./tree-mesh.js";
+import { TreeTopology } from "./tree-topology.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
@@ -51,14 +50,14 @@ export function buildMesh(
   ],
   firstPerson = false,
   deferFungi = false,
+  deferTrees = false,
 ): MeshData {
   const out: MeshData = { positions: [], colors: [], uvs: [] };
+  const treeTopology = new TreeTopology(chunks);
   let surfaces: Tile["surfaces"];
   let capTexture: SpriteRef | undefined;
   let capRim: SpriteRef[] = [];
   let rimTint: number[] | undefined;
-  let foliage = false;
-  let treeFace = false;
   const visibleCut = firstPerson ? cut + LEVELS_ABOVE : cut;
   if (c.z > visibleCut || c.z < cut - LEVELS_BELOW) return out;
 
@@ -84,7 +83,7 @@ export function buildMesh(
     const [left, bottom, right, top] = textureUV(
       rim ??
         (wallCap ? capTexture : horizontal ? surfaces?.top : surfaces?.side),
-      !!rim || foliage,
+      !!rim,
     );
     let uv = horizontal
       ? [
@@ -115,13 +114,7 @@ export function buildMesh(
     }
     for (const i of [0, 1, 2, 0, 2, 3]) {
       out.positions.push(...v[i]);
-      const shade =
-        treeFace && !horizontal
-          ? v.every((p) => p[0] === v[0][0])
-            ? 0.78
-            : 0.9
-          : 1;
-      out.colors.push(...faceColor.map((c) => c * shade));
+      out.colors.push(...faceColor);
       out.uvs.push(...uv[i]);
     }
   }
@@ -204,15 +197,7 @@ export function buildMesh(
           ],
           color,
         );
-      if (
-        (!cull || !neighbour(x, y, z + 1)) &&
-        !(
-          treeFace &&
-          u === z + 1 &&
-          /TRUNK/.test(t.treeGraphic ?? "") &&
-          tileAt(chunks, x, y, z + 1)?.treeGraphic
-        )
-      ) {
+      if (!cull || !neighbour(x, y, z + 1)) {
         quad(
           [
             [a, u, b + d],
@@ -275,85 +260,8 @@ export function buildMesh(
           : (palette[ground.material] ?? [0.53, 0.52, 0.46]);
         box(FLOOR_HEIGHT);
       }
-      treeFace = true;
-      const roundStem = roundFungalStem(t);
-      if (roundStem) appendFungalStem(out, t, x, y, z, chunks, textureUV);
-      const roundBranches = roundFungalBranches(t);
-      if (roundBranches)
-        appendFungalBranches(out, t, x, y, z, chunks, textureUV);
-      color = [1, 1, 1];
-      capTexture = undefined;
-      capRim = [];
-      const parts = treeBoxes(t, x, y, z, chunks);
-      const faces = exposedBoxFaces(parts);
-      for (const [index, part] of parts.entries()) {
-        if (roundBranches && part.part === "bark") continue;
-        if (
-          roundStem &&
-          part.part === "bark" &&
-          part.h === 1 &&
-          part.w > 0.5 &&
-          part.d > 0.5
-        )
-          continue;
-        foliage = true;
-        let ref =
-          part.part === "leaves"
-            ? t.tree?.leaves
-            : part.part === "cap"
-              ? t.tree?.cap
-              : t.tree?.bark;
-        color = ref
-          ? [1, 1, 1]
-          : part.part === "leaves"
-            ? [0.32, 0.5, 0.13]
-            : (palette[t.material] ?? palette[23]);
-        if (ref && part.part === "leaves") {
-          const w = Math.max(1, Math.round(ref.width * part.w)),
-            h = Math.max(1, Math.round(ref.height * part.d));
-          ref = {
-            ...ref,
-            x: ref.x + Math.floor((ref.width - w) / 2),
-            y: ref.y + Math.floor((ref.height - h) / 2),
-            width: w,
-            height: h,
-          };
-        }
-        const barkSide = t.tree?.side ?? ref;
-        const side =
-          barkSide && part.part === "bark"
-            ? {
-                ...barkSide,
-                x: barkSide.x + Math.floor(barkSide.width * 0.3),
-                y: barkSide.y + Math.floor(barkSide.height * 0.3),
-                width: Math.max(1, Math.floor(barkSide.width * 0.4)),
-                height: Math.max(1, Math.floor(barkSide.height * 0.4)),
-              }
-            : ref;
-        surfaces = ref
-          ? {
-              top: part.part === "bark" && part.h < 0.9 ? side! : ref,
-              side: side!,
-            }
-          : undefined;
-        for (const face of faces.filter((f) => f.box === index)) {
-          if (
-            face.vertices.every((v) => Math.abs(v[1] - 1) < 1e-9) &&
-            /TRUNK/.test(t.treeGraphic) &&
-            tileAt(chunks, x, y, z + 1)?.treeGraphic
-          )
-            continue;
-          quad(
-            face.vertices.map((v) => [x + v[0], z + v[1], y + v[2]]),
-            color,
-            false,
-            undefined,
-            face.crop,
-          );
-        }
-      }
-      foliage = false;
-      treeFace = false;
+      if (!deferTrees)
+        appendTree(out, t, x, y, z, chunks, textureUV, treeTopology);
     } else if (t.shape === "wall" || t.shape === "unknown")
       box(1, 0, 0, 1, 1, 0, true);
     else if (t.shape === "stairs") {

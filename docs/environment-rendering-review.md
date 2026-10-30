@@ -22,32 +22,52 @@ or up. Measurements are cached rather than reading image pixels every frame.
 
 ## Trees and critic review
 
-Actual revealed DF tree cells determine the occupied 3D body. Adjacent trunk cells
-join across block boundaries; directional branches reach the correct tile edges.
-Only twig cells receive leaf lobes. Dead branches remain bare. Species-specific
-native graphics provide trunk cuts, side bark, foliage and mushroom-cap surfaces.
-Species-specific alternatives are exhausted before generic artwork is considered.
-Rooted trunks borrow visible neighbouring ground textures instead of leaving a
-hole around the narrower 3D stem. Airborne branches do not acquire ground slabs.
+Actual revealed DF tree cells determine the occupied 3D body. Connected trunk
+sections have rounded outlines, tapered transitions and closed undersides.
+Concave sections retain their empty notches and unknown interior cells. Sloping
+trunk tiles form thick bends into the crown. Native directional branches retain
+their arms; unspecified twigs form a connected hierarchy instead of a grid.
+
+Only actual leafy twig cells receive irregular, rotated leaf volumes, with small
+shoulders joining adjacent leafy cells. Dead branches stay bare. Native-empty
+glumprong and blood-thorn twig states remain empty. Spore trees have teal nodules,
+fungiwood retains orange/yellow terminals, saguaro tips are green and domed, and
+tunnel tubes have hollow mouths with the native red annulus.
+
+Native species artwork supplies bark, foliage and exposed sections. Longitudinal
+bark patches repeat at stable texel scale; hollow and pith-bearing sections use
+their outer tissue for side walls. The bridge supplies the raw species ID along
+with its display name. Rooted trunks borrow visible neighbouring ground textures;
+airborne branches do not acquire ground slabs. No artwork or QA images are bundled.
 
 The shared terrain window covers five levels below and ten above the camera cut
 throughout the requested XY footprint, within the 4096-block resident budget.
 Camera-adjacent columns load first. Orbit mode keeps its cutaway; first person
 renders the loaded upper tree body.
 
-A requested independent critic reviewed actual surface-tree geometry at
-X48–63/Y64–79, including plum, peach and almond trees, against the installed native
-tile graphics at the same coordinates. Ratings improved from 3.6 to 4.25 to
-**4.5/5 asset/shape fidelity** after removing leaves from bare branches, adding
-irregular stepped canopy lobes and matching their texel scale to bark.
+The requested specialist Tree Critic independently reviewed 17 native adult
+families, four state/topology fixtures, a frozen 144-block live grove containing
+eight species, and the previously approved tower-cap top/side/underside views.
+After nine visual iterations and a final worker-path comparison, **every case
+scores at least 4.80/5; pine, cedar and larch score 4.85**. Detailed component
+scores, native crop findings and round-by-round corrections are in
+[tree-critic-review.md](tree-critic-review.md). Earlier 4.5 surface-tree and 4.3
+fungal checkpoints are historical; the separate cap refinement is documented in
+[fungi-cap-review.md](fungi-cap-review.md).
 
-A separate, explicitly controlled tower-cap/fungiwood fixture reached **4.3/5**.
-It caught and corrected a generic bark fallback and an invalid fixture that had
-given branching fungiwood a tower-cap shape. Tower caps preserve their pale stems
-and native brown cap tokens; fungiwood preserves yellow/orange branching growth.
-Remaining differences are simplified branch taper, voxel-stepped silhouettes,
-rectangular cap undersides and simplified fungal nodules. These are comparisons
-against token-specific game artwork, not matched native-camera scene ratings.
+Tree meshes now build in a dedicated worker. Requests coalesce, stale results
+are discarded, nearby work takes priority, and a 32 MiB geometry-buffer cache
+reuses completed meshes. Atlas coordinates are resolved after worker completion.
+Existing trees remain visible during replacement. Cap and tree children update
+independently, and both queues clear on reset/disposal. The frozen live audit
+measured 3.6 ms p95 / 12.2 ms maximum main-thread request cost, 19 completed tree
+meshes, finite geometry and a cache hit without another build. These are local
+measurements, not a general frame-rate guarantee.
+
+Final ignored evidence is in `artifacts/tree-review-runtime10/`; its controlled
+render panels and actual grove differ only by negligible rounding pixels from
+the approved synchronous round. Remaining small faceted limbs and clumped native
+occupancy layers are deliberate limits of this pixel-art voxel interpretation.
 
 ## Smoke, mist and fire
 

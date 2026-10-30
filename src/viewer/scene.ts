@@ -16,6 +16,7 @@ import { TerrainAtlas } from "./terrain-atlas.js";
 import { buildMesh } from "./mesh.js";
 import { fungiMaterial } from "./fungi-caps.js";
 import { FungiMesher } from "./fungi-mesher.js";
+import { TreeMesher } from "./tree-mesher.js";
 import { FirstPersonControls, canWalk, walkingHeight } from "./first-person.js";
 import { LiquidMeshes } from "./liquids.js";
 import { FlowSprites } from "./flows.js";
@@ -50,6 +51,7 @@ export class FortressScene {
   terrainAtlas = new TerrainAtlas();
   private capMaterial = fungiMaterial(this.terrainAtlas.texture);
   private capMesher = new FungiMesher();
+  private treeMesher = new TreeMesher();
   material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     map: this.terrainAtlas.texture,
@@ -628,6 +630,7 @@ export class FortressScene {
     this.meshes.clear();
     this.dirty.clear();
     this.capMesher.clear();
+    this.treeMesher.clear();
     this.bounds = bounds;
     this.cut = level;
     if (keepWalking) {
@@ -664,6 +667,19 @@ export class FortressScene {
     this.flows.update(chunks);
     const changed = chunks.map(chunkKey);
     const neighbours = chunks.flatMap(affected);
+    // A branching hierarchy and a taper can cross chunk/z boundaries. Reuse
+    // worker results when unchanged, and invalidate nearby tree columns when
+    // new cells arrive or a previously visible tree is removed.
+    for (const c of chunks)
+      if (
+        c.tiles.some((t) => t.treeGraphic) ||
+        this.meshes?.get(chunkKey(c))?.children.some((m) => m.userData.tree)
+      )
+        for (const other of this.state.chunks.values())
+          if (Math.abs(other.x - c.x) <= 16 && Math.abs(other.y - c.y) <= 16) {
+            neighbours.push(chunkKey(other));
+            this.emptyChunks.delete(other);
+          }
     // A cap is extruded across several levels. A newly streamed top/bottom
     // changes its continuous surface throughout that local column window.
     for (const c of chunks)
@@ -811,6 +827,7 @@ export class FortressScene {
         this.terrainAtlas.uv,
         this.navigation === "firstPerson",
         true,
+        true,
       );
       if (
         !c.objects?.length &&
@@ -835,6 +852,7 @@ export class FortressScene {
         (data) => {
           if (this.meshes.get(k) !== m) return;
           for (const cap of [...m.children]) {
+            if (cap.userData.tree) continue;
             m.remove(cap);
             if (cap instanceof THREE.Mesh) disposeTerrain(cap);
           }
@@ -869,10 +887,51 @@ export class FortressScene {
       if (hasCap) this.emptyChunks.delete(c);
       else
         for (const cap of [...m.children]) {
+          if (cap.userData.tree) continue;
           m.remove(cap);
           if (cap instanceof THREE.Mesh) disposeTerrain(cap);
         }
-      if (!data.positions.length && !hasCap) {
+      const hasTree = this.treeMesher.request(
+        c,
+        this.state.chunks,
+        this.terrainAtlas.uv,
+        (tree) => {
+          if (this.meshes.get(k) !== m) return;
+          for (const child of [...m.children])
+            if (child.userData.tree) {
+              m.remove(child);
+              if (child instanceof THREE.Mesh) disposeTerrain(child);
+            }
+          if (!tree.positions.length) return;
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute(
+            "position",
+            new THREE.BufferAttribute(tree.positions, 3),
+          );
+          geometry.setAttribute(
+            "color",
+            new THREE.BufferAttribute(tree.colors, 3),
+          );
+          geometry.setAttribute("uv", new THREE.BufferAttribute(tree.uvs, 2));
+          geometry.computeBoundingSphere();
+          const child = new THREE.Mesh(geometry, this.material);
+          child.userData.tree = true;
+          m.add(child);
+          this.emptyChunks.delete(c);
+        },
+        Math.hypot(
+          c.x + 8 - this.camera.position.x,
+          c.y + 8 - this.camera.position.z,
+          (c.z - this.camera.position.y) * 2,
+        ),
+      );
+      if (!hasTree)
+        for (const child of [...m.children])
+          if (child.userData.tree) {
+            m.remove(child);
+            if (child instanceof THREE.Mesh) disposeTerrain(child);
+          }
+      if (!data.positions.length && !hasCap && !hasTree) {
         g.dispose();
         continue;
       }
@@ -898,7 +957,7 @@ export class FortressScene {
       this.cut - LEVELS_BELOW,
     );
     this.renderer.render(this.scene, this.camera);
-    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size + this.capMesher.pending} queued`;
+    this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size + this.capMesher.pending + this.treeMesher.pending} queued`;
   };
   dispose() {
     cancelAnimationFrame(this.frameId);
@@ -945,6 +1004,7 @@ export class FortressScene {
     this.material.dispose();
     this.capMaterial.dispose();
     this.capMesher.dispose();
+    this.treeMesher.dispose();
     this.terrainAtlas.dispose();
     this.renderer.dispose();
   }
