@@ -470,3 +470,17 @@ findings. Both installer and portable ZIP targets built locally. The actual ASAR
 packaged executable passed startup/WebGL/no-Node-exposure checks and connected to
 its bundled companion at an ephemeral port. An isolated smoke profile also passed.
 The CI-only smoke path permits software WebGL on GPU-less runners.
+
+## Surface ramp downhill edges (0.1.1)
+
+Diagonal uphill neighbours no longer raise a ramp corner beside a revealed lower
+floor unless a cardinal uphill wall also supports that corner. This keeps the
+visible mesh and walking height aligned and removes the artificial lip that
+blocked descent onto surface grass. Hidden terrain still supplies no walkable
+exit, and wall, headroom and unloaded-terrain collision checks are unchanged.
+
+Regression tests walk fully down and back up the hillside in all four cardinal
+directions, with diagonal uphill corners on both sides of the lower exit.
+Read-only terrain checks against the running fortress also verified descent at
+X54/Y67 from Z174 onto the lower grass at Z173. These checks sample the actual
+navigation/collision functions against DFHack terrain, without moving game units.

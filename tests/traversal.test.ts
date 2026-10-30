@@ -61,3 +61,64 @@ it("does not climb arbitrary walls or step off a ledge without a ramp", () => {
   a.tiles[35].shape = "empty";
   expect(rampDestination(world, 2.99, 2.5, 3.01, 2.5, 4)).toBeUndefined();
 });
+
+it.each([
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+])(
+  "walks fully down and back up a surface ramp with diagonal uphill corners (%s,%s)",
+  (dx, dy) => {
+    const lower = block(4, "floor"),
+      upper = block(5),
+      sky = block(6);
+    const world = new Map([lower, upper, sky].map((c) => [chunkKey(c), c]));
+    const x = 8,
+      y = 8;
+    lower.tiles[y * 16 + x] = {
+      shape: "ramp",
+      material: 2,
+      name: "Grass ramp",
+    };
+    // A hillside wraps around the low exit at both diagonal corners.
+    for (const [ox, oy] of [
+      [dx, dy],
+      [-dx - dy, -dy + dx],
+      [-dx + dy, -dy - dx],
+    ]) {
+      lower.tiles[(y + oy) * 16 + x + ox] = {
+        shape: "wall",
+        material: 2,
+        name: "Hillside",
+      };
+      upper.tiles[(y + oy) * 16 + x + ox] = {
+        shape: "floor",
+        material: 2,
+        name: "Grass",
+      };
+    }
+    for (const direction of [-1, 1]) {
+      let px = x + 0.5 - direction * dx,
+        py = y + 0.5 - direction * dy;
+      let level = direction === -1 ? 5 : 4;
+      for (let step = 0; step < 40; step++) {
+        const nx = px + direction * dx * 0.05,
+          ny = py + direction * dy * 0.05;
+        const destination = rampDestination(world, px, py, nx, ny, level);
+        expect(
+          destination,
+          `step ${step} at ${px},${py},${level}`,
+        ).toBeDefined();
+        expect(
+          canWalk(world, nx, ny, destination!),
+          `walk step ${step} at ${nx},${ny},${destination}`,
+        ).toBe(true);
+        px = nx;
+        py = ny;
+        level = destination!;
+      }
+      expect(level).toBe(direction === -1 ? 4 : 5);
+    }
+  },
+);

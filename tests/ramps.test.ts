@@ -58,6 +58,13 @@ it("keeps multiple uphill exits and respects redacted support", () => {
   f.set(9, 8, "unknown");
   expect(f.surface().corners).toEqual([1, 0.12, 1, 1]);
 });
+it("preserves a diagonal-only uphill connection beside lower floors", () => {
+  const f = fixture();
+  f.set(9, 9, "wall");
+  f.c.tiles[8 * 16 + 9] = { shape: "floor", material: 2, name: "Grass" };
+  f.c.tiles[9 * 16 + 8] = { shape: "floor", material: 2, name: "Grass" };
+  expect(f.surface().corners).toEqual([0.12, 0.12, 1, 0.12]);
+});
 it("keeps opposite exits sloped rather than becoming a flat wall", () => {
   const f = fixture();
   f.set(8, 7, "wall");

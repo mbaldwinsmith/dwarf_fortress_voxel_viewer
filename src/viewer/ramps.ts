@@ -27,12 +27,33 @@ export function rampSurface(
     const shape = tileAt(chunks, x + dx, y + dy, z)?.shape;
     return shape === "wall" || shape === "unknown";
   };
+  const cardinalUphill = [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+  ].some(([dx, dy]) => wall(dx, dy));
   const corners = [
     [-1, -1],
     [-1, 1],
     [1, 1],
     [1, -1],
-  ].map(([dx, dy]) => (wall(dx, 0) || wall(0, dy) || wall(dx, dy) ? 1 : 0.12));
+  ].map(([dx, dy]) => {
+    const lowExit = [
+      [dx, 0],
+      [0, dy],
+    ].some(([ox, oy]) => {
+      const shape = tileAt(chunks, x + ox, y + oy, z)?.shape;
+      return shape === "floor" || shape === "stairs";
+    });
+    // Along a cardinal slope, a diagonal hill must not raise its downhill exit.
+    // Preserve diagonal-only ramps, which have no cardinal uphill alternative.
+    return wall(dx, 0) ||
+      wall(0, dy) ||
+      (wall(dx, dy) && (!lowExit || !cardinalUphill))
+      ? 1
+      : 0.12;
+  });
   // Multiple uphill exits form a shallow basin rather than arbitrarily choosing
   // one direction or filling the entire tile to wall height.
   const center = Math.min(0.56, corners.reduce((sum, h) => sum + h, 0) / 4);
