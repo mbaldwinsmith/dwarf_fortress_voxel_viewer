@@ -38,7 +38,7 @@ export function sceneryMappings(text: string) {
         y: Number(a[3]),
       });
     if (
-      tag === "TILE_GRAPHICS" &&
+      ["TILE_GRAPHICS", "TOOL_GRAPHICS"].includes(tag) &&
       a.length >= 4 &&
       /^\d+$/.test(a[1]) &&
       /^\d+$/.test(a[2])

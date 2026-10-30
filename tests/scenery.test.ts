@@ -131,6 +131,50 @@ it("selects species shrubs, dead plants and saplings without exposing hidden veg
   c.tiles[17].shape = "wall";
   expect(plantObjects(c, [p], plants, art)).toEqual([]);
 });
+it("loads native tool art and renders nest boxes and omitted furniture upright", () => {
+  const mappings = sceneryMappings(
+    "[TOOL_GRAPHICS:TOOLS:0:10:ITEM_TOOL_NEST_BOX]" +
+      "[TOOL_GRAPHICS:TOOLS:2:11:ITEM_TOOL_HIVE]",
+  );
+  expect(mappings).toEqual([
+    { key: "ITEM_TOOL_NEST_BOX", page: "TOOLS", x: 0, y: 10 },
+    { key: "ITEM_TOOL_HIVE", page: "TOOLS", x: 2, y: 11 },
+  ]);
+  for (const [category, token] of [
+    ["NestBox", "ITEM_TOOL_NEST_BOX"],
+    ["Hive", "ITEM_TOOL_HIVE"],
+    ["Armorstand", "ITEM_ARMOR_STAND_WOOD_EMPTY"],
+    ["Weaponrack", "ITEM_WEAPON_RACK_WOOD_EMPTY"],
+    ["Cage", "ITEM_CAGE_WOOD"],
+    ["AnimalTrap", "ITEM_ANIMAL_TRAP_WOOD"],
+    ["Statue", "ITEM_STATUE_ITEM"],
+    ["OfferingPlace", "ITEM_TOOL_ALTAR"],
+    ["DisplayFurniture", "ITEM_TOOL_PEDESTAL"],
+  ]) {
+    const c = chunk();
+    const b = building({ posXMin: 1, posXMax: 1, posYMax: 1 });
+    const objects = buildingObjects(c, [b], new Map([["13,0,-1", category]]), {
+      get: (key) => (key === token ? sprite : undefined),
+    });
+    expect(objects).toMatchObject([{ kind: "upright", sprite }]);
+    const heights = objectQuad(objects[0]).filter((_, i) => i % 3 === 1);
+    expect(Math.max(...heights) - Math.min(...heights)).toBeCloseTo(1);
+    c.objects = objects;
+    expect(() =>
+      parseServerMessage({
+        type: "chunks",
+        session: "s",
+        sequence: 1,
+        pollMs: 200,
+        chunks: [c],
+      }),
+    ).not.toThrow();
+    c.tiles[17].shape = "unknown";
+    expect(
+      buildingObjects(c, [b], new Map([["13,0,-1", category]]), art),
+    ).toEqual([]);
+  }
+});
 it("parses tile-unit page dimensions, workshop coordinates and plant states", () => {
   const text =
     "[TILE_PAGE:SHOP][FILE:images/shop.png][TILE_DIM:32:32][PAGE_DIM:3:4][TILE_GRAPHICS:SHOP:1:2:WORKSHOP_CARPENTER:3:1:1][PLANT_GRAPHICS:PLUMP][SHRUB:SHOP:0:0][SEED:SHOP:1:0]";

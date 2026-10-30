@@ -98,7 +98,7 @@ export interface SceneryObject {
   y: number;
   z: number;
   name: string;
-  kind: "ground" | "door" | "plant";
+  kind: "ground" | "door" | "plant" | "upright";
   sprite?: SpriteRef;
   overlay?: SpriteRef;
 }

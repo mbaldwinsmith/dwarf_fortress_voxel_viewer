@@ -107,6 +107,30 @@ it("chooses a stable single graphic per tile and removes it when picked up", () 
     groundItems(chunk(), [item(2, { flags1: 8 })], defs, mats, art),
   ).toEqual([]);
 });
+it("keeps whole corpses and corpse pieces visible using native remains art", () => {
+  for (const category of ["CORPSE", "CORPSEPIECE", "REMAINS"]) {
+    const definitions = new Map([["4,-1", category]]);
+    const graphics = {
+      get: (key: string) => (key === "ITEM_REMAINS" ? sprite : undefined),
+    };
+    expect(
+      groundItems(chunk(), [item()], definitions, mats, graphics),
+    ).toMatchObject([{ id: "i:1", kind: "ground", sprite }]);
+    expect(
+      groundItems(
+        chunk(),
+        [item(1, { flags1: 1 | (1 << 4) })],
+        definitions,
+        mats,
+        graphics,
+      ),
+    ).toEqual([]);
+    const c = chunk();
+    c.tiles[50].shape = "unknown";
+    expect(groundItems(c, [item()], definitions, mats, graphics)).toEqual([]);
+    expect(groundItems(chunk(), [], definitions, mats, graphics)).toEqual([]);
+  }
+});
 it("decodes native ground item wire positions and material overrides", () => {
   const t = type("RemoteFortressReader.MapBlock");
   const b = t.toObject(

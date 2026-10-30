@@ -11,6 +11,9 @@ const aliases: Record<string, string> = {
   BOX: "BOX",
   SKIN_TANNED: "LEATHER",
   CORPSEPIECE: "REMAINS",
+  // Whole corpses have species-specific creature art, not an ITEM_CORPSE tile.
+  // Until corpse appearance is supplied, keep them visible as native remains.
+  CORPSE: "REMAINS",
   ROCK: "ROCK",
   EGG: "EGG_SIZE1",
   SLAB: "SLAB_BLANK",

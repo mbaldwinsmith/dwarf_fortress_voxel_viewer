@@ -334,7 +334,7 @@ export function parseServerMessage(value: unknown): ServerMessage {
             o.x >= Number(c.x) + 16 ||
             o.y < Number(c.y) ||
             o.y >= Number(c.y) + 16 ||
-            !["ground", "door", "plant"].includes(String(o.kind))
+            !["ground", "door", "plant", "upright"].includes(String(o.kind))
           )
             throw Error("Invalid scenery object");
           ids.add(o.id);

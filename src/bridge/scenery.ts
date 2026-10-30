@@ -55,7 +55,27 @@ const furniture: Record<string, string> = {
   Slab: "SLAB",
   Bookcase: "BOOKCASE",
   TractionBench: "TRACTION_BENCH",
+  NestBox: "TOOL_NEST_BOX",
+  Hive: "TOOL_HIVE",
+  Armorstand: "ARMOR_STAND",
+  Weaponrack: "WEAPON_RACK",
+  Cage: "CAGE",
+  AnimalTrap: "ANIMAL_TRAP",
+  Statue: "STATUE_ITEM",
+  OfferingPlace: "TOOL_ALTAR",
+  DisplayFurniture: "TOOL_PEDESTAL",
 };
+const uprightFurniture = new Set([
+  "NestBox",
+  "Hive",
+  "Armorstand",
+  "Weaponrack",
+  "Cage",
+  "AnimalTrap",
+  "Statue",
+  "OfferingPlace",
+  "DisplayFurniture",
+]);
 export function buildingObjects(
   chunk: Chunk,
   buildings: unknown,
@@ -157,6 +177,9 @@ export function buildingObjects(
                 : graphics.get(`${token}_${material}_CLOSED:ALL`)
               : undefined;
           sprite ??=
+            (["Armorstand", "Weaponrack"].includes(category)
+              ? graphics.get(`${token}_${material}_EMPTY`)
+              : undefined) ??
             graphics.get(`${token}_${material}:1`) ??
             graphics.get(`${token}_${material}`) ??
             graphics.get(token);
@@ -207,7 +230,12 @@ export function buildingObjects(
           y,
           z: chunk.z,
           name: id,
-          kind: category === "Door" ? "door" : "ground",
+          kind:
+            category === "Door"
+              ? "door"
+              : uprightFurniture.has(category)
+                ? "upright"
+                : "ground",
           ...(sprite ? { sprite } : {}),
           ...(overlay ? { overlay } : {}),
           ...(tint ? { tint } : {}),
