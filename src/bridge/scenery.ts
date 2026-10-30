@@ -3,6 +3,7 @@ import type { Rpc } from "./rpc.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
 import { textureTerrain, terrainMaterials } from "./terrain-art.js";
 import { groundItems } from "./ground-items.js";
+import { flowTokens } from "./flows.js";
 const records = (v: unknown): Record<string, unknown>[] =>
   Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : [];
 export const buildingKey = (t: Record<string, unknown>) =>
@@ -247,6 +248,28 @@ export function plantObjects(
       `${/sapling/i.test(tile.name) ? "SAPLING" : "SHRUB"}${/dead/i.test(tile.name) ? "_DEAD" : ""}`;
     const sprite =
       graphics.get(`PLANT:${d.id}:${token}`) ?? graphics.get(token);
+    if (tile.treeGraphic) {
+      const ref = (name: string) =>
+        graphics.get(`PLANT:${d.id}:${name}`) ?? graphics.get(name);
+      const species = (name: string) => graphics.get(`PLANT:${d.id}:${name}`);
+      tile.tree = {
+        ...tile.tree,
+        species: d.name,
+        bark: ref("TREE_TRUNK_PILLAR") ?? sprite,
+        side:
+          species("TREE_TRUNK_SLOPE_NSWE") ??
+          species("TREE_TRUNK_SLOPE_NSW") ??
+          species("TREE_TRUNK_NSWE") ??
+          species("TREE_TRUNK_THICK_INTERIOR") ??
+          species("TREE_TRUNK_PILLAR") ??
+          ref("TREE_TRUNK_SLOPE_NSWE") ??
+          sprite,
+        leaves: ref(`TREE_TWIGS_FULL${1 + (i % 4)}`) ?? ref("TREE_TWIGS"),
+        cap: sprite,
+      };
+      occupied.add(i);
+      continue;
+    }
     if (!sprite) continue;
     const x = chunk.x + (i % 16),
       y = chunk.y + Math.floor(i / 16);
@@ -342,6 +365,12 @@ export class SceneryReader {
         });
   }
   async decorate(chunk: Chunk, raw?: Record<string, unknown>) {
+    for (const flow of chunk.flows ?? []) {
+      flow.frames = [1, 2, 3, 4].flatMap((i) => {
+        const ref = this.graphics.get(`${flowTokens[flow.kind]}:${i}`);
+        return ref ? [ref] : [];
+      });
+    }
     textureTerrain(chunk, this.graphics, raw?.materials, {
       definitions: this.materialDefinitions,
       plants: this.plantDefinitions,

@@ -81,13 +81,15 @@ it("finds young fungiwood and tower-cap trunks directly in visible tile material
     art,
     mats,
   );
-  expect(objects.map((o) => o.name)).toEqual(["fungiwood", "tower-cap"]);
+  expect(objects.map((o) => o.name)).toEqual(["fungiwood"]);
+  expect(c.tiles[2].tree?.species).toBe("tower-cap");
+  expect(c.tiles[2].tree?.bark).toEqual(sprite);
   expect(requested).toContain("PLANT:FUNGIWOOD:SAPLING");
   expect(requested).toContain("PLANT:TOWER_CAP:TREE_TRUNK_PILLAR");
   c.tiles[2] = { shape: "unknown", material: 0, name: "Undiscovered" };
   expect(plantObjects(c, [], defs, art, mats)).toHaveLength(1);
 });
-it("keeps tree voxels as a fallback and removes their occluding cube only when sprite art exists", () => {
+it("keeps actual 3D trunks rather than flattening them when legacy sprite art exists", () => {
   const c = chunk();
   c.tiles[2] = {
     shape: "wall",
@@ -102,9 +104,7 @@ it("keeps tree voxels as a fallback and removes their occluding cube only when s
   ];
   const replaced = buildMesh(c, all, 4);
   expect(Math.max(...original.positions.filter((_, i) => i % 3 === 1))).toBe(5);
-  expect(
-    Math.max(...replaced.positions.filter((_, i) => i % 3 === 1)),
-  ).toBeCloseTo(4.12);
+  expect(Math.max(...replaced.positions.filter((_, i) => i % 3 === 1))).toBe(5);
   const raw = {
     mapX: 0,
     mapY: 0,

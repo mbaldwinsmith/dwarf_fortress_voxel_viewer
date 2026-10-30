@@ -2,11 +2,29 @@ import { it, expect } from "vitest";
 import { parseGraphics, permittedImage } from "../src/bridge/graphics.js";
 import { visibleUnit } from "../src/bridge/creatures.js";
 import { CreatureSprites } from "../src/viewer/creatures.js";
+import * as THREE from "three";
 import { parseServerMessage } from "../src/shared/validation.js";
 import { type Chunk } from "../src/shared/model.js";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+it("writes opaque sprite pixels to depth so water cannot paint over foreground creatures", () => {
+  const sprites = new CreatureSprites();
+  try {
+    sprites.snapshot({
+      type: "creatures",
+      session: "a",
+      tick: 1,
+      creatures: [{ id: 1, x: 0, y: 0, z: 0, name: "Dwarf" }],
+    });
+    const material = (sprites.group.children[0] as THREE.Sprite).material;
+    expect(material.transparent).toBe(false);
+    expect(material.depthWrite).toBe(true);
+    expect(material.alphaTest).toBeGreaterThan(0);
+  } finally {
+    sprites.dispose();
+  }
+});
 it("resolves simple and caste definitions without treating layered graphics as flat sprites", () => {
   const p = parseGraphics(
     "[TILE_PAGE:ANIMALS][FILE:images/animals.png][TILE_DIM:32:32][PAGE_DIM_PIXELS:128:128]\n[CREATURE_GRAPHICS:TEST][DEFAULT:ANIMALS:2:1:AS_IS]\n[CREATURE_CASTE_GRAPHICS:BIRD:FEMALE][DEFAULT:ANIMALS:0:0:AS_IS]\n[CREATURE_GRAPHICS:LAYERED][LAYER_SET:DEFAULT][DEFAULT:ANIMALS:0:0:AS_IS]",
@@ -73,7 +91,7 @@ it("replaces unit snapshots, resets sessions and uses depth-tested camera-facing
   expect(layer.visibleCount).toBe(1);
   const object = layer.group.children[0];
   expect(object.type).toBe("Sprite");
-  expect(object.position.toArray()).toEqual([2.5, 3.13, 2.5]);
+  expect(object.position.toArray()).toEqual([2.5, 3.12, 2.5]);
   layer.snapshot({ type: "creatures", session: "a", tick: 1, creatures: [] });
   expect(layer.group.children).toHaveLength(1);
   layer.snapshot({ type: "creatures", session: "a", tick: 2, creatures: [] });

@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { linearMaterialColor } from "./mesh.js";
 import { recolor } from "./composite-sprites.js";
+import { SpriteFeet } from "./sprite-ground.js";
+import { surfaceHeight } from "./traversal.js";
 import {
   chunkKey,
   tileAt,
@@ -60,6 +62,7 @@ export class ScenerySprites {
   private billboards = new Set<THREE.Mesh>();
   private marker: THREE.DataTexture;
   private disposed = false;
+  private feet = new SpriteFeet();
   constructor() {
     // Original neutral footprint used only for unsupported building artwork.
     const pixels = new Uint8Array(16 * 16 * 4);
@@ -212,8 +215,19 @@ export class ScenerySprites {
           geometry.setIndex([0, 1, 2, 0, 2, 3]);
           geometry.computeBoundingSphere();
           const mesh = new THREE.Mesh(geometry, material);
-          mesh.position.set(o.x + 0.5, o.z + 0.14, o.y + 0.5);
+          if (!o.sprite) {
+            const positions = geometry.getAttribute("position");
+            for (let i = 0; i < 4; i++)
+              positions.setY(i, (i === 0 || i === 3 ? 1 : 0) - 1 / 16);
+            mesh.userData.anchored = true;
+          }
+          mesh.position.set(
+            o.x + 0.5,
+            surfaceHeight(all, o.x + 0.5, o.y + 0.5, o.z) ?? o.z + 0.12,
+            o.y + 0.5,
+          );
           mesh.userData.name = o.name;
+          mesh.userData.sprite = o.sprite;
           this.billboards.add(mesh);
           group.add(mesh);
         } else {
@@ -300,7 +314,25 @@ export class ScenerySprites {
       group.visible = group.userData.z <= cut && group.userData.z >= minLevel;
       if (group.visible) this.visibleCount += group.userData.count;
     }
-    for (const mesh of this.billboards) mesh.quaternion.copy(camera.quaternion);
+    for (const mesh of this.billboards) {
+      if (!mesh.userData.anchored && mesh.userData.sprite) {
+        const image = (mesh.material as THREE.MeshBasicMaterial).map?.image;
+        if (
+          image instanceof HTMLImageElement ||
+          image instanceof HTMLCanvasElement
+        ) {
+          const padding = this.feet.get(image, mesh.userData.sprite);
+          const positions = mesh.geometry.getAttribute("position");
+          for (let i = 0; i < 4; i++)
+            positions.setY(i, (i === 0 || i === 3 ? 1 : 0) - padding);
+          positions.needsUpdate = true;
+          mesh.geometry.computeBoundingSphere();
+          mesh.userData.anchored = true;
+          mesh.userData.bottomPadding = padding;
+        }
+      }
+      mesh.quaternion.copy(camera.quaternion);
+    }
   }
   clear() {
     for (const key of [...this.blocks.keys()]) this.remove(key);

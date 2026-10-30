@@ -3,6 +3,7 @@ import { Rpc } from "./rpc.js";
 import type { SceneryReader } from "./scenery.js";
 import { maskEnclosedWalls, openTile } from "./wall-visibility.js";
 import { key } from "../shared/model.js";
+import { visibleFlows } from "./flows.js";
 function integer(v: unknown, name: string): number {
   if (typeof v !== "number" || !Number.isSafeInteger(v))
     throw Error(`Invalid ${name}`);
@@ -44,6 +45,16 @@ export function convertBlock(
     throw Error("Unexpected map block coordinates");
   const tiles = raw?.tiles,
     hidden = raw?.hidden;
+  for (const field of ["water", "magma"]) {
+    const values = raw?.[field];
+    if (
+      values !== undefined &&
+      (!Array.isArray(values) ||
+        values.length !== 256 ||
+        values.some((v) => !Number.isInteger(v) || v < 0 || v > 7))
+    )
+      throw Error(`Invalid ${field} depths`);
+  }
   if (
     raw &&
     (!Array.isArray(tiles) ||
@@ -52,7 +63,7 @@ export function convertBlock(
       hidden.length !== 256)
   )
     throw Error("Incomplete terrain/visibility response");
-  return {
+  const chunk: Chunk = {
     x,
     y,
     z,
@@ -62,16 +73,37 @@ export function convertBlock(
         return { shape: "unknown", material: 0, name: "Undiscovered" };
       const d = defs.get(integer((tiles as unknown[])[i], "tile id"));
       if (!d) throw Error("Unknown DF tile type");
+      const water = (raw.water as number[] | undefined)?.[i] ?? 0;
+      const magma = (raw.magma as number[] | undefined)?.[i] ?? 0;
+      const progress = (raw.treePercent as number[] | undefined)?.[i];
+      if (water && magma) throw Error("Conflicting liquid types");
       return {
+        ...(water || magma
+          ? {
+              liquid: {
+                kind: magma ? ("magma" as const) : ("water" as const),
+                depth: magma || water,
+              },
+            }
+          : {}),
         shape: shapeFromDf(d.shape),
         material: d.material,
         name: d.name,
         ...(d.variant !== undefined ? { variant: d.variant } : {}),
         ...(d.smooth ? { smooth: true } : {}),
         ...(d.treeGraphic ? { treeGraphic: d.treeGraphic } : {}),
+        ...(d.treeGraphic &&
+        Number.isInteger(progress) &&
+        progress! >= 0 &&
+        progress! <= 100
+          ? { tree: { progress } }
+          : {}),
       };
     }),
   };
+  const flows = visibleFlows(raw?.flows, chunk);
+  if (flows.length) chunk.flows = flows;
+  return chunk;
 }
 export class FortressAdapter {
   private openTerrain = new Map<string, Uint8Array>();

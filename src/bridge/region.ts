@@ -61,6 +61,7 @@ export function blockOrder(
   b: Bounds,
   level: number,
   focus?: { x: number; y: number },
+  canopy = false,
 ): [number, number, number][] {
   const levels = [level, level + 1, level + 2, level - 1, level - 2].filter(
     (z) => z >= b.z && z < b.z + b.height,
@@ -78,6 +79,22 @@ export function blockOrder(
   const order: [number, number, number][] = [];
   // Complete the nearby column in both directions before expanding outward.
   // Returning down stairs must not wait for a map-wide overhead sweep.
-  for (const [x, y] of xy) for (const z of levels) order.push([x, y, z]);
+  for (const [x, y] of xy) {
+    for (const z of levels) order.push([x, y, z]);
+    if (
+      canopy &&
+      focus &&
+      Math.abs(x / 16 - Math.floor(focus.x / 16)) <= 2 &&
+      Math.abs(y / 16 - Math.floor(focus.y / 16)) <= 2
+    )
+      for (
+        let z = level + 3;
+        z <= Math.min(level + 12, b.z + b.height - 1);
+        z++
+      )
+        order.push([x, y, z]);
+  }
+  if (order.length > 4096)
+    throw Error("Map footprint exceeds the current 4096-block resident limit");
   return order;
 }

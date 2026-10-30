@@ -1,5 +1,7 @@
 import { CompositeSprites, compositionBounds } from "./composite-sprites.js";
 import * as THREE from "three";
+import { bottomPadding, SpriteFeet } from "./sprite-ground.js";
+import { surfaceHeight } from "./traversal.js";
 import {
   tileAt,
   type Chunk,
@@ -17,6 +19,7 @@ export class CreatureSprites {
   private textures: THREE.Texture[] = [];
   private atlasTextures = new Map<string, THREE.Texture>();
   private disposed = false;
+  private feet = new SpriteFeet();
   private tick = 0;
   private session = "";
   private markerTexture: THREE.DataTexture;
@@ -37,8 +40,10 @@ export class CreatureSprites {
     this.marker = new THREE.SpriteMaterial({
       map: this.markerTexture,
       alphaTest: 0.3,
-      depthWrite: false,
+      transparent: false,
+      depthWrite: true,
     });
+    this.marker.userData.bottomPadding = bottomPadding(pixels, 8, 8);
   }
   private material(r: SpriteRef) {
     const key = JSON.stringify(r);
@@ -57,6 +62,10 @@ export class CreatureSprites {
               if (texture) {
                 texture.needsUpdate = true;
                 m.map = texture;
+                m.userData.bottomPadding = this.feet.get(
+                  texture.image as HTMLImageElement,
+                  JSON.parse(k) as SpriteRef,
+                );
                 m.needsUpdate = true;
               }
             }
@@ -89,8 +98,10 @@ export class CreatureSprites {
       map: sheet.image ? texture : this.markerTexture,
       alphaTest: 0.3,
       depthTest: true,
-      depthWrite: false,
+      transparent: false,
+      depthWrite: true,
     });
+    material.userData.bottomPadding = this.marker.userData.bottomPadding;
     this.materials.set(key, material);
     return material;
   }
@@ -138,7 +149,7 @@ export class CreatureSprites {
         bounds ? (1.2 * bounds.height) / 32 : height,
         1,
       );
-      s.object.position.set(unit.x + 0.5, unit.z + 0.13, unit.y + 0.5);
+      s.object.position.set(unit.x + 0.5, unit.z + 0.12, unit.y + 0.5);
     }
   }
   update(chunks: Map<string, Chunk>, cut: number, minLevel = cut - 2) {
@@ -148,7 +159,14 @@ export class CreatureSprites {
         t = tileAt(chunks, u.x, u.y, u.z);
       s.object.visible =
         !!t && t.shape !== "unknown" && u.z <= cut && u.z >= minLevel;
-      if (s.object.visible) this.visibleCount++;
+      if (s.object.visible) {
+        this.visibleCount++;
+        s.object.center.y = Number(
+          s.object.material.userData.bottomPadding ?? 0,
+        );
+        s.object.position.y =
+          surfaceHeight(chunks, u.x + 0.5, u.y + 0.5, u.z) ?? u.z + 0.12;
+      }
     }
   }
   clear() {

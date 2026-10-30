@@ -283,18 +283,26 @@ async function run() {
         if (
           reset.level !== level ||
           reset.mode !== mode ||
-          JSON.stringify(reset.bounds) !== JSON.stringify(b)
+          JSON.stringify(reset.bounds) !== JSON.stringify(b) ||
+          JSON.stringify(reset.focus) !== JSON.stringify(requestedFocus)
         ) {
-          retainChunks(chunks, b, level);
-          reset = { ...reset, level, bounds: b, mode };
-          publish({ type: "view", session, level, bounds: b, mode });
+          retainChunks(chunks, b, level, requestedFocus);
+          reset = { ...reset, level, bounds: b, mode, focus: requestedFocus };
+          publish({
+            type: "view",
+            session,
+            level,
+            bounds: b,
+            mode,
+            focus: requestedFocus,
+          });
         }
         const started = performance.now();
         await adapter.checkWorld();
         let changed = 0,
           completed = 0;
         const focus = requestedFocus;
-        const order = blockOrder(b, level, focus);
+        const order = blockOrder(b, level, focus, true);
         // New terrain is needed before refreshes of already cached blocks.
         order.sort(
           (a, b) =>

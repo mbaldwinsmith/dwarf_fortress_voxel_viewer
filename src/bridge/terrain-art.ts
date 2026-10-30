@@ -55,6 +55,11 @@ export function textureTerrain(
     p ? context.definitions?.get(`${p.matType},${p.matIndex}`) : undefined;
   for (let i = 0; i < 256; i++) {
     const t = chunk.tiles[i];
+    if (t?.liquid && t.shape !== "unknown") {
+      t.liquid.surface = graphics.get(
+        `${t.liquid.kind === "water" ? "UNDERWATER" : "UNDERMAGMA"}_${t.liquid.depth}`,
+      );
+    }
     if (t) {
       delete t.surfaces;
       delete t.color;

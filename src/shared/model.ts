@@ -24,6 +24,15 @@ export interface Creature {
 }
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
+  tree?: {
+    species?: string;
+    progress?: number;
+    bark?: SpriteRef;
+    side?: SpriteRef;
+    leaves?: SpriteRef;
+    cap?: SpriteRef;
+  };
+  liquid?: { kind: "water" | "magma"; depth: number; surface?: SpriteRef };
   variant?: number;
   wallCap?: SpriteRef;
   wallMask?: number;
@@ -49,6 +58,26 @@ export interface Chunk {
   z: number;
   tiles: Tile[];
   objects?: SceneryObject[];
+  flows?: FlowEffect[];
+}
+export interface FlowEffect {
+  x: number;
+  y: number;
+  z: number;
+  kind:
+    | "smoke"
+    | "mist"
+    | "steam"
+    | "fire"
+    | "dragonfire"
+    | "magma-mist"
+    | "miasma"
+    | "dust"
+    | "gas"
+    | "vapor"
+    | "item-cloud";
+  density: number;
+  frames?: SpriteRef[];
 }
 export interface SceneryObject {
   palette?: SpriteLayer["palette"];
@@ -78,6 +107,7 @@ export interface Bounds {
 export type ServerMessage =
   | {
       type: "view";
+      focus?: { x: number; y: number };
       session: string;
       bounds: Bounds;
       level: number;
@@ -87,6 +117,7 @@ export type ServerMessage =
   | { type: "status"; message: string }
   | {
       type: "reset";
+      focus?: { x: number; y: number };
       session: string;
       bounds: Bounds;
       world: string;
@@ -137,11 +168,16 @@ export function retainChunks(
   chunks: Map<string, Chunk>,
   bounds: Bounds,
   level: number,
+  focus?: { x: number; y: number },
 ) {
   for (const [k, c] of chunks) {
     if (
       c.z < level - 2 ||
-      c.z > level + 2 ||
+      c.z > level + 12 ||
+      (c.z > level + 2 &&
+        (!focus ||
+          Math.abs(c.x / 16 - Math.floor(focus.x / 16)) > 2 ||
+          Math.abs(c.y / 16 - Math.floor(focus.y / 16)) > 2)) ||
       c.x < bounds.x ||
       c.y < bounds.y ||
       c.x >= bounds.x + bounds.width ||

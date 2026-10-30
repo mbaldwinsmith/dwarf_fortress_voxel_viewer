@@ -26,6 +26,13 @@ It does not issue gameplay commands or modify your game files and saves.
   sprites, workshops, furniture, plants and supported ground items.
 - **Layered dwarves:** supported clothing, armour and equipment, plus appearance
   details drawn from live game data.
+- **Water and magma:** native game textures on volumes filled from 1/7 to 7/7,
+  with translucent water and depth-correct creature sprites.
+- **3D trees:** connected trunks, directional branches, species-specific foliage
+  and giant fungi, with nearby upper crowns streamed for first-person views.
+- **Atmospheric effects:** animated native smoke, mist, steam and fire sprites
+  driven by visible DFHack flow data. Plants and creatures anchor their lowest
+  visible pixels to floors and ramps.
 - **Windows desktop app:** a local companion and WebGL viewer in one application,
   with installer and portable ZIP build targets.
 

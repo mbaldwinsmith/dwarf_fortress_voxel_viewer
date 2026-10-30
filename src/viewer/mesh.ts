@@ -6,6 +6,7 @@ import {
 } from "../shared/model.js";
 import type { TerrainUV } from "./terrain-atlas.js";
 import { rampSurface, FLOOR_HEIGHT } from "./ramps.js";
+import { treeBoxes, treeGround } from "./trees.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
@@ -48,12 +49,9 @@ export function buildMesh(
   let capTexture: SpriteRef | undefined;
   let capRim: SpriteRef[] = [];
   let rimTint: number[] | undefined;
-  const treeSprites = new Set(
-    (c.objects ?? [])
-      .filter((o) => o.kind === "plant" && o.sprite)
-      .map((o) => (o.y - c.y) * 16 + o.x - c.x),
-  );
-  const visibleCut = firstPerson ? cut + 2 : cut;
+  let foliage = false;
+  let treeFace = false;
+  const visibleCut = firstPerson ? cut + 12 : cut;
   if (c.z > visibleCut) return out;
 
   function quad(
@@ -77,7 +75,7 @@ export function buildMesh(
     const [left, bottom, right, top] = textureUV(
       rim ??
         (wallCap ? capTexture : horizontal ? surfaces?.top : surfaces?.side),
-      !!rim,
+      !!rim || foliage,
     );
     const uv = horizontal
       ? [
@@ -94,7 +92,13 @@ export function buildMesh(
         ];
     for (const i of [0, 1, 2, 0, 2, 3]) {
       out.positions.push(...v[i]);
-      out.colors.push(...faceColor);
+      const shade =
+        treeFace && !horizontal
+          ? v.every((p) => p[0] === v[0][0])
+            ? 0.78
+            : 0.9
+          : 1;
+      out.colors.push(...faceColor.map((c) => c * shade));
       out.uvs.push(...uv[i]);
     }
   }
@@ -108,7 +112,7 @@ export function buildMesh(
     const x = c.x + (i % 16),
       y = c.y + Math.floor(i / 16),
       z = c.z;
-    const color =
+    let color =
       t.shape === "unknown"
         ? [0.09, 0.105, 0.12]
         : t.color
@@ -169,7 +173,15 @@ export function buildMesh(
           ],
           color,
         );
-      if (!cull || !neighbour(x, y, z + 1)) {
+      if (
+        (!cull || !neighbour(x, y, z + 1)) &&
+        !(
+          treeFace &&
+          u === z + 1 &&
+          /TRUNK/.test(t.treeGraphic ?? "") &&
+          tileAt(chunks, x, y, z + 1)?.treeGraphic
+        )
+      ) {
         quad(
           [
             [a, u, b + d],
@@ -218,8 +230,65 @@ export function buildMesh(
         surfaces = original;
       }
     }
-    if (t.treeGraphic && treeSprites.has(i)) box(0.12);
-    else if (t.shape === "wall" || t.shape === "unknown")
+    if (t.treeGraphic) {
+      const ground = treeGround(t, x, y, z, chunks);
+      if (ground) {
+        surfaces = ground.surfaces;
+        color = ground.color
+          ? linearMaterialColor(ground.color)
+          : (palette[ground.material] ?? [0.53, 0.52, 0.46]);
+        box(FLOOR_HEIGHT);
+      }
+      treeFace = true;
+      color = [1, 1, 1];
+      capTexture = undefined;
+      capRim = [];
+      for (const part of treeBoxes(t, x, y, z, chunks)) {
+        foliage = true;
+        let ref =
+          part.part === "leaves"
+            ? t.tree?.leaves
+            : part.part === "cap"
+              ? t.tree?.cap
+              : t.tree?.bark;
+        color = ref
+          ? [1, 1, 1]
+          : part.part === "leaves"
+            ? [0.32, 0.5, 0.13]
+            : (palette[t.material] ?? palette[23]);
+        if (ref && part.part === "leaves") {
+          const w = Math.max(1, Math.round(ref.width * part.w)),
+            h = Math.max(1, Math.round(ref.height * part.d));
+          ref = {
+            ...ref,
+            x: ref.x + Math.floor((ref.width - w) / 2),
+            y: ref.y + Math.floor((ref.height - h) / 2),
+            width: w,
+            height: h,
+          };
+        }
+        const barkSide = t.tree?.side ?? ref;
+        const side =
+          barkSide && part.part === "bark"
+            ? {
+                ...barkSide,
+                x: barkSide.x + Math.floor(barkSide.width * 0.3),
+                y: barkSide.y + Math.floor(barkSide.height * 0.3),
+                width: Math.max(1, Math.floor(barkSide.width * 0.4)),
+                height: Math.max(1, Math.floor(barkSide.height * 0.4)),
+              }
+            : ref;
+        surfaces = ref
+          ? {
+              top: part.part === "bark" && part.h < 0.9 ? side! : ref,
+              side: side!,
+            }
+          : undefined;
+        box(part.h, part.x, part.z, part.w, part.d, part.y);
+      }
+      foliage = false;
+      treeFace = false;
+    } else if (t.shape === "wall" || t.shape === "unknown")
       box(1, 0, 0, 1, 1, 0, true);
     else if (t.shape === "stairs") {
       if (!firstPerson) box(0.12);

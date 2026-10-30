@@ -512,3 +512,12 @@ the first check preserved all 52 existing meshes. A live WASD crossing at X54/Y6
 descended from Z174 onto Z173 grass and returned to Z174, with controls active,
 no terrain-wait flag and no page errors. These are loading/navigation timings,
 not an FPS benchmark. Installer builds were not run.
+
+## Environment rendering
+
+Implemented fractional water/magma, real 3D tree volumes and animated native flow
+sprites, in that order. Water follows the user's subsequent preference for native
+DF textures and translucency instead of procedural shaders. Root ground and
+creature/water depth ordering are corrected. See environment-rendering-review.md
+for critic scores, exact scope and validation limitations. All new artwork is
+loaded from the user's installed game; no game sheets are copied into the repo.

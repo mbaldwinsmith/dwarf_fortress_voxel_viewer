@@ -64,7 +64,7 @@ it("renders upper walls and ceiling undersides in first person while keeping orb
     }
   }
   expect(underside).toBe(true);
-  expect(buildMesh(roof, all, 2, undefined, true).positions).toHaveLength(0);
+  expect(buildMesh(roof, all, -8, undefined, true).positions).toHaveLength(0);
 });
 it("keeps an open vertical sight line through upper stair shafts", () => {
   const above = chunk(0, 5, "empty");

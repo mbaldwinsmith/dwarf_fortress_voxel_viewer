@@ -28,6 +28,17 @@ export function parseServerMessage(value: unknown): ServerMessage {
       throw Error("Invalid render mode");
     const b = value.bounds;
     if (
+      value.focus !== undefined &&
+      (!object(value.focus) ||
+        !int(value.focus.x) ||
+        !int(value.focus.y) ||
+        value.focus.x < Number(b.x) ||
+        value.focus.y < Number(b.y) ||
+        value.focus.x >= Number(b.x) + Number(b.width) ||
+        value.focus.y >= Number(b.y) + Number(b.depth))
+    )
+      throw Error("Invalid canopy focus");
+    if (
       ["x", "y", "z", "width", "depth", "height"].every((k) => int(b[k])) &&
       Number(b.width) >= 0 &&
       Number(b.depth) >= 0 &&
@@ -135,6 +146,33 @@ export function parseServerMessage(value: unknown): ServerMessage {
         )
           throw Error("Invalid tile");
       for (const t of c.tiles) {
+        if (object(t.liquid) && t.liquid.surface !== undefined)
+          validateSprite(t.liquid.surface);
+        if (t.tree !== undefined) {
+          if (
+            t.shape === "unknown" ||
+            !t.treeGraphic ||
+            !object(t.tree) ||
+            (t.tree.species !== undefined && !text(t.tree.species)) ||
+            (t.tree.progress !== undefined &&
+              (!int(t.tree.progress) ||
+                t.tree.progress < 0 ||
+                t.tree.progress > 100))
+          )
+            throw Error("Invalid tree");
+          for (const part of ["bark", "side", "leaves", "cap"])
+            if (t.tree[part] !== undefined) validateSprite(t.tree[part]);
+        }
+        if (
+          t.liquid !== undefined &&
+          (t.shape === "unknown" ||
+            !object(t.liquid) ||
+            !["water", "magma"].includes(String(t.liquid.kind)) ||
+            !int(t.liquid.depth) ||
+            t.liquid.depth < 1 ||
+            t.liquid.depth > 7)
+        )
+          throw Error("Invalid liquid");
         if (
           t.variant !== undefined &&
           (!int(t.variant) ||
@@ -204,6 +242,54 @@ export function parseServerMessage(value: unknown): ServerMessage {
           validateSprite(t.surfaces.side);
           if (t.surfaces.topTint !== undefined && !rgb(t.surfaces.topTint))
             throw Error("Invalid surface colour");
+        }
+      }
+      if (c.flows !== undefined) {
+        if (!Array.isArray(c.flows) || c.flows.length > 256)
+          throw Error("Invalid flow count");
+        for (const f of c.flows) {
+          if (
+            !object(f) ||
+            !int(f.x) ||
+            !int(f.y) ||
+            !int(f.z) ||
+            f.z !== c.z ||
+            f.x < Number(c.x) ||
+            f.x >= Number(c.x) + 16 ||
+            f.y < Number(c.y) ||
+            f.y >= Number(c.y) + 16 ||
+            !int(f.density) ||
+            f.density < 1 ||
+            f.density > 100 ||
+            ![
+              "smoke",
+              "mist",
+              "steam",
+              "fire",
+              "dragonfire",
+              "magma-mist",
+              "miasma",
+              "dust",
+              "gas",
+              "vapor",
+              "item-cloud",
+            ].includes(String(f.kind))
+          )
+            throw Error("Invalid flow");
+          if (
+            (
+              c.tiles[(f.y - Number(c.y)) * 16 + f.x - Number(c.x)] as Record<
+                string,
+                unknown
+              >
+            ).shape === "unknown"
+          )
+            throw Error("Hidden flow");
+          if (f.frames !== undefined) {
+            if (!Array.isArray(f.frames) || f.frames.length > 4)
+              throw Error("Invalid flow frames");
+            for (const frame of f.frames) validateSprite(frame);
+          }
         }
       }
       if (c.objects !== undefined) {

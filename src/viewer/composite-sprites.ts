@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { SpriteLayer } from "../shared/model.js";
+import { imageBottomPadding } from "./sprite-ground.js";
 export function compositionBounds(layers: SpriteLayer[]) {
   const width = Math.max(32, ...layers.map((l) => l.sprite.width));
   const height = Math.max(32, ...layers.map((l) => l.sprite.height));
@@ -95,6 +96,11 @@ export class CompositeSprites {
         texture.generateMipmaps = false;
         entry.texture = texture;
         entry.material.map = texture;
+        entry.material.userData.bottomPadding = imageBottomPadding(
+          canvas,
+          canvas.width,
+          canvas.height,
+        );
         entry.material.needsUpdate = true;
       })
       .catch((e) =>

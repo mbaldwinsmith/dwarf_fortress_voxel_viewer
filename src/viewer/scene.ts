@@ -12,9 +12,13 @@ import { ScenerySprites } from "./scenery.js";
 import { TerrainAtlas } from "./terrain-atlas.js";
 import { buildMesh } from "./mesh.js";
 import { FirstPersonControls, canWalk, walkingHeight } from "./first-person.js";
+import { LiquidMeshes } from "./liquids.js";
+import { FlowSprites } from "./flows.js";
 export class FortressScene {
   creatures = new CreatureSprites();
   scenery = new ScenerySprites();
+  liquids: LiquidMeshes;
+  flows: FlowSprites;
   renderer = new THREE.WebGLRenderer({ antialias: true });
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 4000);
@@ -37,6 +41,7 @@ export class FortressScene {
   navigation: "orbit" | "select" | "firstPerson" = "orbit";
   firstPerson: FirstPersonControls;
   private lastFrame = performance.now();
+  private lastFocus = "";
   private orbitPosition = new THREE.Vector3();
   private orbitTarget = new THREE.Vector3();
   private spawn?: { x: number; y: number; z: number };
@@ -73,6 +78,16 @@ export class FortressScene {
     );
     this.scene.add(this.creatures.group);
     this.scene.add(this.scenery.group);
+    this.liquids = new LiquidMeshes(
+      this.terrainAtlas.texture,
+      this.terrainAtlas.uv,
+    );
+    this.flows = new FlowSprites(
+      this.terrainAtlas.texture,
+      this.terrainAtlas.uv,
+    );
+    this.scene.add(this.liquids.group);
+    this.scene.add(this.flows.group);
     this.scene.background = new THREE.Color("#101a23");
     this.scene.add(new THREE.HemisphereLight(0xcde2ef, 0x504333, 2));
     const sun = new THREE.DirectionalLight(0xffe4b5, 2.3);
@@ -233,8 +248,8 @@ export class FortressScene {
   }
   private updateVisibility(oldCut: number) {
     const firstPerson = this.navigation === "firstPerson";
-    const top = this.cut + (firstPerson ? 2 : 0);
-    const oldTop = oldCut + (firstPerson ? 2 : 0);
+    const top = this.cut + (firstPerson ? 12 : 0);
+    const oldTop = oldCut + (firstPerson ? 12 : 0);
     for (const [k, c] of this.state.chunks) {
       const mesh = this.meshes.get(k);
       if (mesh) mesh.visible = c.z <= top && c.z >= this.cut - 2;
@@ -264,6 +279,8 @@ export class FortressScene {
       }
     }
     this.scenery.prune(this.state.chunks);
+    this.liquids.prune(this.state.chunks);
+    this.flows.prune(this.state.chunks);
     this.updateVisibility(old);
   }
   reset(
@@ -276,6 +293,8 @@ export class FortressScene {
     this.leave();
     this.creatures.clear();
     this.scenery.clear();
+    this.liquids.clear();
+    this.flows.clear();
     const preserve =
       this.bounds?.width === bounds.width &&
       this.bounds?.depth === bounds.depth &&
@@ -322,6 +341,7 @@ export class FortressScene {
     this.controls.update();
   }
   update(chunks: Chunk[]) {
+    this.flows.update(chunks);
     for (const c of chunks) for (const k of affected(c)) this.dirty.add(k);
   }
   setCut(z: number) {
@@ -337,6 +357,13 @@ export class FortressScene {
     this.frameId = requestAnimationFrame(this.animate);
     const start = performance.now();
     this.firstPerson.update((start - this.lastFrame) / 1000);
+    if (this.navigation === "firstPerson") {
+      const focus = `${Math.floor(this.camera.position.x / 16)},${Math.floor(this.camera.position.z / 16)}`;
+      if (focus !== this.lastFocus) {
+        this.lastFocus = focus;
+        this.onWalkLevel?.(this.cut);
+      }
+    }
     this.lastFrame = start;
     if (this.selector.visible)
       this.selector.material.opacity = 0.3 + Math.sin(start / 180) * 0.12;
@@ -347,7 +374,7 @@ export class FortressScene {
       const c = this.state.chunks.get(k);
       if (!c) continue;
       if (
-        c.z > this.cut + (this.navigation === "firstPerson" ? 2 : 0) ||
+        c.z > this.cut + (this.navigation === "firstPerson" ? 12 : 0) ||
         c.z < this.cut - 2
       ) {
         const hidden = this.meshes.get(k);
@@ -365,6 +392,11 @@ export class FortressScene {
         [c],
         this.state.chunks,
         this.navigation === "firstPerson",
+      );
+      this.liquids.update(
+        [c],
+        this.state.chunks,
+        this.cut + (this.navigation === "firstPerson" ? 12 : 0),
       );
       const data = buildMesh(
         c,
@@ -386,10 +418,18 @@ export class FortressScene {
       this.scene.add(m);
     }
     const visibleLevel =
-      this.navigation === "firstPerson" ? this.cut + 2 : this.cut;
+      this.navigation === "firstPerson" ? this.cut + 12 : this.cut;
     this.creatures.update(this.state.chunks, visibleLevel, this.cut - 2);
     if (this.navigation !== "firstPerson") this.controls.update();
     this.scenery.frame(this.camera, visibleLevel, this.cut - 2);
+    this.liquids.frame(start, visibleLevel, this.cut - 2);
+    this.flows.frame(
+      this.camera,
+      this.state.chunks,
+      start,
+      visibleLevel,
+      this.cut - 2,
+    );
     this.renderer.render(this.scene, this.camera);
     this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size} queued`;
   };
@@ -407,6 +447,8 @@ export class FortressScene {
     this.controls.dispose();
     this.creatures.dispose();
     this.scenery.dispose();
+    this.liquids.dispose();
+    this.flows.dispose();
     for (const m of this.meshes.values()) m.geometry.dispose();
     this.material.dispose();
     this.terrainAtlas.dispose();
