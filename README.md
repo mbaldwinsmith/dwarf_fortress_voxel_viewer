@@ -118,8 +118,8 @@ Z-level. The latest selection applies to everyone.
 
 | Action               | Control                                          |
 | -------------------- | ------------------------------------------------ |
-| Rotate               | Right-drag                                       |
-| Pan                  | Left-drag                                        |
+| Rotate               | Q/E or right-drag                                |
+| Pan                  | WASD or left-drag                                |
 | Zoom                 | Mouse wheel                                      |
 | Go up / down a level | `Shift+,` (`<`) / `Shift+.` (`>`), or the slider |
 | Frame terrain        | **Frame terrain** or `F`                         |
@@ -164,7 +164,10 @@ Choose an **Interaction** tool:
 - **Digging** excavates natural terrain directly. Click in Orbit or DF Screen;
   in first person aim within five tiles and hold left mouse for 0.75 seconds.
   Releasing, changing targets, pausing or leaving the view cancels the hold.
-- **Designation** marks a normal mining job for dwarves; click in any view.
+- **Designation** marks normal mining jobs for dwarves. In Orbit or DF Screen,
+  left-drag a rectangle and release to apply; right-drag rotates and WASD pans.
+  Rectangles stay on the starting z-level and skip incompatible tiles (maximum
+  1024 tiles, 64 per side). In first person, click a single tile.
 
 A wall uses the native pick icon. Aiming down at a floor channels it with the
 spade icon. Aiming up uses the pick icon and channels the targeted ceiling tile

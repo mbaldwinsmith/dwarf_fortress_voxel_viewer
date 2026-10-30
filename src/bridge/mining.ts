@@ -6,7 +6,7 @@ export function miningArguments(
   dry: boolean,
   expected?: number,
 ) {
-  return [
+  const args = [
     request.x,
     request.y,
     request.z,
@@ -16,6 +16,9 @@ export function miningArguments(
     String(dry),
     expected ?? "",
   ].map(String);
+  if (request.x2 !== undefined)
+    args.push(String(request.x2), String(request.y2));
+  return args;
 }
 export async function mineTile(
   adapter: FortressAdapter,
@@ -45,8 +48,21 @@ export async function mineTile(
     throw Error("Mining was not applied");
   await adapter.checkWorld();
   const refresh = [];
-  for (const x of [cx - 16, cx, cx + 16])
-    for (const y of [cy - 16, cy, cy + 16]) {
+  const rectangle = request.x2 !== undefined;
+  const xs = rectangle
+    ? Array.from(
+        { length: Math.abs(Math.floor(request.x2! / 16) * 16 - cx) / 16 + 1 },
+        (_, i) => Math.min(cx, Math.floor(request.x2! / 16) * 16) + i * 16,
+      )
+    : [cx - 16, cx, cx + 16];
+  const ys = rectangle
+    ? Array.from(
+        { length: Math.abs(Math.floor(request.y2! / 16) * 16 - cy) / 16 + 1 },
+        (_, i) => Math.min(cy, Math.floor(request.y2! / 16) * 16) + i * 16,
+      )
+    : [cy - 16, cy, cy + 16];
+  for (const x of xs)
+    for (const y of ys) {
       if (
         x < adapter.bounds.x ||
         y < adapter.bounds.y ||
@@ -54,12 +70,18 @@ export async function mineTile(
         y >= adapter.bounds.y + adapter.bounds.depth
       )
         continue;
-      const levels = [request.z - 1, request.z, request.z + 1].filter(
+      const levels = (
+        rectangle ? [request.z] : [request.z - 1, request.z, request.z + 1]
+      ).filter(
         (z) =>
           z >= adapter.bounds.z && z < adapter.bounds.z + adapter.bounds.height,
       );
       refresh.push(...(await adapter.column(x, y, levels)));
     }
   await adapter.checkWorld();
-  return { state: result.state, chunks: refresh };
+  return {
+    state: result.state,
+    chunks: refresh,
+    count: rectangle ? result.tiletype : undefined,
+  };
 }

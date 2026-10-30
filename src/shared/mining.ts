@@ -6,6 +6,13 @@ export interface MiningTarget {
   y: number;
   z: number;
   operation: MiningOperation;
+  x2?: number;
+  y2?: number;
+}
+export function validDesignationRectangle(p: MiningTarget) {
+  const width = Math.abs((p.x2 ?? p.x) - p.x) + 1,
+    depth = Math.abs((p.y2 ?? p.y) - p.y) + 1;
+  return width <= 64 && depth <= 64 && width * depth <= 1024;
 }
 export interface MiningRequest extends MiningTarget {
   type: "mining";
@@ -33,6 +40,18 @@ export function parseMiningRequest(
 ): MiningRequest | undefined {
   if (!value || typeof value !== "object") return;
   const m = value as MiningRequest;
+  if (m.x2 !== undefined || m.y2 !== undefined) {
+    if (
+      m.mode !== "designate" ||
+      ![m.x2, m.y2].every(Number.isInteger) ||
+      !validDesignationRectangle(m) ||
+      m.x2! < bounds.x ||
+      m.y2! < bounds.y ||
+      m.x2! >= bounds.x + bounds.width ||
+      m.y2! >= bounds.y + bounds.depth
+    )
+      return;
+  }
   if (
     m.type !== "mining" ||
     m.session !== session ||

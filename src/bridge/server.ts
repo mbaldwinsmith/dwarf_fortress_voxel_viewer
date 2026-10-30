@@ -312,6 +312,9 @@ async function processMining() {
     const result = await mineTile(adapter!, request, current);
     if (!current()) return;
     cache.invalidateAround(request.x, request.y, request.z);
+    if (request.x2 !== undefined)
+      for (const chunk of result.chunks)
+        cache.invalidateAround(chunk.x, chunk.y, chunk.z);
     const b = reset!.bounds,
       level = reset!.level!;
     const updates = result.chunks
@@ -341,7 +344,9 @@ async function processMining() {
       message:
         result.state === "DUG"
           ? "Tile dug"
-          : "Mining designated for your dwarves",
+          : result.count !== undefined
+            ? `${result.count} tiles designated for your dwarves`
+            : "Mining designated for your dwarves",
     });
   } catch (error) {
     send(ws, {

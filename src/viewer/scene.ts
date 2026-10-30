@@ -17,8 +17,10 @@ import { buildMesh } from "./mesh.js";
 import { FirstPersonControls, canWalk, walkingHeight } from "./first-person.js";
 import { LiquidMeshes } from "./liquids.js";
 import { FlowSprites } from "./flows.js";
+import { OrbitKeyboard } from "./orbit-keyboard.js";
 import {
   MiningHold,
+  validDesignationRectangle,
   validMiningTile,
   type MiningMode,
   type MiningTarget,
@@ -57,10 +59,18 @@ export class FortressScene {
     holding: boolean;
     x?: number;
     y?: number;
+    rectangle?: { width: number; depth: number; valid: boolean };
   }) => void;
   private miningHold = new MiningHold();
   private miningPressed = false;
   private miningPointer?: { x: number; y: number };
+  private rectangle?: {
+    start: MiningTarget;
+    end: { x: number; y: number };
+    height: number;
+    pointerId: number;
+  };
+  private suppressRectangleClick = false;
   private miningOutline = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(1.006, 1.006, 1.006)),
     new THREE.LineBasicMaterial({
@@ -71,6 +81,7 @@ export class FortressScene {
   );
   navigation: "orbit" | "select" | "firstPerson" = "orbit";
   firstPerson: FirstPersonControls;
+  private orbitKeyboard: OrbitKeyboard;
   private lastFrame = performance.now();
   private lastFocus = "";
   private dragStart?: { x: number; y: number; moved: boolean };
@@ -106,7 +117,7 @@ export class FortressScene {
     host.append(this.renderer.domElement);
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "3D fortress terrain. Left drag to pan; right drag to rotate; scroll to zoom.",
+      "3D fortress terrain. WASD or left drag to pan; Q/E or right drag to rotate; scroll to zoom.",
     );
     this.scene.add(this.creatures.group);
     this.scene.add(this.scenery.group);
@@ -130,6 +141,11 @@ export class FortressScene {
     this.controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
     this.controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
     this.controls.screenSpacePanning = false;
+    this.orbitKeyboard = new OrbitKeyboard(
+      this.camera,
+      this.controls.target,
+      () => this.navigation === "orbit" && this.controls.enabled,
+    );
     this.firstPerson = new FirstPersonControls(
       this.renderer.domElement,
       this.camera,
@@ -157,12 +173,18 @@ export class FortressScene {
     this.observer.observe(host);
     this.renderer.domElement.addEventListener("click", this.pick);
     this.renderer.domElement.addEventListener("pointerdown", this.beginDrag);
+    this.renderer.domElement.addEventListener(
+      "pointerdown",
+      this.rectangleDown,
+      true,
+    );
     this.renderer.domElement.addEventListener("pointermove", this.hover);
     this.renderer.domElement.addEventListener("pointerleave", this.leave);
     this.renderer.domElement.addEventListener("pointerdown", this.miningDown);
     this.renderer.domElement.addEventListener("pointermove", this.miningMove);
     this.renderer.domElement.addEventListener("pointerleave", this.miningLeave);
     window.addEventListener("pointerup", this.cancelMining);
+    window.addEventListener("pointerup", this.rectangleUp, true);
     window.addEventListener("pointercancel", this.cancelMining);
     window.addEventListener("blur", this.cancelMining);
     this.miningOutline.visible = false;
@@ -170,7 +192,7 @@ export class FortressScene {
     this.camera.position.set(30, 50, 60);
     this.animate();
   }
-  private rayHit(e: MouseEvent) {
+  private rayHit(e: { clientX: number; clientY: number }) {
     if (!this.bounds) return;
     const r = this.renderer.domElement.getBoundingClientRect(),
       ray = new THREE.Raycaster();
@@ -188,11 +210,104 @@ export class FortressScene {
   cancelMining = () => {
     this.miningPressed = false;
     this.miningHold.cancel();
+    this.rectangle = undefined;
+  };
+  private rectangleDown = (e: PointerEvent) => {
+    this.suppressRectangleClick = false;
+    if (e.button !== 0) {
+      this.rectangle = undefined;
+      return;
+    }
+    if (this.navigation !== "orbit" || this.miningMode !== "designate") return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    this.cancelMining();
+    this.dragStart = undefined;
+    this.suppressRectangleClick = true;
+    if (this.miningBusy) return;
+    this.renderer.domElement.focus({ preventScroll: true });
+    const preview = this.miningTarget({ x: e.clientX, y: e.clientY });
+    if (!preview) return;
+    const t = tileAt(
+      this.state.chunks,
+      preview.target.x,
+      preview.target.y,
+      preview.target.z,
+    );
+    this.rectangle = {
+      start: preview.target,
+      end: { x: preview.target.x, y: preview.target.y },
+      height: preview.target.z + (t?.shape === "wall" ? 1 : 0.12),
+      pointerId: e.pointerId,
+    };
+    this.miningPointer = { x: e.clientX, y: e.clientY };
+    this.renderer.domElement.setPointerCapture(e.pointerId);
+  };
+  private updateRectangle(pointer: { x: number; y: number }) {
+    const selection = this.rectangle;
+    if (!selection || !this.bounds) return;
+    const hit = this.rayHit({ clientX: pointer.x, clientY: pointer.y });
+    let position: THREE.Vector3 | undefined;
+    if (hit) {
+      const p = hit.point
+        .clone()
+        .addScaledVector(hit.face?.normal ?? new THREE.Vector3(), -0.002);
+      if (Math.floor(p.y) === selection.start.z) position = p;
+    }
+    if (!position) {
+      const rect = this.renderer.domElement.getBoundingClientRect(),
+        ray = new THREE.Raycaster();
+      ray.setFromCamera(
+        new THREE.Vector2(
+          ((pointer.x - rect.left) / rect.width) * 2 - 1,
+          1 - ((pointer.y - rect.top) / rect.height) * 2,
+        ),
+        this.camera,
+      );
+      position =
+        ray.ray.intersectPlane(
+          new THREE.Plane(new THREE.Vector3(0, 1, 0), -selection.height),
+          new THREE.Vector3(),
+        ) ?? undefined;
+    }
+    if (position)
+      selection.end = {
+        x: THREE.MathUtils.clamp(
+          Math.floor(position.x),
+          this.bounds.x,
+          this.bounds.x + this.bounds.width - 1,
+        ),
+        y: THREE.MathUtils.clamp(
+          Math.floor(position.z),
+          this.bounds.y,
+          this.bounds.y + this.bounds.depth - 1,
+        ),
+      };
+  }
+  private rectangleUp = (e: PointerEvent) => {
+    if (
+      e.button !== 0 ||
+      !this.rectangle ||
+      e.pointerId !== this.rectangle.pointerId
+    )
+      return;
+    this.updateRectangle({ x: e.clientX, y: e.clientY });
+    const r = this.rectangle,
+      target = { ...r.start, x2: r.end.x, y2: r.end.y };
+    this.rectangle = undefined;
+    if (
+      this.navigation === "orbit" &&
+      this.miningMode === "designate" &&
+      !this.miningBusy &&
+      validDesignationRectangle(target)
+    )
+      this.onMine?.(target);
   };
   private miningMove = (e: PointerEvent) => {
     this.miningPointer = { x: e.clientX, y: e.clientY };
   };
   private miningLeave = () => {
+    if (this.rectangle) return;
     this.miningPointer = undefined;
     if (!this.firstPerson.locked) this.cancelMining();
   };
@@ -305,6 +420,10 @@ export class FortressScene {
         : undefined;
   };
   pick = (e: MouseEvent) => {
+    if (e.button === 0 && this.suppressRectangleClick) {
+      this.suppressRectangleClick = false;
+      return;
+    }
     const dragged = this.dragStart?.moved;
     this.dragStart = undefined;
     if (e.button !== 0 || dragged) return;
@@ -515,29 +634,60 @@ export class FortressScene {
   animate = () => {
     this.frameId = requestAnimationFrame(this.animate);
     const start = performance.now();
-    const preview = this.miningTarget();
+    if (this.rectangle && this.miningPointer)
+      this.updateRectangle(this.miningPointer);
+    const r = this.rectangle,
+      rect = this.renderer.domElement.getBoundingClientRect();
+    const preview = r
+      ? {
+          target: r.start,
+          x: (this.miningPointer?.x ?? rect.left) - rect.left,
+          y: (this.miningPointer?.y ?? rect.top) - rect.top,
+        }
+      : this.miningTarget();
+    const rectangle = r
+      ? {
+          width: Math.abs(r.end.x - r.start.x) + 1,
+          depth: Math.abs(r.end.y - r.start.y) + 1,
+          valid: validDesignationRectangle({
+            ...r.start,
+            x2: r.end.x,
+            y2: r.end.y,
+          }),
+        }
+      : undefined;
     const progress = this.miningPressed
       ? this.miningHold.progress(preview?.target, start)
       : 0;
     if (this.miningPressed && !this.miningHold.active)
       this.miningPressed = false;
     this.miningOutline.visible = !!preview;
+    this.miningOutline.scale.set(
+      rectangle?.width ?? 1,
+      1,
+      rectangle?.depth ?? 1,
+    );
+    this.miningOutline.material.color.setHex(
+      rectangle?.valid === false ? 0xff6677 : 0xffdc72,
+    );
     if (preview)
       this.miningOutline.position.set(
-        preview.target.x + 0.5,
+        r ? (r.start.x + r.end.x + 1) / 2 : preview.target.x + 0.5,
         preview.target.z + 0.5,
-        preview.target.y + 0.5,
+        r ? (r.start.y + r.end.y + 1) / 2 : preview.target.y + 0.5,
       );
     this.onMiningPreview?.({
       ...preview,
       progress: this.miningBusy ? 1 : progress,
       holding: this.miningPressed,
+      rectangle,
     });
     if (this.miningPressed && progress >= 1 && preview && !this.miningBusy) {
       this.cancelMining();
       this.onMine?.(preview.target);
     }
     this.firstPerson.update((start - this.lastFrame) / 1000);
+    this.orbitKeyboard.update((start - this.lastFrame) / 1000);
     if (this.navigation === "firstPerson") {
       const focus = `${Math.floor(this.camera.position.x / 16)},${Math.floor(this.camera.position.z / 16)}`;
       if (focus !== this.lastFocus) {
@@ -633,9 +783,16 @@ export class FortressScene {
     this.observer.disconnect();
     this.renderer.domElement.removeEventListener("click", this.pick);
     this.renderer.domElement.removeEventListener("pointerdown", this.beginDrag);
+    this.renderer.domElement.removeEventListener(
+      "pointerdown",
+      this.rectangleDown,
+      true,
+    );
     this.renderer.domElement.removeEventListener("pointermove", this.hover);
     this.renderer.domElement.removeEventListener("pointerleave", this.leave);
     this.firstPerson.dispose();
+    this.orbitKeyboard.dispose();
+    window.removeEventListener("pointerup", this.rectangleUp, true);
     this.renderer.domElement.removeEventListener(
       "pointerdown",
       this.miningDown,

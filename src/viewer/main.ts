@@ -94,11 +94,15 @@ scene.onMiningPreview = (preview) => {
         : "Mine wall";
   el("mining-hint").textContent = scene.miningBusy
     ? "Applying…"
-    : preview.holding
-      ? `${label} · ${(((1 - preview.progress) * MINING_DELAY_MS) / 1000).toFixed(1)}s`
-      : scene.miningMode === "designate"
-        ? `${label} · Click to designate`
-        : `${label} · ${scene.navigation === "firstPerson" ? "Hold left mouse" : "Click to dig"}`;
+    : preview.rectangle
+      ? preview.rectangle.valid
+        ? `Designate ${preview.rectangle.width} × ${preview.rectangle.depth} · Release to apply`
+        : "Rectangle too large · Maximum 1024 tiles, 64 per side"
+      : preview.holding
+        ? `${label} · ${(((1 - preview.progress) * MINING_DELAY_MS) / 1000).toFixed(1)}s`
+        : scene.miningMode === "designate"
+          ? `${label} · ${scene.navigation === "orbit" ? "Drag to designate" : "Click to designate"}`
+          : `${label} · ${scene.navigation === "firstPerson" ? "Hold left mouse" : "Click to dig"}`;
 };
 let levelTimer: ReturnType<typeof setTimeout>;
 let walkingRequest: number | undefined;

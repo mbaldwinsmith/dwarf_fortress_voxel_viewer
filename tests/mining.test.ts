@@ -83,6 +83,23 @@ it("completes a hold after 750 ms and cancels on a different target or release",
   hold.cancel();
   expect(hold.progress(request, 900)).toBe(0);
 });
+it("accepts bounded designation rectangles in either direction, never instant dig rectangles", () => {
+  const r = { ...request, mode: "designate", x2: 35, y2: 40 };
+  expect(parseMiningRequest(r, bounds, "world")).toBe(r);
+  expect(
+    parseMiningRequest({ ...r, x2: 2, y2: 2 }, bounds, "world"),
+  ).toBeDefined();
+  for (const change of [
+    { mode: "dig" },
+    { y2: undefined },
+    { x2: 1.5 },
+    { x2: 64 },
+    { x2: 63, y2: 63 },
+  ])
+    expect(
+      parseMiningRequest({ ...r, ...change }, bounds, "world"),
+    ).toBeUndefined();
+});
 function adapter(state: "DUG" | "DESIGNATED" = "DUG") {
   return {
     bounds,
@@ -143,6 +160,21 @@ it("keeps designation mode separate and cancels before mutation if the client/se
     mineTile(changed as unknown as FortressAdapter, request, () => true),
   ).rejects.toThrow("World changed");
   expect(changed.rpc.mining).not.toHaveBeenCalled();
+});
+it("batches rectangle designations and refreshes just their intersecting columns on one level", async () => {
+  const a = adapter("DESIGNATED");
+  const r: MiningRequest = { ...request, mode: "designate", x2: 35, y2: 2 };
+  const result = await mineTile(a as unknown as FortressAdapter, r, () => true);
+  expect(a.rpc.mining.mock.calls[1][0].slice(8)).toEqual(["35", "2"]);
+  expect(a.column.mock.calls).toEqual([
+    [16, 0, [4]],
+    [16, 16, [4]],
+    [32, 0, [4]],
+    [32, 16, [4]],
+  ]);
+  expect(result.state).toBe("DESIGNATED");
+  expect(result.count).toBe(436);
+  expect(result.chunks).toHaveLength(4);
 });
 it("uses only the fixed Lua command over core RPC and decodes fragmented command results", async () => {
   let calls = 0;
