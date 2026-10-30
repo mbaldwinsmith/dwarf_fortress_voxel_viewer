@@ -1,4 +1,5 @@
 # Deepwatch
+
 **A live 3D voxel viewer for Dwarf Fortress.**
 
 Explore your fortress from another perspective. **Deepwatch** connects to a running
@@ -79,11 +80,11 @@ may display an unrecognized-app warning.
 
 ### View modes
 
-| Mode | Behaviour |
-| --- | --- |
-| **Whole map** | Loads the local map's full XY footprint and enables the manual Z-level slider. |
-| **DF screen** | Follows DF's visible map area and current Z-level; the manual slider is disabled. |
-| **1st person** | Switches to Whole map and lets you choose a walkable camera starting point. |
+| Mode           | Behaviour                                                                         |
+| -------------- | --------------------------------------------------------------------------------- |
+| **Whole map**  | Loads the local map's full XY footprint and enables the manual Z-level slider.    |
+| **DF screen**  | Follows DF's visible map area and current Z-level; the manual slider is disabled. |
+| **1st person** | Switches to Whole map and lets you choose a walkable camera starting point.       |
 
 Deepwatch streams **up to five neighbouring Z-levels**: the selected level,
 two above and two below, clipped to map bounds. Nearby columns load first;
@@ -98,15 +99,15 @@ Z-level. The latest selection applies to everyone.
 
 ### Orbit controls
 
-| Action | Control |
-| --- | --- |
-| Orbit | Left-drag |
-| Pan | Right-drag |
-| Zoom | Mouse wheel |
-| Change cutaway level | Slider or `[` / `]` in Whole map mode |
-| Frame terrain | **Frame terrain** or `F` |
-| Inspect a tile | Click terrain; details appear below the viewer |
-| Touch navigation | One finger to orbit; two fingers to pan and zoom |
+| Action               | Control                                          |
+| -------------------- | ------------------------------------------------ |
+| Orbit                | Left-drag                                        |
+| Pan                  | Right-drag                                       |
+| Zoom                 | Mouse wheel                                      |
+| Change cutaway level | Slider or `[` / `]` in Whole map mode            |
+| Frame terrain        | **Frame terrain** or `F`                         |
+| Inspect a tile       | Click terrain; details appear below the viewer   |
+| Touch navigation     | One finger to orbit; two fingers to pan and zoom |
 
 Routine updates preserve the camera. In orbit view, changing Z preserves its
 horizontal position and shifts its height with the cutaway.
@@ -116,16 +117,16 @@ horizontal position and shifts its height with the cutaway.
 Select **1st person**, then click a green floor selector to enter. Red indicates
 a blocked location or terrain/headroom data that has not yet loaded.
 
-| Action | Control |
-| --- | --- |
-| Walk / strafe | `W`, `A`, `S`, `D` |
-| Look around | Mouse |
-| Ascend connected stairs | Hold `W` while on the stair tile |
-| Descend connected stairs | Hold `S` while on the stair tile |
-| Pause and release mouse capture | `Esc` |
-| Resume | Click the viewport |
-| Relocate | **Choose another point** |
-| Return to the saved orbit camera | **Orbit view** |
+| Action                           | Control                          |
+| -------------------------------- | -------------------------------- |
+| Walk / strafe                    | `W`, `A`, `S`, `D`               |
+| Look around                      | Mouse                            |
+| Ascend connected stairs          | Hold `W` while on the stair tile |
+| Descend connected stairs         | Hold `S` while on the stair tile |
+| Pause and release mouse capture  | `Esc`                            |
+| Resume                           | Click the viewport               |
+| Relocate                         | **Choose another point**         |
+| Return to the saved orbit camera | **Orbit view**                   |
 
 Ramps follow the rendered slope. The camera and streamed Z-levels follow
 successful stair and ramp transitions. Movement waits when destination data is
@@ -148,14 +149,14 @@ The current graphics profile is explicitly **vanilla**. Installation inspection
 can list available modules, but does not resolve the loaded world's active mod
 order or graphics overrides.
 
-| Element | Current representation |
-| --- | --- |
-| Terrain | Generated 3D geometry with installed wall/floor artwork, native edge variants and material information. |
-| Dwarves | Camera-facing sprites with a partial layered appearance compositor. |
-| Other creatures | Supported local sprites; markers for unsupported creatures. |
-| Workshops and furniture | Mostly artwork laid on the ground; doors use upright open/closed sprites. |
-| Vegetation | Species sprites for supported plants and tree parts; fallback geometry where needed. |
-| Ground items | One supported item sprite per occupied tile. |
+| Element                 | Current representation                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| Terrain                 | Generated 3D geometry with installed wall/floor artwork, native edge variants and material information. |
+| Dwarves                 | Camera-facing sprites with a partial layered appearance compositor.                                     |
+| Other creatures         | Supported local sprites; markers for unsupported creatures.                                             |
+| Workshops and furniture | Mostly artwork laid on the ground; doors use upright open/closed sprites.                               |
+| Vegetation              | Species sprites for supported plants and tree parts; fallback geometry where needed.                    |
+| Ground items            | One supported item sprite per occupied tile.                                                            |
 
 Hidden tiles remain opaque and undiscovered. Their actual shapes, materials and
 names are removed before data reaches the viewer. Enclosed natural rock is also
@@ -225,12 +226,12 @@ This builds the project and opens the Electron app.
 
 Local `.env` files are ignored by Git.
 
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `DF_PATH` | DF installation folder; enables local artwork and installation inspection. | Unset in browser mode |
-| `DFHACK_PORT` | Explicit override for the local DFHack TCP port. | Installation setting when available; otherwise `5000` |
-| `VIEWER_PORT` | Browser companion HTTP/WebSocket port. | `4174` |
-| `POLL_MS` | Delay between individual block reads; minimum `100` ms. | `200` |
+| Variable      | Purpose                                                                    | Default                                               |
+| ------------- | -------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `DF_PATH`     | DF installation folder; enables local artwork and installation inspection. | Unset in browser mode                                 |
+| `DFHACK_PORT` | Explicit override for the local DFHack TCP port.                           | Installation setting when available; otherwise `5000` |
+| `VIEWER_PORT` | Browser companion HTTP/WebSocket port.                                     | `4174`                                                |
+| `POLL_MS`     | Delay between individual block reads; minimum `100` ms.                    | `200`                                                 |
 
 The example `.env` explicitly sets `DFHACK_PORT=5000`. Remove that assignment
 to use the selected installation's configured port.
@@ -278,14 +279,14 @@ with the installer, ZIP and checksums for review and publication.
 The project uses TypeScript, Three.js, a Node.js HTTP/WebSocket companion,
 Protocol Buffers, Vite and an Electron desktop shell.
 
-| Directory | Responsibility |
-| --- | --- |
+| Directory     | Responsibility                                                                         |
+| ------------- | -------------------------------------------------------------------------------------- |
 | `src/bridge/` | DFHack connection, read-only adapter, installation and graphics loading, local server. |
-| `src/shared/` | Viewer data model and message validation. |
-| `src/viewer/` | Three.js rendering, navigation and HTML/CSS interface. |
-| `desktop/` | Desktop launcher and companion lifecycle. |
-| `tests/` | Synthetic fixtures, mock RPC tests and regression coverage. |
-| `docs/` | Architecture, progress and verification notes. |
+| `src/shared/` | Viewer data model and message validation.                                              |
+| `src/viewer/` | Three.js rendering, navigation and HTML/CSS interface.                                 |
+| `desktop/`    | Desktop launcher and companion lifecycle.                                              |
+| `tests/`      | Synthetic fixtures, mock RPC tests and regression coverage.                            |
+| `docs/`       | Architecture, progress and verification notes.                                         |
 
 Run the standard checks with:
 
@@ -310,17 +311,17 @@ commits and release packages.
 
 ## Troubleshooting
 
-| Problem | What to check |
-| --- | --- |
-| **Disconnected / RPC failure** | Confirm DFHack is running, a fortress is loaded and the port is correct. The companion retries automatically. In the desktop app, check **Help → Open log folder**. |
-| **Unsupported version** | Only the documented version combination is accepted. Supporting another version requires checking its protocol and semantics. |
-| **Empty or opaque terrain** | The selected levels may be sky or undiscovered rock. Try another cutaway level and allow nearby blocks to load. |
-| **Changes appear slowly** | Terrain is revisited block by block. A 192 × 192 footprint across five levels requires 720 block reads: the default delays alone total about 144 seconds, before RPC and processing time. DF screen mode reduces the requested area. |
-| **First-person movement is blocked** | Wait for ground and overhead data. Choose a green starting point; hidden, disconnected and unloaded destinations are blocked. |
-| **Mouse capture fails** | Click the viewport, then keep the pointer over it for fallback mouse look. Escape pauses; clicking resumes. |
-| **Artwork is missing or differs from DF** | Check the selected installation or `DF_PATH`. Unsupported graphics use fallbacks; active mod overrides are not resolved yet. |
-| **WebGL is unavailable** | Check browser/app hardware acceleration and graphics-driver support. Renderer failures appear in the status area. |
-| **Port is occupied** | Stop the other companion process. Browser development and production companions cannot share a port. The desktop app chooses its own available port. |
+| Problem                                   | What to check                                                                                                                                                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Disconnected / RPC failure**            | Confirm DFHack is running, a fortress is loaded and the port is correct. The companion retries automatically. In the desktop app, check **Help → Open log folder**.                                                                  |
+| **Unsupported version**                   | Only the documented version combination is accepted. Supporting another version requires checking its protocol and semantics.                                                                                                        |
+| **Empty or opaque terrain**               | The selected levels may be sky or undiscovered rock. Try another cutaway level and allow nearby blocks to load.                                                                                                                      |
+| **Changes appear slowly**                 | Terrain is revisited block by block. A 192 × 192 footprint across five levels requires 720 block reads: the default delays alone total about 144 seconds, before RPC and processing time. DF screen mode reduces the requested area. |
+| **First-person movement is blocked**      | Wait for ground and overhead data. Choose a green starting point; hidden, disconnected and unloaded destinations are blocked.                                                                                                        |
+| **Mouse capture fails**                   | Click the viewport, then keep the pointer over it for fallback mouse look. Escape pauses; clicking resumes.                                                                                                                          |
+| **Artwork is missing or differs from DF** | Check the selected installation or `DF_PATH`. Unsupported graphics use fallbacks; active mod overrides are not resolved yet.                                                                                                         |
+| **WebGL is unavailable**                  | Check browser/app hardware acceleration and graphics-driver support. Renderer failures appear in the status area.                                                                                                                    |
+| **Port is occupied**                      | Stop the other companion process. Browser development and production companions cannot share a port. The desktop app chooses its own available port.                                                                                 |
 
 ## Privacy and licence
 
