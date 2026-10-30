@@ -4,6 +4,7 @@ import { once } from "node:events";
 import * as THREE from "three";
 import {
   MiningHold,
+  miningOperation,
   parseMiningRequest,
   validMiningTile,
   MINING_DELAY_MS,
@@ -71,6 +72,22 @@ it("accepts only bounded single-tile operations in the current session", () => {
     c.tiles[0] = tile as Chunk["tiles"][number];
     expect(validMiningTile(chunks, request)).toBe(false);
   }
+});
+it("targets ramp removal from every face while keeping floor channeling and ceiling digging", () => {
+  for (const normalY of [-1, 0, 0.7, 1])
+    expect(miningOperation("ramp", normalY)).toBe("remove-ramp");
+  expect(miningOperation("floor", 1)).toBe("channel");
+  expect(miningOperation("wall", -1)).toBe("ceiling");
+  expect(miningOperation("wall", 0)).toBe("mine");
+  const r: MiningRequest = { ...request, operation: "remove-ramp" },
+    c = block();
+  expect(parseMiningRequest(r, bounds, "world")).toBe(r);
+  const chunks = new Map([["16,16,4", c]]);
+  expect(validMiningTile(chunks, r)).toBe(false);
+  c.tiles[0].shape = "ramp";
+  expect(validMiningTile(chunks, r)).toBe(true);
+  c.tiles[0].material = 7;
+  expect(validMiningTile(chunks, r)).toBe(false);
 });
 it("completes a hold after 750 ms and cancels on a different target or release", () => {
   const hold = new MiningHold();

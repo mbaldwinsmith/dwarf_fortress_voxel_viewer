@@ -20,6 +20,7 @@ import { FlowSprites } from "./flows.js";
 import { OrbitKeyboard } from "./orbit-keyboard.js";
 import {
   MiningHold,
+  miningOperation,
   validDesignationRectangle,
   validMiningTile,
   type MiningMode,
@@ -368,12 +369,10 @@ export class FortressScene {
       x,
       y,
       z,
-      operation:
-        (hit.face?.normal.y ?? 0) < -0.5
-          ? "ceiling"
-          : tile?.shape === "wall"
-            ? "mine"
-            : "channel",
+      operation: miningOperation(
+        tile?.shape ?? "empty",
+        hit.face?.normal.y ?? 0,
+      ),
     };
     if (!validMiningTile(this.state.chunks, target)) return;
     return { target, x: sx, y: sy };

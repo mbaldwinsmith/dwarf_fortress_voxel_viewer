@@ -87,11 +87,13 @@ scene.onMiningPreview = (preview) => {
   miningProgress.hidden = !preview.holding && !scene.miningBusy;
   miningProgress.value = preview.progress;
   const label =
-    preview.target.operation === "ceiling"
-      ? "Dig upward"
-      : preview.target.operation === "channel"
-        ? "Channel down"
-        : "Mine wall";
+    preview.target.operation === "remove-ramp"
+      ? "Remove ramp"
+      : preview.target.operation === "ceiling"
+        ? "Dig upward"
+        : preview.target.operation === "channel"
+          ? "Channel down"
+          : "Mine wall";
   el("mining-hint").textContent = scene.miningBusy
     ? "Applying…"
     : preview.rectangle

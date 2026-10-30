@@ -1,6 +1,14 @@
 import { tileAt, type Chunk, type Bounds } from "./model.js";
 export type MiningMode = "inspect" | "dig" | "designate";
-export type MiningOperation = "mine" | "channel" | "ceiling";
+export type MiningOperation = "mine" | "channel" | "ceiling" | "remove-ramp";
+export function miningOperation(
+  shape: string,
+  normalY: number,
+): MiningOperation {
+  if (shape === "ramp") return "remove-ramp";
+  if (normalY < -0.5) return "ceiling";
+  return shape === "wall" ? "mine" : "channel";
+}
 export interface MiningTarget {
   x: number;
   y: number;
@@ -30,7 +38,9 @@ export function validMiningTile(chunks: Map<string, Chunk>, p: MiningTarget) {
     tile.material !== 7 &&
     (p.operation === "mine"
       ? tile.shape === "wall"
-      : ["wall", "floor", "ramp", "stairs"].includes(tile.shape))
+      : p.operation === "remove-ramp"
+        ? tile.shape === "ramp"
+        : ["wall", "floor", "ramp", "stairs"].includes(tile.shape))
   );
 }
 export function parseMiningRequest(
@@ -59,7 +69,7 @@ export function parseMiningRequest(
     m.id < 1 ||
     ![m.x, m.y, m.z].every(Number.isInteger) ||
     !["dig", "designate"].includes(m.mode) ||
-    !["mine", "channel", "ceiling"].includes(m.operation) ||
+    !["mine", "channel", "ceiling", "remove-ramp"].includes(m.operation) ||
     m.x <= bounds.x ||
     m.y <= bounds.y ||
     m.x >= bounds.x + bounds.width - 1 ||

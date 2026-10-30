@@ -170,7 +170,10 @@ Choose an **Interaction** tool:
   1024 tiles, 64 per side). In first person, click a single tile.
 
 A wall uses the native pick icon. Aiming down at a floor channels it with the
-spade icon. Aiming up uses the pick icon and channels the targeted ceiling tile
+spade icon. Ramps use the pick icon and **Remove ramp**: digging flattens them
+to floors, and designation mode queues ramp removal. Ramps inside channeling
+rectangles are also removed without channeling beneath them.
+Aiming up uses the pick icon and channels the targeted ceiling tile
 to open it completely. Channeling can expose lower ground; the first-person
 camera settles onto a loaded walkable surface below. Native designation icons
 remain visible on the map until the game clears them. Escape selects Inspect.
