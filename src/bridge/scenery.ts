@@ -2,6 +2,7 @@ import type { Bounds, Chunk, SceneryObject } from "../shared/model.js";
 import type { Rpc } from "./rpc.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
 import { textureTerrain, terrainMaterials } from "./terrain-art.js";
+import { visibleProjectiles } from "./projectiles.js";
 import { groundItems, materialFamily } from "./ground-items.js";
 import { flowTokens } from "./flows.js";
 import type { Graphics } from "./graphics.js";
@@ -548,6 +549,15 @@ export class SceneryReader {
           id: p.id,
           name: String(p.name ?? p.id).slice(0, 120),
         });
+  }
+  projectiles(items: unknown, chunks: Map<string, Chunk>) {
+    return visibleProjectiles(
+      items,
+      chunks,
+      this.itemDefinitions,
+      this.materialDefinitions,
+      this.graphics,
+    );
   }
   withItems(chunk: Chunk, items: unknown): Chunk {
     const objects = (chunk.objects ?? []).filter((o) => !o.id.startsWith("i:"));

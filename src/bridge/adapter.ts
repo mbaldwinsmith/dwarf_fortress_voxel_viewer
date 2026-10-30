@@ -240,6 +240,34 @@ export class FortressAdapter {
       ),
     );
   }
+  async projectiles(chunks: Map<string, Chunk>) {
+    if (!this.scenery || !chunks.size) return [];
+    const anchor = [...chunks.values()].find((c) =>
+      c.tiles.some((t) => t.shape !== "empty" && t.shape !== "unknown"),
+    );
+    if (!anchor) return [];
+    const { x, y, z } = anchor;
+    // firstBlock is unconditional in pinned RFR: one allocated block gives a
+    // complete global projectile snapshot even when no terrain hashes changed.
+    const result = await this.rpc.call("GetBlockList", {
+      minX: x / 16,
+      maxX: x / 16 + 1,
+      minY: y / 16,
+      maxY: y / 16 + 1,
+      minZ: z,
+      maxZ: z + 1,
+      blocksNeeded: 1,
+      forceReload: false,
+    });
+    const blocks = result.mapBlocks ?? [];
+    if (
+      !Array.isArray(blocks) ||
+      blocks.length > 1 ||
+      blocks.some((raw) => raw.mapX !== x || raw.mapY !== y || raw.mapZ !== z)
+    )
+      throw Error("Invalid projectile snapshot block");
+    return this.scenery.projectiles(blocks[0]?.items, chunks);
+  }
   async column(x: number, y: number, levels: number[]): Promise<Chunk[]> {
     const minZ = Math.min(...levels),
       maxZ = Math.max(...levels) + 1;

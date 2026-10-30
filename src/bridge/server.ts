@@ -468,7 +468,45 @@ async function run() {
       const creatures = new CreatureReader(adapter, graphics);
       let creatureTick = 0,
         lastCreaturePoll = 0,
-        lastItemPoll = 0;
+        lastItemPoll = 0,
+        projectileTick = 0,
+        lastProjectilePoll = 0;
+      const pollProjectiles = async () => {
+        if (
+          miningQueue.length ||
+          !wss.clients.size ||
+          performance.now() - lastProjectilePoll < 75
+        )
+          return;
+        const mode = requestedMode,
+          level = requestedLevel,
+          focus = requestedFocus;
+        await adapter!.checkWorld();
+        const projectiles = await adapter!.projectiles(chunks);
+        await adapter!.checkWorld();
+        if (
+          mode === requestedMode &&
+          level === requestedLevel &&
+          focus === requestedFocus
+        )
+          publish({
+            type: "projectiles",
+            session,
+            tick: ++projectileTick,
+            projectiles,
+          });
+        lastProjectilePoll = performance.now();
+      };
+      const pauseWithProjectiles = async (ms: number) => {
+        const until = performance.now() + ms;
+        do {
+          await pollProjectiles();
+          if (miningQueue.length || stopping || !wss.clients.size) return;
+          await streamPause(
+            Math.min(75, Math.max(0, until - performance.now())),
+          );
+        } while (performance.now() < until && !miningQueue.length);
+      };
       let sweep = 0;
       while (!stopping) {
         // Keep a warm connection/cache through preview reloads.
@@ -595,6 +633,7 @@ async function run() {
             }
             reads++;
           }
+          await pollProjectiles();
           if (
             !miningQueue.length &&
             performance.now() - lastCreaturePoll >= 250
@@ -646,7 +685,7 @@ async function run() {
               `Streaming Z ${level} · ${completed}/${order.length} blocks · sweep ${sweep + 1}`,
             );
           // Yield during initial loading; throttle batches rather than tiles.
-          await streamPause(
+          await pauseWithProjectiles(
             !miningQueue.length && needed.length && reads % 4 === 0
               ? pollMs
               : 0,
@@ -669,7 +708,7 @@ async function run() {
             heapMB: Math.round(process.memoryUsage().heapUsed / 1048576),
           }),
         );
-        await streamPause(pollMs);
+        await pauseWithProjectiles(pollMs);
       }
     } catch (e) {
       reset = undefined;

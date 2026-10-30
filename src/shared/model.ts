@@ -25,6 +25,20 @@ export interface Creature {
   sprite?: SpriteRef;
   layers?: SpriteLayer[];
 }
+export interface Projectile {
+  id: number;
+  // DF tile coordinates plus fractional offset; centres are +0.5.
+  x: number;
+  y: number;
+  z: number;
+  // Direction only: RFR velocity is not a wall-clock speed.
+  velocity: [number, number, number];
+  kind: "arrow" | "bolt" | "ballista" | "stone" | "item";
+  name: string;
+  size: number;
+  color: [number, number, number];
+  sprite?: SpriteRef;
+}
 export type Shape = "empty" | "wall" | "floor" | "ramp" | "stairs" | "unknown";
 export interface Tile {
   tree?: {
@@ -214,6 +228,12 @@ export type ServerMessage =
       mode: "screen" | "map";
     }
   | { type: "creatures"; session: string; tick: number; creatures: Creature[] }
+  | {
+      type: "projectiles";
+      session: string;
+      tick: number;
+      projectiles: Projectile[];
+    }
   | { type: "status"; message: string }
   | {
       type: "reset";

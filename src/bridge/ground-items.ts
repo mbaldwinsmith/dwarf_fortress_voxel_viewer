@@ -16,7 +16,7 @@ export const materialFamily = (id?: string, metals?: ReadonlySet<string>) =>
       : id?.startsWith("INORGANIC:")
         ? "STONE"
         : "WOOD";
-const aliases: Record<string, string> = {
+export const itemAliases: Record<string, string> = {
   BAR: "BARS",
   ROUGH: "ROUGH_GEM",
   SMALLGEM: "CUT_GEM",
@@ -96,7 +96,7 @@ export function groundItems(
       ROUGH: "ROUGH_GEM_GRAPHICS",
       BAR: "BARS_GRAPHICS",
     }[category];
-    const token = aliases[category] ?? category;
+    const token = itemAliases[category] ?? category;
     const family = materialFamily(material?.id, graphics.metalIds);
     const model =
       (

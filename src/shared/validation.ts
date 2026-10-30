@@ -68,6 +68,40 @@ export function parseServerMessage(value: unknown): ServerMessage {
       return value as ServerMessage;
   }
   if (
+    value.type === "projectiles" &&
+    Number.isSafeInteger(value.tick) &&
+    Number(value.tick) > 0 &&
+    Array.isArray(value.projectiles) &&
+    value.projectiles.length <= 512
+  ) {
+    const ids = new Set<number>();
+    const finite = (v: unknown, limit: number): v is number =>
+      typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
+    for (const p of value.projectiles) {
+      if (
+        !object(p) ||
+        !Number.isSafeInteger(p.id) ||
+        Number(p.id) < 0 ||
+        ids.has(Number(p.id)) ||
+        ![p.x, p.y, p.z].every((v) => finite(v, 999999)) ||
+        !text(p.name) ||
+        !["arrow", "bolt", "ballista", "stone", "item"].includes(
+          String(p.kind),
+        ) ||
+        !finite(p.size, 2) ||
+        Number(p.size) <= 0 ||
+        !rgb(p.color) ||
+        !Array.isArray(p.velocity) ||
+        p.velocity.length !== 3 ||
+        !p.velocity.every((v) => finite(v, 10000))
+      )
+        throw Error("Invalid projectile");
+      ids.add(Number(p.id));
+      if (p.sprite !== undefined) validateSprite(p.sprite);
+    }
+    return value as ServerMessage;
+  }
+  if (
     value.type === "creatures" &&
     int(value.tick) &&
     value.tick > 0 &&

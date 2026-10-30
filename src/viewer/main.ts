@@ -275,6 +275,10 @@ const disconnect = connect((m) => {
     selection.textContent = "Click a visible tile to inspect it.";
     return;
   }
+  if (m.type === "projectiles") {
+    if (m.session === state.session) scene.projectiles.snapshot(m);
+    return;
+  }
   if (m.type === "creatures") {
     if (m.session === state.session) scene.creatures.snapshot(m);
     return;

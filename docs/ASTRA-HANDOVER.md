@@ -2,6 +2,14 @@
 
 Updated 2026-10-30 after continuing the original handover. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
 
+## Completed physical projectiles follow-on
+
+Arrows, bolts, thrown items and siege ammunition now have a dedicated stream and renderer. `bridge/projectiles.ts` resolves item definitions and native artwork; `viewer/projectiles.ts` draws directional crossed native ammunition with solid shafts, material-coloured stones and native thrown items. The protocol now decodes RFR's fractional position, velocity and volume fields.
+
+A single allocated block supplies RFR's global projectile list. Polls target 75 ms on the existing serial RPC connection, with world checks, mining priority, empty snapshots and no polling without viewers. Movement interpolates observations, never extrapolates velocity; stationary samples settle, landed items disappear from flight, stale objects expire after 1.5 seconds, and resets clear everything. Visibility follows the loaded/revealed terrain cache and cut level.
+
+Validation: **255 tests across 45 files**, TypeScript and production build passed. Native-art browser fixtures cover arrows, bolts, ballista bolts, stones and axes, with moving/paused/landing replay checks. A 20-second live read-only audit received 148 snapshots at 121 ms median / 161 ms p95 during terrain loading; no live shots occurred, so actual combat was not witnessed. See [projectile-rendering.md](projectile-rendering.md) for sources, limits and reproducible local QA. No native artwork or QA screenshots are committed; no installer or fortress modifications were made.
+
 ## Completed tree follow-on
 
 The user's subsequent request was to improve trees with a specialised Tree Critic subagent, detailed feedback and iteration toward 4.8+/5. **Complete:** `/root/tree_critic` independently signed off all 21 controlled family/state fixtures, the actual live grove and the tower-cap regression at **4.80 minimum**, with pine, cedar and larch at **4.85**. See [tree-critic-review.md](tree-critic-review.md) for the complete rubric and detailed feedback.

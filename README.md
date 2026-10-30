@@ -42,6 +42,10 @@ single-tile actions to the loaded fortress through DFHack.
   Giant fungal caps have continuous curved skins, textured undersides and round
   stalks joined into the cap. Cap meshing runs in a background worker; see the
   [fungi critic review](docs/fungi-cap-review.md).
+- **Physical projectiles:** arrows, bolts, thrown items, ballista ammunition and
+  catapult stones, with native artwork, flight orientation and interpolation
+  between observed positions. Projectile polls target 75 ms; short flights
+  entirely between polls may be missed.
 - **Atmospheric effects:** animated native smoke, mist, steam and fire sprites
   driven by visible DFHack flow data. Plants and creatures anchor their lowest
   visible pixels to floors and ramps.

@@ -10,6 +10,7 @@ import {
   type Chunk,
   WorldState,
 } from "../shared/model.js";
+import { ProjectileModels } from "./projectiles.js";
 import { CreatureSprites } from "./creatures.js";
 import { ScenerySprites } from "./scenery.js";
 import { TerrainAtlas } from "./terrain-atlas.js";
@@ -49,6 +50,7 @@ export class FortressScene {
   cut = 0;
   bounds?: Bounds;
   terrainAtlas = new TerrainAtlas();
+  projectiles = new ProjectileModels(this.terrainAtlas);
   private capMaterial = fungiMaterial(this.terrainAtlas.texture);
   private capMesher = new FungiMesher();
   private treeMesher = new TreeMesher();
@@ -131,7 +133,7 @@ export class FortressScene {
       "aria-label",
       "3D fortress terrain. WASD or left drag to pan; Q/E or right drag to rotate; scroll to zoom.",
     );
-    this.scene.add(this.creatures.group);
+    this.scene.add(this.creatures.group, this.projectiles.group);
     this.scene.add(this.scenery.group);
     this.liquids = new LiquidMeshes(
       this.terrainAtlas.texture,
@@ -613,6 +615,7 @@ export class FortressScene {
       this.setFirstPerson(true);
     this.leave();
     this.creatures.clear();
+    this.projectiles.clear();
     this.scenery.clear();
     this.liquids.clear();
     this.flows.clear();
@@ -956,6 +959,12 @@ export class FortressScene {
       visibleLevel,
       this.cut - LEVELS_BELOW,
     );
+    this.projectiles.frame(
+      this.state.chunks,
+      start,
+      visibleLevel,
+      this.cut - LEVELS_BELOW,
+    );
     this.renderer.render(this.scene, this.camera);
     this.stats.textContent = `${this.state.chunks.size} blocks · ${this.creatures.visibleCount} creatures · ${this.scenery.visibleCount} furnishings/plants/items · ${this.renderer.info.render.triangles.toLocaleString()} triangles · ${this.dirty.size + this.capMesher.pending + this.treeMesher.pending} queued`;
   };
@@ -997,6 +1006,7 @@ export class FortressScene {
     this.selectorBorder.material.dispose();
     this.controls.dispose();
     this.creatures.dispose();
+    this.projectiles.dispose();
     this.scenery.dispose();
     this.liquids.dispose();
     this.flows.dispose();

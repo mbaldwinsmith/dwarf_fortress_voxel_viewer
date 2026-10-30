@@ -34,7 +34,7 @@ message ListRequest {optional int32 list_start=1;optional int32 list_end=2;}
 message ColorDefinition {required int32 red=1;required int32 green=2;required int32 blue=3;}
 message Hair {optional int32 length=1;optional int32 style=2;}
 message UnitAppearance {repeated int32 bp_modifiers=2;repeated int32 colors=4;optional Hair hair=5;optional Hair beard=6;optional Hair moustache=7;optional Hair sideburns=8;}
-message Item {optional int32 id=1;optional Coord pos=2;optional uint32 flags1=3;optional uint32 flags2=4;optional MatPair type=5;optional MatPair material=6;optional ColorDefinition dye=7;optional int32 stack_size=8;optional bool projectile=12;}
+message Item {optional int32 id=1;optional Coord pos=2;optional uint32 flags1=3;optional uint32 flags2=4;optional MatPair type=5;optional MatPair material=6;optional ColorDefinition dye=7;optional int32 stack_size=8;optional float subpos_x=9;optional float subpos_y=10;optional float subpos_z=11;optional bool projectile=12;optional float velocity_x=13;optional float velocity_y=14;optional float velocity_z=15;optional int32 volume=16;}
 message InventoryItem {optional int32 mode=1;optional Item item=2;optional int32 body_part_id=3;}
 message MaterialDefinition {required MatPair mat_pair=1;optional string id=2;optional string name=3;optional ColorDefinition state_color=4;}
 message MaterialList {repeated MaterialDefinition material_list=1;}

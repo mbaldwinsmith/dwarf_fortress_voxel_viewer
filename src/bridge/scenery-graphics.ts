@@ -7,9 +7,39 @@ import type { SpriteRef, SpriteLayer } from "../shared/model.js";
 export function sceneryMappings(text: string) {
   const entries: { key: string; page: string; x: number; y: number }[] = [];
   let plant = "",
-    tool = "";
+    tool = "",
+    ammo = "",
+    weapon = "";
   for (const m of text.matchAll(/\[([^\]\r\n]+)\]/g)) {
     const [tag, ...a] = m[1].split(":");
+    if (tag === "WEAPON_GRAPHICS") weapon = a[0];
+    if (
+      weapon &&
+      /^WEAPON_GRAPHICS_(DEFAULT|WOOD)$/.test(tag) &&
+      a.length === 3 &&
+      /^\d+$/.test(a[1]) &&
+      /^\d+$/.test(a[2])
+    )
+      entries.push({
+        key: `${weapon}:${tag.endsWith("_WOOD") ? "WOOD" : "DEFAULT"}`,
+        page: a[0],
+        x: Number(a[1]),
+        y: Number(a[2]),
+      });
+    if (tag === "AMMO_GRAPHICS" || tag === "SIEGEAMMO_GRAPHICS") ammo = a[0];
+    if (
+      ammo &&
+      /^(?:SIEGE)?AMMO_GRAPHICS_STRAIGHT_(DEFAULT|WOOD)$/.test(tag) &&
+      a.length === 3 &&
+      /^\d+$/.test(a[1]) &&
+      /^\d+$/.test(a[2])
+    )
+      entries.push({
+        key: `${ammo}:${tag.endsWith("_WOOD") ? "WOOD" : "DEFAULT"}`,
+        page: a[0],
+        x: Number(a[1]),
+        y: Number(a[2]),
+      });
     if (tag === "TOOL_GRAPHICS") tool = a.slice(3).join(":");
     if (
       tool &&
@@ -67,7 +97,17 @@ export function sceneryMappings(text: string) {
         y: Number(a[3]),
       });
     if (
-      ["TILE_GRAPHICS", "TOOL_GRAPHICS"].includes(tag) &&
+      [
+        "TILE_GRAPHICS",
+        "TOOL_GRAPHICS",
+        "ARMOR_GRAPHICS",
+        "GLOVES_GRAPHICS",
+        "HELM_GRAPHICS",
+        "PANTS_GRAPHICS",
+        "SHOES_GRAPHICS",
+        "SHIELD_GRAPHICS",
+        "TOY_GRAPHICS",
+      ].includes(tag) &&
       a.length >= 4 &&
       /^\d+$/.test(a[1]) &&
       /^\d+$/.test(a[2])
