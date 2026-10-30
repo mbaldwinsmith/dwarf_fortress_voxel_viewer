@@ -357,6 +357,39 @@ export class FortressScene {
           }
     } else meshes = [...this.meshes.values()].filter((m) => m.visible);
     const hit = ray.intersectObjects(meshes)[0];
+    // Stairs have gaps between their narrow treads. Pick their tile volume so
+    // aiming through a gap removes the stairs instead of channeling below.
+    let stair: MiningTarget | undefined,
+      nearest = Math.min(hit?.distance ?? Infinity, ray.far);
+    const volume = new THREE.Box3(),
+      point = new THREE.Vector3();
+    for (const mesh of meshes) {
+      const c = this.state.chunks.get(mesh.userData.chunkKey);
+      if (!c) continue;
+      volume.min.set(c.x, c.z, c.y);
+      volume.max.set(c.x + 16, c.z + 1, c.y + 16);
+      if (!ray.ray.intersectsBox(volume)) continue;
+      for (let i = 0; i < c.tiles.length; i++) {
+        if (c.tiles[i].shape !== "stairs") continue;
+        const x = c.x + (i % 16),
+          y = c.y + Math.floor(i / 16);
+        volume.min.set(x, c.z, y);
+        volume.max.set(x + 1, c.z + 1, y + 1);
+        if (!ray.ray.intersectBox(volume, point)) continue;
+        const distance = point.distanceTo(ray.ray.origin);
+        if (distance < ray.near || distance >= nearest) continue;
+        const target: MiningTarget = {
+          x,
+          y,
+          z: c.z,
+          operation: "remove-stairs",
+        };
+        if (!validMiningTile(this.state.chunks, target)) continue;
+        nearest = distance;
+        stair = target;
+      }
+    }
+    if (stair) return { target: stair, x: sx, y: sy };
     if (!hit) return;
     const p = hit.point
       .clone()
@@ -762,6 +795,7 @@ export class FortressScene {
       g.setAttribute("uv", new THREE.Float32BufferAttribute(data.uvs, 2));
       g.computeBoundingBox();
       const m = new THREE.Mesh(g, this.material);
+      m.userData.chunkKey = k;
       this.meshes.set(k, m);
       this.scene.add(m);
     }

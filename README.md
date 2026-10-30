@@ -173,6 +173,9 @@ A wall uses the native pick icon. Aiming down at a floor channels it with the
 spade icon. Ramps use the pick icon and **Remove ramp**: digging flattens them
 to floors, and designation mode queues ramp removal. Ramps inside channeling
 rectangles are also removed without channeling beneath them.
+Stairs use **Remove stairs** with the pick: up stairs become floors, and up/down
+stairs become down stairs. Down-only stairs cannot be filled by digging; build
+a floor to close that opening. Rectangle designations use the same rules.
 Aiming up uses the pick icon and channels the targeted ceiling tile
 to open it completely. Channeling can expose lower ground; the first-person
 camera settles onto a loaded walkable surface below. Native designation icons

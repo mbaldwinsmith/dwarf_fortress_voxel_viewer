@@ -89,6 +89,101 @@ it("targets ramp removal from every face while keeping floor channeling and ceil
   c.tiles[0].material = 7;
   expect(validMiningTile(chunks, r)).toBe(false);
 });
+it("targets stairs for removal from every face and accepts only staircase removal targets", () => {
+  for (const normalY of [-1, 0, 0.7, 1])
+    expect(miningOperation("stairs", normalY)).toBe("remove-stairs");
+  const r: MiningRequest = { ...request, operation: "remove-stairs" },
+    c = block(),
+    chunks = new Map([["16,16,4", c]]);
+  expect(parseMiningRequest(r, bounds, "world")).toBe(r);
+  for (const shape of ["floor", "wall", "ramp", "unknown"] as const) {
+    c.tiles[0].shape = shape;
+    expect(validMiningTile(chunks, r)).toBe(false);
+  }
+  c.tiles[0].shape = "stairs";
+  expect(validMiningTile(chunks, r)).toBe(true);
+  c.tiles[0].material = 7;
+  expect(validMiningTile(chunks, r)).toBe(false);
+});
+it("picks stairs through gaps between treads, without picking through closer terrain", () => {
+  const c = block(0, 0, 4),
+    below = block(0, 0, 3),
+    above = block(0, 0, 5);
+  c.tiles[8 * 16 + 8].shape = "stairs";
+  below.tiles.forEach((t) => (t.shape = "floor"));
+  above.tiles.forEach((t) => (t.shape = "floor"));
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 0.12, 1),
+    new THREE.MeshBasicMaterial(),
+  );
+  floor.position.set(8.5, 3.06, 8.5);
+  floor.userData.chunkKey = "0,0,3";
+  floor.updateMatrixWorld();
+  const tread = new THREE.Mesh(
+    new THREE.BoxGeometry(0.25, 0.5, 1),
+    new THREE.MeshBasicMaterial(),
+  );
+  tread.position.set(8.125, 4.25, 8.5);
+  tread.userData.chunkKey = "0,0,4";
+  tread.updateMatrixWorld();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(8.5, 6, 8.5);
+  camera.lookAt(8.5, 3, 8.5);
+  camera.updateMatrixWorld();
+  const context = {
+    navigation: "orbit",
+    miningMode: "dig",
+    miningPointer: { x: 50, y: 50 },
+    camera,
+    renderer: {
+      domElement: {
+        getBoundingClientRect: () => ({
+          left: 0,
+          top: 0,
+          width: 100,
+          height: 100,
+        }),
+      },
+    },
+    meshes: new Map([
+      ["0,0,3", floor],
+      ["0,0,4", tread],
+    ]),
+    state: {
+      chunks: new Map([
+        ["0,0,3", below],
+        ["0,0,4", c],
+        ["0,0,5", above],
+      ]),
+    },
+  };
+  const pick = (
+    FortressScene.prototype as unknown as {
+      miningTarget: () => { target: MiningRequest } | undefined;
+    }
+  ).miningTarget;
+  expect(pick.call(context)?.target).toEqual({
+    x: 8,
+    y: 8,
+    z: 4,
+    operation: "remove-stairs",
+  });
+  const cover = floor.clone();
+  cover.position.y = 5.06;
+  cover.userData.chunkKey = "0,0,5";
+  cover.updateMatrixWorld();
+  context.meshes.set("0,0,5", cover);
+  expect(pick.call(context)?.target).toEqual({
+    x: 8,
+    y: 8,
+    z: 5,
+    operation: "channel",
+  });
+  floor.geometry.dispose();
+  tread.geometry.dispose();
+  floor.material.dispose();
+  tread.material.dispose();
+});
 it("completes a hold after 750 ms and cancels on a different target or release", () => {
   const hold = new MiningHold();
   hold.begin(request, 100);

@@ -1,11 +1,13 @@
 import { tileAt, type Chunk, type Bounds } from "./model.js";
 export type MiningMode = "inspect" | "dig" | "designate";
-export type MiningOperation = "mine" | "channel" | "ceiling" | "remove-ramp";
+export type MiningOperation =
+  "mine" | "channel" | "ceiling" | "remove-ramp" | "remove-stairs";
 export function miningOperation(
   shape: string,
   normalY: number,
 ): MiningOperation {
   if (shape === "ramp") return "remove-ramp";
+  if (shape === "stairs") return "remove-stairs";
   if (normalY < -0.5) return "ceiling";
   return shape === "wall" ? "mine" : "channel";
 }
@@ -40,7 +42,9 @@ export function validMiningTile(chunks: Map<string, Chunk>, p: MiningTarget) {
       ? tile.shape === "wall"
       : p.operation === "remove-ramp"
         ? tile.shape === "ramp"
-        : ["wall", "floor", "ramp", "stairs"].includes(tile.shape))
+        : p.operation === "remove-stairs"
+          ? tile.shape === "stairs"
+          : ["wall", "floor", "ramp", "stairs"].includes(tile.shape))
   );
 }
 export function parseMiningRequest(
@@ -69,7 +73,9 @@ export function parseMiningRequest(
     m.id < 1 ||
     ![m.x, m.y, m.z].every(Number.isInteger) ||
     !["dig", "designate"].includes(m.mode) ||
-    !["mine", "channel", "ceiling", "remove-ramp"].includes(m.operation) ||
+    !["mine", "channel", "ceiling", "remove-ramp", "remove-stairs"].includes(
+      m.operation,
+    ) ||
     m.x <= bounds.x ||
     m.y <= bounds.y ||
     m.x >= bounds.x + bounds.width - 1 ||

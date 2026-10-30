@@ -11,7 +11,7 @@ if not dfhack.isMapLoaded() or not dfhack.world.isFortressMode() then reject('Lo
 if df.global.world.cur_savegame.save_dir ~= save then reject('Fortress changed'); return end
 local sx,sy,sz=dfhack.maps.getTileSize()
 if not x or not y or not z or x%1~=0 or y%1~=0 or z%1~=0 or x<1 or y<1 or z<1 or x>=sx-1 or y>=sy-1 or z>=sz-1 then reject('Tile outside editable map'); return end
-if operation~='mine' and operation~='channel' and operation~='ceiling' and operation~='remove-ramp' then reject('Invalid operation');return end
+if operation~='mine' and operation~='channel' and operation~='ceiling' and operation~='remove-ramp' and operation~='remove-stairs' then reject('Invalid operation');return end
 if mode~='dig' and mode~='designate' then reject('Invalid mode');return end
 if x2 or y2 then
   x2,y2=tonumber(x2),tonumber(y2)
@@ -31,9 +31,12 @@ if x2 or y2 then
           local shape=df.tiletype_shape[attrs.shape]
           local natural=material~='CONSTRUCTION' and material~='TREE' and material~='ROOT' and material~='MUSHROOM' and material~='PLANT'
           local wall=shape=='WALL' or shape=='FORTIFICATION'
+          local stairs=shape=='STAIR_UP' or shape=='STAIR_UPDOWN'
           local floor=shape=='FLOOR' or shape=='BOULDER' or shape=='PEBBLES' or shape=='BROOK_BED' or shape=='BROOK_TOP' or shape=='RAMP' or shape=='STAIR_UP' or shape=='STAIR_DOWN' or shape=='STAIR_UPDOWN'
-          local eligible=operation=='remove-ramp' and shape=='RAMP' or operation=='mine' and wall or (operation=='channel' or operation=='ceiling') and (wall or floor)
-          local dig=(operation=='mine' or shape=='RAMP') and df.tile_dig_designation.Default or df.tile_dig_designation.Channel
+          local eligible=operation=='remove-ramp' and shape=='RAMP' or operation=='remove-stairs' and stairs or operation=='mine' and wall or (operation=='channel' or operation=='ceiling') and (wall or floor)
+          -- Down-only stairs are openings; filling them requires construction.
+          if shape=='STAIR_DOWN' then eligible=false end
+          local dig=(operation=='mine' or shape=='RAMP' or stairs) and df.tile_dig_designation.Default or df.tile_dig_designation.Channel
           if natural and eligible and (f.dig==df.tile_dig_designation.No or f.dig==dig) then entries[#entries+1]={flags=f,old=f.dig,block=b,dig=dig} end
         end
       end
@@ -60,7 +63,11 @@ if material=='CONSTRUCTION' or material=='TREE' or material=='ROOT' or material=
 if block.occupancy[lx][ly].building~=0 then reject('A building occupies this tile');return end
 -- A ramp always uses removal, even if an older viewer requested channeling.
 if shape=='RAMP' then operation='remove-ramp' end
+local stairs=shape=='STAIR_UP' or shape=='STAIR_UPDOWN'
+if shape=='STAIR_DOWN' then reject('Down-only stairs are an opening; build a floor to close it');return end
+if stairs then operation='remove-stairs' end
 if operation=='remove-ramp' and shape~='RAMP' then reject('Select a ramp to remove');return end
+if operation=='remove-stairs' and not stairs then reject('Select upward stairs to remove');return end
 if operation=='mine' and shape~='WALL' and shape~='FORTIFICATION' then reject('Select a wall to mine');return end
 if operation~='mine' and shape~='WALL' and shape~='FLOOR' and shape~='BOULDER' and shape~='PEBBLES' and shape~='BROOK_BED' and shape~='BROOK_TOP' and shape~='RAMP' and shape~='STAIR_UP' and shape~='STAIR_DOWN' and shape~='STAIR_UPDOWN' and shape~='FORTIFICATION' then reject('This tile cannot be channeled');return end
 local designated=block.flags.designated
@@ -72,7 +79,7 @@ if mode=='dig' then
 end
 if dry=='true' then result('READY:'..tile);return end
 local old=flags.dig
-local dig=(operation=='mine' or operation=='remove-ramp') and df.tile_dig_designation.Default or df.tile_dig_designation.Channel
+local dig=(operation=='mine' or operation=='remove-ramp' or operation=='remove-stairs') and df.tile_dig_designation.Default or df.tile_dig_designation.Channel
 if old~=df.tile_dig_designation.No and old~=dig then reject('A different designation already exists');return end
 flags.dig=dig
 block.flags.designated=true
