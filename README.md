@@ -131,6 +131,10 @@ horizontal position and shifts its height with the cutaway.
 
 ### First-person controls
 
+Walk off a revealed edge to fall onto the ground below; no ramp or stair key is
+required. Deep falls advance the streamed z-level window as you descend, waiting
+at unloaded or undiscovered terrain instead of falling through it.
+
 Select **1st person**, then click a green floor selector to enter. Red indicates
 a blocked location or terrain/headroom data that has not yet loaded.
 

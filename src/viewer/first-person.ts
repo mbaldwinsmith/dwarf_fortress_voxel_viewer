@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { levelDirection } from "./keyboard.js";
-import { tileAt, type Chunk } from "../shared/model.js";
+import { tileAt, LEVELS_BELOW, type Chunk } from "../shared/model.js";
+import { FLOOR_HEIGHT } from "./ramps.js";
 import {
   surfaceHeight,
   stairDestination,
@@ -9,6 +10,71 @@ import {
 
 export const EYE_HEIGHT = 0.64;
 const RADIUS = 0.18;
+const offsets = [-RADIUS, 0, RADIUS];
+// A ledge may have open air under part of the player's footprint. Keep body
+// collisions and headroom checks, but let gravity handle the missing support.
+export function canStepOff(
+  chunks: Map<string, Chunk>,
+  x: number,
+  y: number,
+  z: number,
+  height: number,
+  mapTop = Infinity,
+) {
+  for (const dx of offsets)
+    for (const dy of offsets) {
+      const tile = tileAt(chunks, Math.floor(x + dx), Math.floor(y + dy), z);
+      if (!tile || !["floor", "stairs", "ramp", "empty"].includes(tile.shape))
+        return false;
+      const h = walkingHeight(chunks, x + dx, y + dy, z);
+      if (h !== undefined && Math.abs(h - height) > 0.4) return false;
+      const above = tileAt(
+        chunks,
+        Math.floor(x + dx),
+        Math.floor(y + dy),
+        z + 1,
+      );
+      if (!above && z !== mapTop) return false;
+      if (
+        above &&
+        !["empty", "stairs"].includes(above.shape) &&
+        height + EYE_HEIGHT + 0.08 >= z + 1
+      )
+        return false;
+    }
+  return true;
+}
+export function fallDestination(
+  chunks: Map<string, Chunk>,
+  x: number,
+  y: number,
+  level: number,
+  mapTop = Infinity,
+) {
+  let open: { level: number; height: number } | undefined;
+  for (let z = level - 1; z >= Math.max(0, level - LEVELS_BELOW); z--) {
+    const t = tileAt(chunks, Math.floor(x), Math.floor(y), z);
+    if (!t || t.shape === "unknown") break;
+    const h = walkingHeight(chunks, x, y, z);
+    if (h !== undefined && canWalk(chunks, x, y, z, mapTop))
+      return { level: z, height: h };
+    if (
+      t.shape !== "empty" ||
+      !offsets.every((dx) =>
+        offsets.every(
+          (dy) =>
+            tileAt(chunks, Math.floor(x + dx), Math.floor(y + dy), z)?.shape ===
+            "empty",
+        ),
+      )
+    )
+      break;
+    open = { level: z, height: z + FLOOR_HEIGHT };
+  }
+  // Descend through the known air window, then stream the next window. This
+  // supports deep falls without guessing what lies in undiscovered terrain.
+  return open;
+}
 export function walkingHeight(
   chunks: Map<string, Chunk>,
   x: number,
@@ -242,25 +308,34 @@ export class FirstPersonControls {
       tileAt(chunks, Math.floor(p.x), Math.floor(p.z), this.level)?.shape ===
         "empty"
     ) {
-      for (let z = this.level - 1; z >= Math.max(0, this.level - 5); z--) {
-        const t = tileAt(chunks, Math.floor(p.x), Math.floor(p.z), z);
-        if (!t || t.shape === "unknown") break;
-        const h = walkingHeight(chunks, p.x, p.z, z);
-        if (h !== undefined && canWalk(chunks, p.x, p.z, z, this.mapTop())) {
-          this.falling = {
-            fromY: p.y,
-            toY: h + EYE_HEIGHT,
-            to: z,
-            progress: 0,
-          };
-          break;
-        }
-        if (t.shape !== "empty") break;
+      const supported = offsets.some((dx) =>
+        offsets.some((dy) => {
+          const h = walkingHeight(chunks, p.x + dx, p.z + dy, this.level);
+          return h !== undefined && Math.abs(h + EYE_HEIGHT - p.y) < 0.05;
+        }),
+      );
+      const destination = supported
+        ? undefined
+        : fallDestination(chunks, p.x, p.z, this.level, this.mapTop());
+      if (destination) {
+        this.falling = {
+          fromY: p.y,
+          toY: destination.height + EYE_HEIGHT,
+          to: destination.level,
+          progress: 0,
+        };
       }
     }
     if (this.falling) {
       const fall = this.falling;
-      fall.progress = Math.min(1, fall.progress + Math.min(dt, 0.05) / 0.35);
+      const duration = Math.max(
+        0.18,
+        Math.sqrt(Math.max(0, fall.fromY - fall.toY) / 8),
+      );
+      fall.progress = Math.min(
+        1,
+        fall.progress + Math.min(dt, 0.05) / duration,
+      );
       p.y = THREE.MathUtils.lerp(
         fall.fromY,
         fall.toY,
@@ -367,6 +442,18 @@ export class FirstPersonControls {
             this.level = z;
             this.onLevelChange?.(z);
           }
+        } else if (
+          canStepOff(
+            chunks,
+            p.x + sx,
+            p.z + sy,
+            this.level,
+            p.y - EYE_HEIGHT,
+            this.mapTop(),
+          )
+        ) {
+          p.x += sx;
+          p.z += sy;
         }
       }
     }
