@@ -638,3 +638,23 @@ produced composites for all compatible sets, and a 24-composite bare/equipped
 WebGL lineup loaded without errors or sprite warnings. The live fortress retained
 artwork for all 20 visible creatures. See creature-rendering.md for fidelity
 limits, including unavailable native random-part indices and syndrome classes.
+
+## Digging and designation modes
+
+Inspect remains the default; explicit Digging and Designation tools now work in
+DF Screen, Orbit and first-person views. The first-person direct-dig gesture
+holds for 750 ms with a flashing native designation icon and countdown. Downward
+channeling uses the spade; upward ceiling removal uses the pick. The camera can
+settle onto revealed ground below a newly channeled supporting floor.
+
+The companion executes a fixed, validated single-tile Lua action over the native
+core RPC, with world/save/tile revalidation and a dry-run phase before mutation.
+It serializes edits with reads, prevents duplicate/pending-client actions and
+refreshes neighbouring geometry immediately. Native map designation icons are
+streamed and remain intact through item-only updates. No helper files are
+installed in DF. See docs/mining.md for command boundaries and verification.
+
+Browser tests covered both render modes, first-person hold timing (759 ms),
+cancellation, icons, ceiling removal, designation-only behaviour, falling and
+pan without accidental digging. The live native preflight succeeded and left
+the inspected terrain/designation unchanged; no destructive live test was run.

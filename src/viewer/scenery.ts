@@ -237,7 +237,7 @@ export class ScenerySprites {
               sprite: o.sprite,
               tint: o.tint,
               palette: o.palette,
-              brightness: 1.4,
+              brightness: o.id.startsWith("d:") ? 1 : 1.4,
             },
             ...(o.overlay ? [{ sprite: o.overlay }] : []),
             ...(o.details ?? []),
@@ -267,6 +267,9 @@ export class ScenerySprites {
                 i % 3 === 1
                   ? v +
                     layerIndex * 0.003 +
+                    (o.id.startsWith("d:") && tile.shape === "wall"
+                      ? 0.88
+                      : 0) +
                     (o.id.startsWith("i:") && tile.shape === "ramp" ? 0.5 : 0)
                   : v,
               ),

@@ -8,7 +8,8 @@ Orbit above an excavation, cut through the mountain, or step into the halls in
 first person.
 
 Deepwatch runs locally and reads artwork from your own Dwarf Fortress installation.
-It does not issue gameplay commands or modify your game files and saves.
+Exploration starts in Inspect mode. Optional digging and designation tools apply
+single-tile actions to the loaded fortress through DFHack.
 
 > **Early development:** currently supports **Dwarf Fortress 53.16**,
 > **DFHack 53.16-r3** and **RemoteFortressReader 0.21.0**. Other version
@@ -26,6 +27,9 @@ It does not issue gameplay commands or modify your game files and saves.
   Z-levels, or follow the area currently visible in DF.
 - **First-person exploration:** choose a starting point and walk through revealed
   terrain, including connected stairs and ramps.
+- **Mining tools:** click to excavate or designate in Orbit/DF Screen. In first
+  person, hold left mouse for 0.75 seconds to dig, with flashing native pick/spade
+  icons, or click in Designation mode to give your dwarves a mining job.
 - **Authentic local artwork:** installed vanilla terrain textures, creature
   sprites, workshops, furniture, plants and supported ground items.
 - **Layered peoples:** native body, clothing, armour, held weapons and shields
@@ -151,6 +155,27 @@ whether controls are active or paused.
 
 Manual Z changes and unrelated reconnections return to starting-point selection.
 Furniture and doors do not currently block camera movement.
+
+### Digging and designation
+
+Choose an **Interaction** tool:
+
+- **Inspect** keeps the usual tile inspection controls.
+- **Digging** excavates natural terrain directly. Click in Orbit or DF Screen;
+  in first person aim within five tiles and hold left mouse for 0.75 seconds.
+  Releasing, changing targets, pausing or leaving the view cancels the hold.
+- **Designation** marks a normal mining job for dwarves; click in any view.
+
+A wall uses the native pick icon. Aiming down at a floor channels it with the
+spade icon. Aiming up uses the pick icon and channels the targeted ceiling tile
+to open it completely. Channeling can expose lower ground; the first-person
+camera settles onto a loaded walkable surface below. Native designation icons
+remain visible on the map until the game clears them. Escape selects Inspect.
+
+These tools change the real loaded fortress. Trees, constructions, buildings,
+hidden tiles and map edges are excluded. Instant digging uses DFHack dig-now
+with standard item generation and awards no mining experience. Supported use is
+natural walls and floors; there are no tree-felling or construction-removal tools.
 
 ## Local graphics and fidelity
 
@@ -292,14 +317,14 @@ with the installer, ZIP and checksums for review and publication.
 The project uses TypeScript, Three.js, a Node.js HTTP/WebSocket companion,
 Protocol Buffers, Vite and an Electron desktop shell.
 
-| Directory     | Responsibility                                                                         |
-| ------------- | -------------------------------------------------------------------------------------- |
-| `src/bridge/` | DFHack connection, read-only adapter, installation and graphics loading, local server. |
-| `src/shared/` | Viewer data model and message validation.                                              |
-| `src/viewer/` | Three.js rendering, navigation and HTML/CSS interface.                                 |
-| `desktop/`    | Desktop launcher and companion lifecycle.                                              |
-| `tests/`      | Synthetic fixtures, mock RPC tests and regression coverage.                            |
-| `docs/`       | Architecture, progress and verification notes.                                         |
+| Directory     | Responsibility                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| `src/bridge/` | DFHack reads, fixed single-tile mining executor, installation/graphics loading and local server. |
+| `src/shared/` | Viewer data model and message validation.                                                        |
+| `src/viewer/` | Three.js rendering, navigation and HTML/CSS interface.                                           |
+| `desktop/`    | Desktop launcher and companion lifecycle.                                                        |
+| `tests/`      | Synthetic fixtures, mock RPC tests and regression coverage.                                      |
+| `docs/`       | Architecture, progress and verification notes.                                                   |
 
 Run the standard checks with:
 

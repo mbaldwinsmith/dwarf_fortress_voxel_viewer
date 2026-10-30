@@ -1,5 +1,6 @@
 import type { ServerMessage } from "../shared/model.js";
 import { parseServerMessage } from "../shared/validation.js";
+import type { MiningRequest } from "../shared/mining.js";
 export function connect(
   receive: (m: ServerMessage) => void,
   status: (s: string) => void,
@@ -35,6 +36,11 @@ export function connect(
       socket.close();
     },
     {
+      mine: (request: MiningRequest) => {
+        if (socket.readyState !== WebSocket.OPEN) return false;
+        socket.send(JSON.stringify(request));
+        return true;
+      },
       setMode: (mode: "screen" | "map") => {
         if (socket.readyState === WebSocket.OPEN)
           socket.send(JSON.stringify({ type: "mode", mode }));

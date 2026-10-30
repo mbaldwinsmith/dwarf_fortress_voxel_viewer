@@ -450,6 +450,42 @@ export class SceneryReader {
             sprite,
           });
       }
-    chunk.objects = this.withItems(chunk, raw?.items).objects;
+    const designations = raw?.tileDigDesignation;
+    if (Array.isArray(designations) && designations.length === 256) {
+      const tokens = [
+        "",
+        "STANDARD",
+        "STAIR_UPDOWN",
+        "CHANNEL",
+        "RAMP",
+        "STAIR_DOWN",
+        "STAIR_UP",
+      ];
+      for (let i = 0; i < 256; i++) {
+        const designation = designations[i];
+        const tile = chunk.tiles[i];
+        if (
+          !Number.isInteger(designation) ||
+          designation < 1 ||
+          designation > 6 ||
+          ["empty", "unknown"].includes(tile.shape)
+        )
+          continue;
+        const sprite = this.graphics.get(
+          `DESIGNATION_DIG_${tokens[designation]}`,
+        );
+        if (sprite)
+          chunk.objects.push({
+            id: `d:${chunk.x + (i % 16)}:${chunk.y + Math.floor(i / 16)}:${chunk.z}`,
+            x: chunk.x + (i % 16),
+            y: chunk.y + Math.floor(i / 16),
+            z: chunk.z,
+            kind: "ground",
+            name: "Mining designation",
+            sprite,
+          });
+      }
+    }
+    chunk.objects = this.withItems(chunk, raw?.items).objects?.slice(0, 512);
   }
 }

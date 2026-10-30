@@ -110,6 +110,19 @@ export interface Bounds {
 }
 export type ServerMessage =
   | {
+      type: "mining-assets";
+      session: string;
+      pick: SpriteRef;
+      spade: SpriteRef;
+    }
+  | {
+      type: "mining-result";
+      session: string;
+      id: number;
+      ok: boolean;
+      message: string;
+    }
+  | {
       type: "view";
       focus?: { x: number; y: number };
       session: string;

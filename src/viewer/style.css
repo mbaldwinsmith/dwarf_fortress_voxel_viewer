@@ -280,3 +280,57 @@ footer {
 [hidden] {
   display: none !important;
 }
+.interaction {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  color: #bfc9d0;
+}
+.interaction select {
+  background: #17242e;
+  color: #ffdb8d;
+  border: 1px solid #475666;
+  border-radius: 4px;
+  padding: 7px;
+  font: inherit;
+}
+#mining-preview {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 5px;
+}
+#mining-icon {
+  display: block;
+  background-repeat: no-repeat;
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 4px #ffc46b);
+}
+#mining-icon.mining-flash {
+  animation: mining-flash 0.22s steps(2, end) infinite;
+}
+#mining-progress {
+  width: 80px;
+  height: 7px;
+  accent-color: #ffcf75;
+}
+#mining-hint {
+  font-size: 11px;
+  color: #ffdf9d;
+  background: #101921d9;
+  padding: 4px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+@keyframes mining-flash {
+  50% {
+    opacity: 0.2;
+  }
+}

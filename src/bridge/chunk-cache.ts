@@ -55,4 +55,17 @@ export class ChunkCache {
     // Item polls must not postpone refreshes of the underlying terrain.
     return this.store(chunk, entry.readAt);
   }
+  invalidateAround(x: number, y: number, z: number) {
+    const cx = Math.floor(x / 16) * 16,
+      cy = Math.floor(y / 16) * 16;
+    for (const [k, e] of this.entries)
+      if (
+        Math.abs(e.chunk.x - cx) <= 16 &&
+        Math.abs(e.chunk.y - cy) <= 16 &&
+        Math.abs(e.chunk.z - z) <= 1
+      ) {
+        if (this.active.has(k)) e.readAt = -Infinity;
+        else this.entries.delete(k);
+      }
+  }
 }

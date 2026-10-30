@@ -1,8 +1,11 @@
 import protobuf from "protobufjs";
 // Deliberately restricted wire-compatible subset; field numbers verified against
-// DFHack 0bf381cc. No gameplay or command messages are exposed.
+// DFHack 0bf381cc. Command transport is used only by the fixed single-tile miner.
 const schema = `syntax="proto2";package dfproto;
 message EmptyMessage {} message CoreBindRequest {required string method=1;required string input_msg=2;required string output_msg=3;optional string plugin=4;} message CoreBindReply {required int32 assigned_id=1;}
+message CoreRunCommandRequest {required string command=1;repeated string arguments=2;}
+message CoreTextNotification {repeated CoreTextFragment fragments=1;}
+message CoreTextFragment {required string text=1;optional int32 color=2;}
 package RemoteFortressReader;
 message VersionInfo {optional string dwarf_fortress_version=1;optional string dfhack_version=2;optional string remote_fortress_reader_version=3;}
 message MapInfo {optional int32 block_size_x=1;optional int32 block_size_y=2;optional int32 block_size_z=3;optional int32 block_pos_x=4;optional int32 block_pos_y=5;optional int32 block_pos_z=6;optional string world_name=7;optional string world_name_english=8;optional string save_name=9;}
@@ -21,7 +24,7 @@ message PlantList {repeated PlantDef plant_list=1;}
 message PlantRaw {optional int32 index=1;optional string id=2;optional string name=3;optional int32 tile=5;}
 message PlantRawList {repeated PlantRaw plant_raws=1;}
 message FlowInfo {optional int32 index=1;optional int32 type=2;optional int32 density=3;optional Coord pos=4;optional Coord dest=5;optional bool expanding=6;optional int32 guide_id=8;optional MatPair material=9;optional MatPair item=10;optional bool dead=11;optional bool fast=12;optional bool creeping=13;}
-message MapBlock {required int32 map_x=1;required int32 map_y=2;required int32 map_z=3;repeated int32 tiles=4;repeated MatPair materials=5;repeated MatPair layer_materials=6;repeated MatPair base_materials=8;repeated int32 magma=9;repeated int32 water=10;repeated bool hidden=11;repeated BuildingInstance buildings=19;repeated int32 tree_percent=20;repeated Item items=26;repeated int32 grass_percent=29;repeated FlowInfo flows=30;}
+message MapBlock {required int32 map_x=1;required int32 map_y=2;required int32 map_z=3;repeated int32 tiles=4;repeated MatPair materials=5;repeated MatPair layer_materials=6;repeated MatPair base_materials=8;repeated int32 magma=9;repeated int32 water=10;repeated bool hidden=11;repeated BuildingInstance buildings=19;repeated int32 tree_percent=20;repeated int32 tile_dig_designation=24;repeated Item items=26;repeated int32 grass_percent=29;repeated FlowInfo flows=30;}
 message BlockList {repeated MapBlock map_blocks=1;}
 message MatPair {required int32 mat_type=1;required int32 mat_index=2;}
 message UnitDefinition {required int32 id=1;optional int32 pos_x=3;optional int32 pos_y=4;optional int32 pos_z=5;optional MatPair race=6;optional uint32 flags1=8;optional uint32 flags2=9;optional uint32 flags3=10;optional BodySizeInfo size_info=12;optional int32 profession_id=17;optional string name=13;optional ColorDefinition profession_color=7;optional UnitAppearance appearance=16;repeated InventoryItem inventory=20;optional int32 age=25;}

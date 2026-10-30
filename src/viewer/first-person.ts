@@ -83,6 +83,12 @@ export class FirstPersonControls {
   private level = 0;
   private stairStep = 0;
   private climbing?: { from: number; to: number; progress: number };
+  private falling?: {
+    fromY: number;
+    toY: number;
+    to: number;
+    progress: number;
+  };
   constructor(
     private canvas: HTMLCanvasElement,
     private camera: THREE.PerspectiveCamera,
@@ -112,6 +118,7 @@ export class FirstPersonControls {
     this.waitingForTerrain = false;
     this.level = z;
     this.climbing = undefined;
+    this.falling = undefined;
     this.camera.position.set(
       x,
       walkingHeight(this.chunks(), x, y, z)! + EYE_HEIGHT,
@@ -149,6 +156,7 @@ export class FirstPersonControls {
     this.enabled = false;
     this.waitingForTerrain = false;
     this.climbing = undefined;
+    this.falling = undefined;
     this.focused = false;
     this.clear();
     if (this.locked) document.exitPointerLock();
@@ -228,6 +236,43 @@ export class FirstPersonControls {
     const length = Math.hypot(forward, right);
     const p = this.camera.position,
       chunks = this.chunks();
+    if (
+      !this.climbing &&
+      !this.falling &&
+      tileAt(chunks, Math.floor(p.x), Math.floor(p.z), this.level)?.shape ===
+        "empty"
+    ) {
+      for (let z = this.level - 1; z >= Math.max(0, this.level - 5); z--) {
+        const t = tileAt(chunks, Math.floor(p.x), Math.floor(p.z), z);
+        if (!t || t.shape === "unknown") break;
+        const h = walkingHeight(chunks, p.x, p.z, z);
+        if (h !== undefined && canWalk(chunks, p.x, p.z, z, this.mapTop())) {
+          this.falling = {
+            fromY: p.y,
+            toY: h + EYE_HEIGHT,
+            to: z,
+            progress: 0,
+          };
+          break;
+        }
+        if (t.shape !== "empty") break;
+      }
+    }
+    if (this.falling) {
+      const fall = this.falling;
+      fall.progress = Math.min(1, fall.progress + Math.min(dt, 0.05) / 0.35);
+      p.y = THREE.MathUtils.lerp(
+        fall.fromY,
+        fall.toY,
+        fall.progress * fall.progress,
+      );
+      if (fall.progress === 1) {
+        this.level = fall.to;
+        this.falling = undefined;
+        this.onLevelChange?.(this.level);
+      }
+      return;
+    }
     if (!this.climbing && this.stairStep) {
       const stair = tileAt(
         chunks,

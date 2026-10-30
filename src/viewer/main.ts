@@ -3,6 +3,8 @@ import { WorldState, tileAt, retainChunks, chunkKey } from "../shared/model.js";
 import { FortressScene } from "./scene.js";
 import { connect } from "./connection.js";
 import { levelDirection } from "./keyboard.js";
+import { MINING_DELAY_MS, type MiningMode } from "../shared/mining.js";
+import type { SpriteRef } from "../shared/model.js";
 const el = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 const status = el("status"),
@@ -12,6 +14,14 @@ const status = el("status"),
   empty = el("empty"),
   selection = el("selection");
 const state = new WorldState();
+const miningMode = el<HTMLSelectElement>("mining-mode"),
+  miningPreview = el("mining-preview"),
+  miningIcon = el("mining-icon"),
+  miningProgress = el<HTMLProgressElement>("mining-progress");
+let miningAssets: { pick: SpriteRef; spade: SpriteRef } | undefined;
+let miningId = 0,
+  pendingMiningId: number | undefined,
+  currentIcon = "";
 let scene: FortressScene;
 try {
   scene = new FortressScene(el("viewport"), state, el("stats"));
@@ -21,6 +31,74 @@ try {
 }
 const setStatus = (s: string) => {
   status.textContent = s;
+  if (/disconnected|Cannot reach/i.test(s)) {
+    scene.cancelMining();
+    scene.miningBusy = false;
+    pendingMiningId = undefined;
+    miningMode.disabled = true;
+  }
+};
+miningMode.addEventListener("change", () => {
+  scene.miningMode = miningMode.value as MiningMode;
+  scene.cancelMining();
+  miningPreview.hidden = true;
+  el("scope").textContent = el("scope").textContent!.replace(
+    /^[^·]+/,
+    `${miningMode.selectedOptions[0].textContent} `,
+  );
+});
+scene.onMine = (target) => {
+  if (scene.miningBusy || scene.miningMode === "inspect" || !state.session)
+    return;
+  const request = {
+    type: "mining" as const,
+    id: ++miningId,
+    session: state.session,
+    mode: scene.miningMode,
+    ...target,
+  };
+  scene.miningBusy = true;
+  pendingMiningId = request.id;
+  if (!disconnect.mine(request)) {
+    scene.miningBusy = false;
+    pendingMiningId = undefined;
+    selection.textContent = "Companion disconnected; action not sent";
+  }
+};
+scene.onMiningPreview = (preview) => {
+  miningPreview.hidden = !preview.target || !miningAssets;
+  if (!preview.target || !miningAssets) return;
+  miningPreview.style.left = `${preview.x}px`;
+  miningPreview.style.top = `${preview.y}px`;
+  const ref =
+      preview.target.operation === "channel"
+        ? miningAssets.spade
+        : miningAssets.pick,
+    key = JSON.stringify(ref);
+  if (currentIcon !== key) {
+    currentIcon = key;
+    const scaleX = 48 / ref.width,
+      scaleY = 48 / ref.height;
+    miningIcon.style.backgroundImage = `url("/local-art/${ref.asset}")`;
+    miningIcon.style.backgroundSize = `${ref.pageWidth * scaleX}px ${ref.pageHeight * scaleY}px`;
+    miningIcon.style.backgroundPosition = `${-ref.x * scaleX}px ${-ref.y * scaleY}px`;
+  }
+  miningIcon.classList.toggle("mining-flash", preview.holding);
+  miningProgress.hidden = !preview.holding && !scene.miningBusy;
+  miningProgress.value = preview.progress;
+  const label =
+    preview.target.operation === "ceiling"
+      ? "Dig upward"
+      : preview.target.operation === "channel"
+        ? "Channel down"
+        : "Mine wall";
+  el("mining-hint").textContent = scene.miningBusy
+    ? "Applying…"
+    : preview.holding
+      ? `${label} · ${(((1 - preview.progress) * MINING_DELAY_MS) / 1000).toFixed(1)}s`
+      : scene.miningMode === "designate"
+        ? `${label} · Click to designate`
+        : `${label} · ${scene.navigation === "firstPerson" ? "Hold left mouse" : "Click to dig"}`;
 };
 let levelTimer: ReturnType<typeof setTimeout>;
 let walkingRequest: number | undefined;
@@ -82,9 +160,15 @@ scene.onSelect = (x, y, z) => {
 };
 const keydown = (e: KeyboardEvent) => {
   const target = e.target as HTMLElement;
+  if (e.key === "Escape") {
+    scene.cancelMining();
+    miningMode.value = "inspect";
+    miningMode.dispatchEvent(new Event("change"));
+  }
   if (
     target.isContentEditable ||
     target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT" ||
     (target instanceof HTMLInputElement &&
       !["range", "radio", "checkbox"].includes(target.type))
   )
@@ -105,6 +189,22 @@ const keydown = (e: KeyboardEvent) => {
 };
 window.addEventListener("keydown", keydown);
 const disconnect = connect((m) => {
+  if (m.type === "mining-assets") {
+    if (m.session === state.session) {
+      miningAssets = m;
+      currentIcon = "";
+      miningMode.disabled = false;
+    }
+    return;
+  }
+  if (m.type === "mining-result") {
+    if (m.session === state.session && pendingMiningId === m.id) {
+      scene.miningBusy = false;
+      pendingMiningId = undefined;
+      selection.textContent = m.message;
+    }
+    return;
+  }
   if (m.type === "status") {
     setStatus(m.message);
     return;
@@ -127,6 +227,14 @@ const disconnect = connect((m) => {
       JSON.stringify(m.bounds) === JSON.stringify(scene.bounds);
     if (walkingRequest === m.level) walkingRequest = undefined;
     if (m.type === "reset") {
+      miningAssets = undefined;
+      miningMode.disabled = true;
+      miningMode.value = "inspect";
+      scene.miningMode = "inspect";
+      scene.cancelMining();
+      scene.miningBusy = false;
+      pendingMiningId = undefined;
+      miningPreview.hidden = true;
       state.reset(m.session);
       scene.reset(m.bounds, m.level);
       world.textContent = m.world || "Awaiting a fortress";
@@ -142,8 +250,8 @@ const disconnect = connect((m) => {
     el<HTMLInputElement>("mode-map").checked = m.mode !== "screen";
     el("scope").textContent =
       m.mode === "screen"
-        ? "Read-only · DF screen area · 5 levels below, 10 above"
-        : "Read-only · Full local map · 5 levels below, 10 above";
+        ? `${miningMode.selectedOptions[0].textContent} · DF screen area · 5 levels below, 10 above`
+        : `${miningMode.selectedOptions[0].textContent} · Full local map · 5 levels below, 10 above`;
     level.textContent = m.bounds.height ? `Z ${slider.value}` : "—";
     empty.hidden = keepWalking || state.chunks.size > 0;
     selection.textContent = "Click a visible tile to inspect it.";

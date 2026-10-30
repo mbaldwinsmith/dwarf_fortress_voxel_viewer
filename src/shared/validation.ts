@@ -11,6 +11,19 @@ export function parseServerMessage(value: unknown): ServerMessage {
   if (value.type === "status" && text(value.message))
     return value as ServerMessage;
   if (!text(value.session) || !value.session) throw Error("Missing session");
+  if (value.type === "mining-assets") {
+    validateSprite(value.pick);
+    validateSprite(value.spade);
+    return value as ServerMessage;
+  }
+  if (
+    value.type === "mining-result" &&
+    int(value.id) &&
+    value.id > 0 &&
+    typeof value.ok === "boolean" &&
+    text(value.message)
+  )
+    return value as ServerMessage;
   if (
     (value.type === "view" || (value.type === "reset" && text(value.world))) &&
     object(value.bounds)

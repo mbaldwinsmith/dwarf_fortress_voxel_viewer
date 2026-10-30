@@ -43,6 +43,14 @@
             Whole map</label
           >
         </fieldset>
+        <label class="interaction"
+          >Interaction
+          <select id="mining-mode" disabled>
+            <option value="inspect">Inspect</option>
+            <option value="dig">Digging</option>
+            <option value="designate">Designation</option>
+          </select>
+        </label>
         <div class="cut">
           <label for="level"
             >Cutaway <output id="level-value" for="level">—</output></label
@@ -59,6 +67,11 @@
       <section id="viewport" aria-label="Fortress viewer">
         <div id="walk-help" role="status" hidden></div>
         <div id="crosshair" aria-hidden="true" hidden>+</div>
+        <div id="mining-preview" hidden>
+          <span id="mining-icon" aria-hidden="true"></span>
+          <progress id="mining-progress" max="1" value="0" hidden></progress>
+          <span id="mining-hint"></span>
+        </div>
         <div id="empty">
           <span class="sigil">◇</span>
           <h2>Your fortress, another perspective.</h2>
@@ -66,7 +79,10 @@
             Load a fortress with DFHack running.<br />Actual terrain will appear
             here automatically.
           </p>
-          <small>No game commands. No hidden terrain revealed.</small>
+          <small
+            >Explore revealed terrain, or choose a digging/designation
+            tool.</small
+          >
         </div>
         <div class="compass" aria-hidden="true">N ↑<br /><span>E →</span></div>
       </section>
@@ -85,7 +101,7 @@
           <kbd>Shift+, (&lt;)</kbd> up · <kbd>Shift+. (&gt;)</kbd> down · Touch:
           one finger orbit, two fingers pan / zoom
         </p>
-        <p id="scope">Read-only · Full local map · 5 levels below, 10 above</p>
+        <p id="scope">Explore · Full local map · 5 levels below, 10 above</p>
       </footer>
     </main>
     <script type="module" src="/main.ts"></script>

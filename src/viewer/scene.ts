@@ -5,6 +5,7 @@ import {
   LEVELS_BELOW,
   affected,
   chunkKey,
+  tileAt,
   type Bounds,
   type Chunk,
   WorldState,
@@ -16,6 +17,12 @@ import { buildMesh } from "./mesh.js";
 import { FirstPersonControls, canWalk, walkingHeight } from "./first-person.js";
 import { LiquidMeshes } from "./liquids.js";
 import { FlowSprites } from "./flows.js";
+import {
+  MiningHold,
+  validMiningTile,
+  type MiningMode,
+  type MiningTarget,
+} from "../shared/mining.js";
 export class FortressScene {
   creatures = new CreatureSprites();
   scenery = new ScenerySprites();
@@ -41,6 +48,27 @@ export class FortressScene {
   onSelect?: (x: number, y: number, z: number) => void;
   onNavigationChange?: (mode: "orbit" | "select" | "firstPerson") => void;
   onWalkLevel?: (level: number) => void;
+  miningMode: MiningMode = "inspect";
+  miningBusy = false;
+  onMine?: (target: MiningTarget) => void;
+  onMiningPreview?: (preview: {
+    target?: MiningTarget;
+    progress: number;
+    holding: boolean;
+    x?: number;
+    y?: number;
+  }) => void;
+  private miningHold = new MiningHold();
+  private miningPressed = false;
+  private miningPointer?: { x: number; y: number };
+  private miningOutline = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(1.006, 1.006, 1.006)),
+    new THREE.LineBasicMaterial({
+      color: 0xffdc72,
+      transparent: true,
+      opacity: 0.8,
+    }),
+  );
   navigation: "orbit" | "select" | "firstPerson" = "orbit";
   firstPerson: FirstPersonControls;
   private lastFrame = performance.now();
@@ -131,6 +159,14 @@ export class FortressScene {
     this.renderer.domElement.addEventListener("pointerdown", this.beginDrag);
     this.renderer.domElement.addEventListener("pointermove", this.hover);
     this.renderer.domElement.addEventListener("pointerleave", this.leave);
+    this.renderer.domElement.addEventListener("pointerdown", this.miningDown);
+    this.renderer.domElement.addEventListener("pointermove", this.miningMove);
+    this.renderer.domElement.addEventListener("pointerleave", this.miningLeave);
+    window.addEventListener("pointerup", this.cancelMining);
+    window.addEventListener("pointercancel", this.cancelMining);
+    window.addEventListener("blur", this.cancelMining);
+    this.miningOutline.visible = false;
+    this.scene.add(this.miningOutline);
     this.camera.position.set(30, 50, 60);
     this.animate();
   }
@@ -145,7 +181,87 @@ export class FortressScene {
       ),
       this.camera,
     );
-    return ray.intersectObjects([...this.meshes.values()])[0];
+    return ray.intersectObjects(
+      [...this.meshes.values()].filter((m) => m.visible),
+    )[0];
+  }
+  cancelMining = () => {
+    this.miningPressed = false;
+    this.miningHold.cancel();
+  };
+  private miningMove = (e: PointerEvent) => {
+    this.miningPointer = { x: e.clientX, y: e.clientY };
+  };
+  private miningLeave = () => {
+    this.miningPointer = undefined;
+    if (!this.firstPerson.locked) this.cancelMining();
+  };
+  private miningDown = (e: PointerEvent) => {
+    if (
+      e.button !== 0 ||
+      this.miningMode !== "dig" ||
+      this.navigation !== "firstPerson" ||
+      this.miningBusy
+    )
+      return;
+    if (!this.firstPerson.active) {
+      this.firstPerson.capture();
+      return;
+    }
+    const preview = this.miningTarget();
+    if (preview) {
+      this.miningPressed = true;
+      this.miningHold.begin(preview.target, performance.now());
+    }
+  };
+  private miningTarget(pointer?: { x: number; y: number }) {
+    if (this.miningMode === "inspect" || this.navigation === "select") return;
+    const firstPerson = this.navigation === "firstPerson",
+      rect = this.renderer.domElement.getBoundingClientRect();
+    if (firstPerson && !this.firstPerson.active) return;
+    const mouse = pointer ?? this.miningPointer;
+    if (!firstPerson && !mouse) return;
+    const sx = firstPerson ? rect.width / 2 : mouse!.x - rect.left,
+      sy = firstPerson ? rect.height / 2 : mouse!.y - rect.top;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(
+      new THREE.Vector2((sx / rect.width) * 2 - 1, 1 - (sy / rect.height) * 2),
+      this.camera,
+    );
+    let meshes: THREE.Mesh[];
+    if (firstPerson) {
+      ray.far = 5;
+      meshes = [];
+      const p = this.camera.position;
+      for (let x = Math.floor((p.x - 5) / 16) * 16; x <= p.x + 5; x += 16)
+        for (let y = Math.floor((p.z - 5) / 16) * 16; y <= p.z + 5; y += 16)
+          for (let z = Math.floor(p.y - 5); z <= p.y + 5; z++) {
+            const mesh = this.meshes.get(`${x},${y},${z}`);
+            if (mesh?.visible) meshes.push(mesh);
+          }
+    } else meshes = [...this.meshes.values()].filter((m) => m.visible);
+    const hit = ray.intersectObjects(meshes)[0];
+    if (!hit) return;
+    const p = hit.point
+      .clone()
+      .addScaledVector(hit.face?.normal ?? new THREE.Vector3(), -0.002);
+    const x = Math.floor(p.x),
+      y = Math.floor(p.z),
+      z = Math.floor(p.y),
+      tile = tileAt(this.state.chunks, x, y, z);
+    const target: MiningTarget = {
+      x,
+      y,
+      z,
+      operation:
+        (hit.face?.normal.y ?? 0) < -0.5
+          ? "ceiling"
+          : tile?.shape === "wall"
+            ? "mine"
+            : "channel",
+    };
+    if (!validMiningTile(this.state.chunks, target)) return;
+    return { target, x: sx, y: sy };
   }
   private leave = () => {
     this.selector.visible = false;
@@ -193,7 +309,12 @@ export class FortressScene {
     this.dragStart = undefined;
     if (e.button !== 0 || dragged) return;
     if (this.navigation === "firstPerson") {
+      const active = this.firstPerson.active;
       this.firstPerson.capture();
+      if (active && this.miningMode === "designate" && !this.miningBusy) {
+        const preview = this.miningTarget();
+        if (preview) this.onMine?.(preview.target);
+      }
       return;
     }
     if (this.navigation === "select") {
@@ -218,6 +339,11 @@ export class FortressScene {
       }
       return;
     }
+    if (this.miningMode !== "inspect") {
+      const preview = this.miningTarget({ x: e.clientX, y: e.clientY });
+      if (preview && !this.miningBusy) this.onMine?.(preview.target);
+      return;
+    }
     const hit = this.rayHit(e);
     if (hit) {
       const p = hit.point
@@ -227,6 +353,7 @@ export class FortressScene {
     }
   };
   setFirstPerson(enabled: boolean) {
+    this.cancelMining();
     const wasWalking = this.navigation === "firstPerson";
     this.firstPerson.exit();
     if (wasWalking) {
@@ -319,6 +446,7 @@ export class FortressScene {
     level = bounds.z + bounds.height - 1,
     keepWalking = false,
   ) {
+    this.cancelMining();
     if (this.navigation === "firstPerson" && !keepWalking)
       this.setFirstPerson(true);
     this.leave();
@@ -387,6 +515,28 @@ export class FortressScene {
   animate = () => {
     this.frameId = requestAnimationFrame(this.animate);
     const start = performance.now();
+    const preview = this.miningTarget();
+    const progress = this.miningPressed
+      ? this.miningHold.progress(preview?.target, start)
+      : 0;
+    if (this.miningPressed && !this.miningHold.active)
+      this.miningPressed = false;
+    this.miningOutline.visible = !!preview;
+    if (preview)
+      this.miningOutline.position.set(
+        preview.target.x + 0.5,
+        preview.target.z + 0.5,
+        preview.target.y + 0.5,
+      );
+    this.onMiningPreview?.({
+      ...preview,
+      progress: this.miningBusy ? 1 : progress,
+      holding: this.miningPressed,
+    });
+    if (this.miningPressed && progress >= 1 && preview && !this.miningBusy) {
+      this.cancelMining();
+      this.onMine?.(preview.target);
+    }
     this.firstPerson.update((start - this.lastFrame) / 1000);
     if (this.navigation === "firstPerson") {
       const focus = `${Math.floor(this.camera.position.x / 16)},${Math.floor(this.camera.position.z / 16)}`;
@@ -453,6 +603,7 @@ export class FortressScene {
       );
       g.setAttribute("color", new THREE.Float32BufferAttribute(data.colors, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(data.uvs, 2));
+      g.computeBoundingBox();
       const m = new THREE.Mesh(g, this.material);
       this.meshes.set(k, m);
       this.scene.add(m);
@@ -485,6 +636,23 @@ export class FortressScene {
     this.renderer.domElement.removeEventListener("pointermove", this.hover);
     this.renderer.domElement.removeEventListener("pointerleave", this.leave);
     this.firstPerson.dispose();
+    this.renderer.domElement.removeEventListener(
+      "pointerdown",
+      this.miningDown,
+    );
+    this.renderer.domElement.removeEventListener(
+      "pointermove",
+      this.miningMove,
+    );
+    this.renderer.domElement.removeEventListener(
+      "pointerleave",
+      this.miningLeave,
+    );
+    window.removeEventListener("pointerup", this.cancelMining);
+    window.removeEventListener("pointercancel", this.cancelMining);
+    window.removeEventListener("blur", this.cancelMining);
+    this.miningOutline.geometry.dispose();
+    this.miningOutline.material.dispose();
     this.selector.geometry.dispose();
     this.selector.material.dispose();
     this.selectorBorder.geometry.dispose();

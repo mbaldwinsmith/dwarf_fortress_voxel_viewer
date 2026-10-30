@@ -10,7 +10,17 @@ import { randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import { FortressAdapter } from "./adapter.js";
 import { ChunkCache } from "./chunk-cache.js";
-import { type ServerMessage } from "../shared/model.js";
+import {
+  LEVELS_ABOVE,
+  LEVELS_BELOW,
+  type ServerMessage,
+} from "../shared/model.js";
+import {
+  parseMiningRequest,
+  validMiningTile,
+  type MiningRequest,
+} from "../shared/mining.js";
+import { mineTile } from "./mining.js";
 import { inspectInstallation } from "./installation.js";
 import {
   blockOrder,
@@ -145,6 +155,17 @@ let status = "Waiting for DFHack",
   reset: Extract<ServerMessage, { type: "reset" }> | undefined;
 const cache = new ChunkCache();
 const chunks = cache.active;
+const miningQueue: { ws: WebSocket; request: MiningRequest }[] = [];
+const pendingMining = new WeakSet<WebSocket>();
+const miningIds = new WeakMap<WebSocket, number>();
+function miningAssets():
+  Extract<ServerMessage, { type: "mining-assets" }> | undefined {
+  const pick = sceneryGraphics.get("DESIGNATION_DIG_STANDARD"),
+    spade = sceneryGraphics.get("DESIGNATION_DIG_CHANNEL");
+  return pick && spade
+    ? { type: "mining-assets", session, pick, spade }
+    : undefined;
+}
 const counters = new WeakMap<WebSocket, number>();
 function send(ws: WebSocket, m: ServerMessage) {
   if (ws.readyState !== WebSocket.OPEN) return;
@@ -174,10 +195,70 @@ wss.on("connection", (ws) => {
   send(ws, { type: "status", message: status });
   if (reset) {
     send(ws, reset);
+    const icons = miningAssets();
+    if (icons) send(ws, icons);
     void replay(ws, session);
     if (lastCreatures) send(ws, lastCreatures);
   }
   ws.on("message", (data) => {
+    let value: unknown;
+    try {
+      value = JSON.parse(data.toString());
+    } catch {
+      ws.close(1008, "Invalid viewer operation");
+      return;
+    }
+    if (
+      value &&
+      typeof value === "object" &&
+      "type" in value &&
+      value.type === "mining"
+    ) {
+      const request =
+        reset &&
+        parseMiningRequest(value, adapter?.bounds ?? reset.bounds, session);
+      if (!request) {
+        const rejected = value as Record<string, unknown>;
+        if (
+          Number.isSafeInteger(rejected.id) &&
+          Number(rejected.id) > 0 &&
+          typeof rejected.session === "string"
+        )
+          send(ws, {
+            type: "mining-result",
+            id: Number(rejected.id),
+            session: rejected.session,
+            ok: false,
+            message: "View or target changed; choose a current tile",
+          });
+        else ws.close(1008, "Invalid mining operation");
+        return;
+      }
+      const error = pendingMining.has(ws)
+        ? "Wait for the current action"
+        : request.id <= (miningIds.get(ws) ?? 0)
+          ? "Duplicate mining action"
+          : miningQueue.length >= 16
+            ? "Mining queue is busy"
+            : !validMiningTile(chunks, request)
+              ? "Select revealed natural terrain"
+              : undefined;
+      if (error) {
+        send(ws, {
+          type: "mining-result",
+          session,
+          id: request.id,
+          ok: false,
+          message: error,
+        });
+        return;
+      }
+      miningIds.set(ws, request.id);
+      pendingMining.add(ws);
+      miningQueue.push({ ws, request });
+      wakeStream?.();
+      return;
+    }
     const mode = parseMode(data.toString());
     if (mode) {
       if (mode !== requestedMode) screenElevation.reset();
@@ -212,6 +293,67 @@ function publish(m: ServerMessage) {
   if (m.type === "reset") lastCreatures = undefined;
   if (m.type === "creatures") lastCreatures = m;
   broadcast(m);
+  if (m.type === "reset" && m.bounds.height) {
+    const icons = miningAssets();
+    if (icons) broadcast(icons);
+  }
+}
+async function processMining() {
+  const job = miningQueue.shift();
+  if (!job) return;
+  const { ws, request } = job;
+  const current = () =>
+    ws.readyState === WebSocket.OPEN &&
+    request.session === session &&
+    !!adapter &&
+    !!reset;
+  try {
+    if (!current()) return;
+    const result = await mineTile(adapter!, request, current);
+    if (!current()) return;
+    cache.invalidateAround(request.x, request.y, request.z);
+    const b = reset!.bounds,
+      level = reset!.level!;
+    const updates = result.chunks
+      .filter(
+        (c) =>
+          c.x >= b.x &&
+          c.y >= b.y &&
+          c.x < b.x + b.width &&
+          c.y < b.y + b.depth &&
+          c.z >= level - LEVELS_BELOW &&
+          c.z <= level + LEVELS_ABOVE,
+      )
+      .filter((c) => cache.store(c, performance.now()));
+    if (updates.length)
+      publish({
+        type: "chunks",
+        session,
+        sequence: ++sequence,
+        chunks: updates,
+        pollMs: 0,
+      });
+    send(ws, {
+      type: "mining-result",
+      session,
+      id: request.id,
+      ok: true,
+      message:
+        result.state === "DUG"
+          ? "Tile dug"
+          : "Mining designated for your dwarves",
+    });
+  } catch (error) {
+    send(ws, {
+      type: "mining-result",
+      session: request.session,
+      id: request.id,
+      ok: false,
+      message: error instanceof Error ? error.message : "Mining failed",
+    });
+  } finally {
+    pendingMining.delete(ws);
+  }
 }
 let requestedMode: "screen" | "map" = "map";
 let requestedLevel = 0;
@@ -292,7 +434,7 @@ async function run() {
         lastItemPoll = 0;
       let sweep = 0;
       while (!stopping) {
-        // Keep a warm read-only connection/cache through preview reloads.
+        // Keep a warm connection/cache through preview reloads.
         // Do not poll the game while no viewer is connected.
         if (!wss.clients.size) {
           await pause(500);
@@ -349,6 +491,7 @@ async function run() {
         ];
         let reads = 0;
         for (const { x, y, levels } of scheduled) {
+          if (miningQueue.length) await processMining();
           if (
             stopping ||
             !wss.clients.size ||

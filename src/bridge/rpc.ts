@@ -1,6 +1,7 @@
 import net from "node:net";
 import { Frames, frame } from "./framing.js";
 import { methods, type, type Method } from "./protocol.js";
+import { miningLua } from "./mining-lua.js";
 export class Rpc {
   private socket: net.Socket;
   private frames = new Frames();
@@ -12,6 +13,7 @@ export class Rpc {
     reject: (e: Error) => void;
   };
   private ids = new Map<Method, number>();
+  private miningText?: string[];
   constructor(port: number) {
     this.socket = net.createConnection({ host: "127.0.0.1", port });
     this.socket.on("error", (e) => this.fail(e));
@@ -33,7 +35,17 @@ export class Rpc {
           this.pending = undefined;
         }
         for (const f of this.frames.push(data)) {
-          if (f.id === -3) continue;
+          if (f.id === -3) {
+            if (this.miningText) {
+              const notification = type("dfproto.CoreTextNotification");
+              const fragments = notification.toObject(
+                notification.decode(f.body),
+              ).fragments as { text: string }[] | undefined;
+              if (this.miningText.join("").length < 65536)
+                this.miningText.push(...(fragments ?? []).map((p) => p.text));
+            }
+            continue;
+          }
           const p = this.pending;
           if (!p) throw Error("Unexpected RPC reply");
           this.pending = undefined;
@@ -119,5 +131,39 @@ export class Rpc {
   }
   close() {
     this.socket.destroy();
+  }
+  async mining(
+    args: string[],
+  ): Promise<{ state: "READY" | "DUG" | "DESIGNATED"; tiletype: number }> {
+    if (this.busy) throw Error("Concurrent DFHack requests forbidden");
+    this.miningText = [];
+    try {
+      const request = type("dfproto.CoreRunCommandRequest");
+      await this.wait(() =>
+        this.socket.write(
+          frame(
+            1,
+            request
+              .encode({ command: "lua", arguments: [miningLua, ...args] })
+              .finish(),
+          ),
+        ),
+      );
+      const output = this.miningText.join("");
+      const success = /DEEPWATCH_MINING:(READY|DUG|DESIGNATED):(\d+)/.exec(
+        output,
+      );
+      if (success)
+        return {
+          state: success[1] as "READY" | "DUG" | "DESIGNATED",
+          tiletype: Number(success[2]),
+        };
+      throw Error(
+        /DEEPWATCH_MINING:ERROR:([^\r\n]+)/.exec(output)?.[1] ??
+          "DFHack could not complete the mining action",
+      );
+    } finally {
+      this.miningText = undefined;
+    }
   }
 }

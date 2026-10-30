@@ -70,14 +70,14 @@ function fail(error) {
 const configFile = () => path.join(app.getPath("userData"), "settings.json");
 async function chooseFolder() {
   const result = await dialog.showOpenDialog(window, {
-    title: "Choose your Dwarf Fortress folder (read-only)",
+    title: "Choose your Dwarf Fortress folder",
     properties: ["openDirectory"],
   });
   if (result.canceled) return false;
   if (!validInstallation(result.filePaths[0])) {
     dialog.showErrorBox(
       "Dwarf Fortress folder not found",
-      "Choose the folder containing Dwarf Fortress.exe and data/vanilla. No game files will be changed.",
+      "Choose the folder containing Dwarf Fortress.exe and data/vanilla.",
     );
     return false;
   }
@@ -137,7 +137,7 @@ async function launchCompanion() {
         cwd: app.getPath("userData"),
         env,
         stdio: "pipe",
-        serviceName: "Deepwatch read-only DFHack companion",
+        serviceName: "Deepwatch DFHack companion",
       },
     );
     child = current;

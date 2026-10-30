@@ -133,6 +133,7 @@ export class SceneryGraphics {
       "vanilla_items_graphics",
       "vanilla_plants_graphics",
       "vanilla_environment",
+      "vanilla_interface",
     ]) {
       const root = path.join(installation, "data/vanilla", module, "graphics");
       const names = (await readdir(root))
