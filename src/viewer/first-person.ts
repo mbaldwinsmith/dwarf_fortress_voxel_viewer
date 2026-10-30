@@ -255,6 +255,14 @@ export class FirstPersonControls {
         this.level,
         this.stairStep,
       );
+      // A known stair landing can arrive before its headroom block. Keep the
+      // requested step queued until that block arrives, just as for the landing.
+      if (
+        destination !== undefined &&
+        destination < this.mapTop() &&
+        !tileAt(chunks, Math.floor(p.x), Math.floor(p.z), destination + 1)
+      )
+        return;
       this.stairStep = 0;
       if (destination !== undefined) {
         if (

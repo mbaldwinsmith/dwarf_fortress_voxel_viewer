@@ -552,3 +552,40 @@ selected cutaway. Map limits clip the window and nearby columns still load first
 Tests verify all 2304 unique blocks for a 192×192 footprint, map-edge clipping,
 overlap retention, focus ordering and creature visibility at both range limits.
 All 142 tests pass. No installer build was run.
+
+## Column streaming and frequent moving-object updates
+
+Native terrain requests now batch up to sixteen z-levels in one bounded column,
+with world identity checks before and after each read. The surrounding 3x3
+columns at the walking level and two levels either side load first. The full
+192x192 footprint still receives all 2304 blocks, using 153 column requests
+instead of 2304 individual requests. RFR's first-block building list is shared
+across the returned column and filtered by each chunk's revealed tiles.
+
+The bridge retains a bounded 4096-entry cache including inactive fringe levels,
+restores recently departed terrain without a native round trip, and skips fresh
+terrain reads (2 s near the selected level, 10 s farther away). Level/focus
+changes interrupt streaming throttle waits. The viewer preserves overlapping
+meshes, skips rebuilding known pure-air chunks and ignores obsolete walking
+view acknowledgements. Stair input remains queued while landing headroom loads.
+
+Creatures target 250 ms snapshots of the loaded window. Ground items within the
+nearest 3x3 columns and three z-levels target 1 s partial-block polls, including
+removal/pickup, independently of terrain freshness. Distant items update with
+their terrain columns. Item-only changes update scenery without rebuilding
+terrain meshes, and item polls never extend terrain freshness. The connection
+remains single-flight and read-only; these are polling targets, not guarantees.
+
+Live validation on the loaded fortress: three sixteen-block comparisons measured
+individual reads at 338/306/309 ms versus column reads at 50/30/32 ms (6.8-10x
+for native terrain reads, not an end-to-end frame-rate claim). Browser checks
+preserved overlapping meshes and the world session across a view change, climbed
+three real stair levels and returned, and traversed a real ramp down and back up.
+No page errors or terrain-wait stalls occurred in the completed traversal check.
+Creature snapshots usually arrived 0.3-0.5 s apart during that loading test, with
+occasional longer gaps. The development preview is the test target; no installer
+build was run.
+
+Final validation: all 150 tests, TypeScript/Vite/bridge build and repository
+format checks pass. The final compiled-bridge traversal run observed creature
+snapshots 267-469 ms apart and no page errors.

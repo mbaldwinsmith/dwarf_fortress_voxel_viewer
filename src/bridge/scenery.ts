@@ -364,6 +364,22 @@ export class SceneryReader {
           name: String(p.name ?? p.id).slice(0, 120),
         });
   }
+  withItems(chunk: Chunk, items: unknown): Chunk {
+    const objects = (chunk.objects ?? []).filter((o) => !o.id.startsWith("i:"));
+    return {
+      ...chunk,
+      objects: [
+        ...objects,
+        ...groundItems(
+          chunk,
+          items,
+          this.itemDefinitions,
+          this.materialDefinitions,
+          this.graphics,
+        ).slice(0, Math.max(0, 512 - objects.length)),
+      ],
+    };
+  }
   async decorate(chunk: Chunk, raw?: Record<string, unknown>) {
     for (const flow of chunk.flows ?? []) {
       flow.frames = [1, 2, 3, 4].flatMap((i) => {
@@ -410,15 +426,6 @@ export class SceneryReader {
         raw?.materials,
       ),
     ];
-    chunk.objects.push(
-      ...groundItems(
-        chunk,
-        raw?.items,
-        this.itemDefinitions,
-        this.materialDefinitions,
-        this.graphics,
-      ).slice(0, Math.max(0, 512 - chunk.objects.length)),
-    );
     for (let i = 0; i < 256; i++)
       if (chunk.tiles[i].shape === "stairs") {
         const t = chunk.tiles[i],
@@ -441,5 +448,6 @@ export class SceneryReader {
             sprite,
           });
       }
+    chunk.objects = this.withItems(chunk, raw?.items).objects;
   }
 }

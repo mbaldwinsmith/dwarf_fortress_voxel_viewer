@@ -98,12 +98,33 @@ export function blockOrder(
     Math.abs(y + 8 - (focus?.y ?? b.y + b.depth / 2));
   xy.sort((a, b) => distance(a) - distance(b));
   const order: [number, number, number][] = [];
-  // Complete the nearby column in both directions before expanding outward.
-  // Returning down stairs must not wait for a map-wide overhead sweep.
+  // Load walking terrain in the surrounding 3x3 columns before distant sky.
+  const near = xy.filter(
+    ([x, y]) => Math.abs(x - xy[0][0]) <= 16 && Math.abs(y - xy[0][1]) <= 16,
+  );
+  for (const [x, y] of near)
+    for (const z of levels.filter((z) => Math.abs(z - level) <= 2))
+      order.push([x, y, z]);
   for (const [x, y] of xy) {
-    for (const z of levels) order.push([x, y, z]);
+    for (const z of levels)
+      if (
+        !near.some(([nx, ny]) => nx === x && ny === y) ||
+        Math.abs(z - level) > 2
+      )
+        order.push([x, y, z]);
   }
   if (order.length > 4096)
     throw Error("Map footprint exceeds the current 4096-block resident limit");
   return order;
+}
+
+export function columnBatches(order: [number, number, number][]) {
+  const batches: { x: number; y: number; levels: number[] }[] = [];
+  for (const [x, y, z] of order) {
+    const previous = batches.at(-1);
+    if (previous && previous.x === x && previous.y === y)
+      previous.levels.push(z);
+    else batches.push({ x, y, levels: [z] });
+  }
+  return batches;
 }

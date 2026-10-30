@@ -1,5 +1,5 @@
 import "./style.css";
-import { WorldState, tileAt, retainChunks } from "../shared/model.js";
+import { WorldState, tileAt, retainChunks, chunkKey } from "../shared/model.js";
 import { FortressScene } from "./scene.js";
 import { connect } from "./connection.js";
 import { levelDirection } from "./keyboard.js";
@@ -111,6 +111,15 @@ const disconnect = connect((m) => {
   }
   if (m.type === "reset" || m.type === "view") {
     if (m.type === "view" && m.session !== state.session) return;
+    // Several stairs can be crossed before an older stream acknowledges its
+    // view. Only the latest walking request may move/prune the camera's window.
+    if (
+      m.type === "view" &&
+      scene.navigation === "firstPerson" &&
+      walkingRequest !== undefined &&
+      m.level !== walkingRequest
+    )
+      return;
     const keepWalking =
       scene.navigation === "firstPerson" &&
       m.type === "view" &&
@@ -144,12 +153,26 @@ const disconnect = connect((m) => {
     if (m.session === state.session) scene.creatures.snapshot(m);
     return;
   }
+  const terrain = m.chunks.filter((c) => {
+    const previous = state.chunks.get(chunkKey(c));
+    return (
+      !previous ||
+      JSON.stringify(previous.tiles) !== JSON.stringify(c.tiles) ||
+      JSON.stringify(previous.flows) !== JSON.stringify(c.flows)
+    );
+  });
   if (!state.merge(m)) {
     setStatus("State sequence mismatch · reconnecting");
     location.reload();
     return;
   }
-  scene.update(m.chunks);
+  const changedTerrain = new Set(terrain.map(chunkKey));
+  scene.scenery.update(
+    m.chunks.filter((c) => !changedTerrain.has(chunkKey(c))),
+    state.chunks,
+    scene.navigation === "firstPerson",
+  );
+  scene.update(terrain);
   empty.hidden = state.chunks.size > 0;
 }, setStatus);
 for (const mode of ["screen", "map"] as const)

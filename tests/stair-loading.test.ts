@@ -64,12 +64,18 @@ it("waits on unloaded stairs instead of moving sideways, then descends when data
     for (let i = 0; i < 11; i++) controls.update(0.05);
     expect(changed).toEqual([3]);
     expect(camera.position.y).toBeCloseTo(3.76);
+    chunks.delete(chunkKey(roof));
     win.dispatchEvent(
       Object.assign(new Event("keydown", { cancelable: true }), {
         code: "Comma",
         shiftKey: true,
       }),
     );
+    for (let i = 0; i < 11; i++) controls.update(0.05);
+    // Landing is loaded, but headroom is still streaming. One keypress waits
+    // for both instead of being discarded before the next column arrives.
+    expect(changed).toEqual([3]);
+    chunks.set(chunkKey(roof), roof);
     for (let i = 0; i < 11; i++) controls.update(0.05);
     expect(changed).toEqual([3, 4]);
     expect(camera.position.y).toBeCloseTo(4.76);

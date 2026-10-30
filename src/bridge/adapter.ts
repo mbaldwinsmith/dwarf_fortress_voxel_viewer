@@ -175,41 +175,132 @@ export class FortressAdapter {
       throw Error("Loaded fortress changed; resynchronising");
   }
   async block(x: number, y: number, z: number): Promise<Chunk> {
-    // One block, force_reload: full tiles AND designations, avoiding plugin-global
-    // hashes and stale all-air blocks. We do not call ResetMapHashes.
+    return (await this.column(x, y, [z]))[0];
+  }
+  async items(chunks: Chunk[]): Promise<Chunk[]> {
+    if (!chunks.length || !this.scenery) return [];
+    const minX = Math.min(...chunks.map((c) => c.x)) / 16,
+      maxX = Math.max(...chunks.map((c) => c.x)) / 16 + 1;
+    const minY = Math.min(...chunks.map((c) => c.y)) / 16,
+      maxY = Math.max(...chunks.map((c) => c.y)) / 16 + 1;
+    const minZ = Math.min(...chunks.map((c) => c.z)),
+      maxZ = Math.max(...chunks.map((c) => c.z)) + 1;
+    const count = (maxX - minX) * (maxY - minY) * (maxZ - minZ);
+    if (count > 27) throw Error("Item refresh exceeds nearby block limit");
+    // Partial block replies contain current items even when terrain is unchanged.
+    // Never use their optional tile arrays to replace the full terrain cache.
+    const result = await this.rpc.call("GetBlockList", {
+      minX,
+      maxX,
+      minY,
+      maxY,
+      minZ,
+      maxZ,
+      blocksNeeded: count,
+      forceReload: false,
+    });
+    if (result.mapBlocks !== undefined && !Array.isArray(result.mapBlocks))
+      throw Error("Invalid item blocks");
+    const records = (result.mapBlocks ?? []) as Record<string, unknown>[];
+    if (records.length > count) throw Error("Unbounded item response");
+    const byKey = new Map<string, Record<string, unknown>>();
+    for (const raw of records) {
+      const x = integer(raw.mapX, "item block X"),
+        y = integer(raw.mapY, "item block Y"),
+        z = integer(raw.mapZ, "item block Z");
+      const k = key(x, y, z);
+      if (
+        x % 16 ||
+        y % 16 ||
+        x < minX * 16 ||
+        x >= maxX * 16 ||
+        y < minY * 16 ||
+        y >= maxY * 16 ||
+        z < minZ ||
+        z >= maxZ ||
+        byKey.has(k)
+      )
+        throw Error("Unexpected item block coordinates");
+      byKey.set(k, raw);
+    }
+    return chunks.map((c) =>
+      this.scenery!.withItems(c, byKey.get(key(c.x, c.y, c.z))?.items),
+    );
+  }
+  async column(x: number, y: number, levels: number[]): Promise<Chunk[]> {
+    const minZ = Math.min(...levels),
+      maxZ = Math.max(...levels) + 1;
+    if (
+      !levels.length ||
+      maxZ - minZ > 16 ||
+      ![x, y, ...levels].every(Number.isInteger) ||
+      x % 16 ||
+      y % 16 ||
+      new Set(levels).size !== levels.length
+    )
+      throw Error("Invalid bounded column request");
+    // One native round trip for up to sixteen levels. Full tiles/designations
+    // avoid plugin-global hashes; omitted all-air blocks remain explicit air.
     const result = await this.rpc.call("GetBlockList", {
       minX: x / 16,
       maxX: x / 16 + 1,
       minY: y / 16,
       maxY: y / 16 + 1,
-      minZ: z,
-      maxZ: z + 1,
-      blocksNeeded: 1,
+      minZ,
+      maxZ,
+      blocksNeeded: maxZ - minZ,
       forceReload: true,
     });
     const blocks = result.mapBlocks;
     if (blocks !== undefined && !Array.isArray(blocks))
       throw Error("Invalid blocks response");
     const list = (blocks ?? []) as Record<string, unknown>[];
-    if (list.length > 1) throw Error("Unbounded response");
-    const chunk = convertBlock(list[0], x, y, z, this.defs);
-    const cacheKey = key(x, y, z);
-    this.openTerrain.delete(cacheKey);
-    this.openTerrain.set(
-      cacheKey,
-      Uint8Array.from(chunk.tiles, (t) => (list[0] && openTile(t) ? 1 : 0)),
+    if (list.length > maxZ - minZ) throw Error("Unbounded response");
+    const byZ = new Map<number, Record<string, unknown>>();
+    for (const raw of list) {
+      const z = integer(raw.mapZ, "block Z");
+      if (
+        raw.mapX !== x ||
+        raw.mapY !== y ||
+        z < minZ ||
+        z >= maxZ ||
+        byZ.has(z)
+      )
+        throw Error("Unexpected map block coordinates");
+      byZ.set(z, raw);
+    }
+    // RFR puts the entire requested column's buildings on its first block.
+    const buildings = list.flatMap((raw) =>
+      Array.isArray(raw.buildings) ? raw.buildings : [],
     );
-    if (this.openTerrain.size > 4096)
-      this.openTerrain.delete(this.openTerrain.keys().next().value!);
-    maskEnclosedWalls(chunk, (nx, ny, nz) => {
-      const cx = Math.floor(nx / 16) * 16,
-        cy = Math.floor(ny / 16) * 16;
-      return (
-        this.openTerrain.get(key(cx, cy, nz))?.[(ny - cy) * 16 + nx - cx] === 1
+    const chunks = levels.map((z) =>
+      convertBlock(byZ.get(z), x, y, z, this.defs),
+    );
+    for (const chunk of chunks) {
+      const { z } = chunk;
+      const cacheKey = key(x, y, z);
+      this.openTerrain.delete(cacheKey);
+      this.openTerrain.set(
+        cacheKey,
+        Uint8Array.from(chunk.tiles, (t) =>
+          byZ.has(z) && openTile(t) ? 1 : 0,
+        ),
       );
-    });
-    await this.scenery?.decorate(chunk, list[0]);
-    return chunk;
+      if (this.openTerrain.size > 4096)
+        this.openTerrain.delete(this.openTerrain.keys().next().value!);
+    }
+    for (const chunk of chunks) {
+      maskEnclosedWalls(chunk, (nx, ny, nz) => {
+        const cx = Math.floor(nx / 16) * 16,
+          cy = Math.floor(ny / 16) * 16;
+        return (
+          this.openTerrain.get(key(cx, cy, nz))?.[(ny - cy) * 16 + nx - cx] ===
+          1
+        );
+      });
+      await this.scenery?.decorate(chunk, { ...byZ.get(chunk.z), buildings });
+    }
+    return chunks;
   }
   close() {
     this.rpc.close();

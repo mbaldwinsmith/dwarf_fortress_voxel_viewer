@@ -9,15 +9,12 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import { FortressAdapter } from "./adapter.js";
-import {
-  chunkKey,
-  retainChunks,
-  type Chunk,
-  type ServerMessage,
-} from "../shared/model.js";
+import { ChunkCache } from "./chunk-cache.js";
+import { type ServerMessage } from "../shared/model.js";
 import { inspectInstallation } from "./installation.js";
 import {
   blockOrder,
+  columnBatches,
   parseLevel,
   parseMode,
   screenRegion,
@@ -146,7 +143,8 @@ let status = "Waiting for DFHack",
   session = "",
   sequence = 0,
   reset: Extract<ServerMessage, { type: "reset" }> | undefined;
-const chunks = new Map<string, Chunk>();
+const cache = new ChunkCache();
+const chunks = cache.active;
 const counters = new WeakMap<WebSocket, number>();
 function send(ws: WebSocket, m: ServerMessage) {
   if (ws.readyState !== WebSocket.OPEN) return;
@@ -184,6 +182,7 @@ wss.on("connection", (ws) => {
     if (mode) {
       if (mode !== requestedMode) screenElevation.reset();
       requestedMode = mode;
+      wakeStream?.();
       return;
     }
     const level = parseLevel(data.toString(), reset?.bounds);
@@ -204,6 +203,7 @@ wss.on("connection", (ws) => {
       m.y < reset.bounds.y + reset.bounds.depth
         ? { x: m.x, y: m.y }
         : undefined;
+    wakeStream?.();
   });
   ws.on("error", (e) => console.warn(e.message));
 });
@@ -235,6 +235,17 @@ async function replay(ws: WebSocket, replaySession: string) {
 let stopping = false,
   adapter: FortressAdapter | undefined;
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+let wakeStream: (() => void) | undefined;
+const streamPause = (ms: number) =>
+  new Promise<void>((resolve) => {
+    const finish = () => {
+      clearTimeout(timer);
+      wakeStream = undefined;
+      resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    wakeStream = finish;
+  });
 async function run() {
   while (!stopping) {
     if (wss.clients.size === 0) {
@@ -254,7 +265,7 @@ async function run() {
       console.log("Read-only handshake verified", version);
       session = randomUUID();
       sequence = 0;
-      chunks.clear();
+      cache.clear();
       reset = {
         type: "reset",
         session,
@@ -277,7 +288,8 @@ async function run() {
       };
       const creatures = new CreatureReader(adapter, graphics);
       let creatureTick = 0,
-        lastCreaturePoll = 0;
+        lastCreaturePoll = 0,
+        lastItemPoll = 0;
       let sweep = 0;
       while (!stopping) {
         // Keep a warm read-only connection/cache through preview reloads.
@@ -300,7 +312,7 @@ async function run() {
           JSON.stringify(reset.bounds) !== JSON.stringify(b) ||
           JSON.stringify(reset.focus) !== JSON.stringify(requestedFocus)
         ) {
-          retainChunks(chunks, b, level);
+          cache.select(b, level);
           reset = { ...reset, level, bounds: b, mode, focus: requestedFocus };
           publish({
             type: "view",
@@ -317,12 +329,26 @@ async function run() {
           completed = 0;
         const focus = requestedFocus;
         const order = blockOrder(b, level, focus);
-        // New terrain is needed before refreshes of already cached blocks.
-        order.sort(
-          (a, b) =>
-            Number(chunks.has(a.join(","))) - Number(chunks.has(b.join(","))),
+        const batches = columnBatches(order);
+        // After the near-camera core, missing columns precede background refresh.
+        const coreEnd = batches.findIndex((batch) =>
+          batch.levels.some((z) => Math.abs(z - level) > 2),
         );
-        for (const [x, y, z] of order) {
+        const split = coreEnd < 0 ? batches.length : coreEnd;
+        const scheduled = [
+          ...batches.slice(0, split),
+          ...batches
+            .slice(split)
+            .sort(
+              (a, b) =>
+                Number(
+                  a.levels.every((z) => chunks.has(`${a.x},${a.y},${z}`)),
+                ) -
+                Number(b.levels.every((z) => chunks.has(`${b.x},${b.y},${z}`))),
+            ),
+        ];
+        let reads = 0;
+        for (const { x, y, levels } of scheduled) {
           if (
             stopping ||
             !wss.clients.size ||
@@ -339,26 +365,58 @@ async function run() {
             )
               break;
           }
-          // World identity is checked around each bounded batch, instead of
-          // making two additional RPC round trips for every single block.
-          if (completed % 16 === 0) await adapter.checkWorld();
-          const t = performance.now(),
-            chunk = await adapter.block(x, y, z),
-            k = chunkKey(chunk);
-          if (completed % 16 === 15) await adapter.checkWorld();
-          if (requestedLevel !== level) break;
-          if (JSON.stringify(chunks.get(k)) !== JSON.stringify(chunk)) {
-            chunks.set(k, chunk);
+          const t = performance.now();
+          const restored = levels.flatMap((z) => {
+            const k = `${x},${y},${z}`;
+            if (chunks.has(k)) return [];
+            const chunk = cache.restore(k);
+            return chunk ? [chunk] : [];
+          });
+          if (restored.length)
             publish({
               type: "chunks",
               session,
               sequence: ++sequence,
-              chunks: [chunk],
-              pollMs: Math.round(performance.now() - t),
+              chunks: restored,
+              pollMs: 0,
             });
-            changed++;
+          const needed = levels.filter(
+            (z) =>
+              !cache.fresh(
+                `${x},${y},${z}`,
+                t,
+                Math.abs(z - level) <= 2 ? 2000 : 10000,
+              ),
+          );
+          if (needed.length) {
+            // Preserve the single-flight connection and check identity on both
+            // sides of each bounded native column before publishing any terrain.
+            await adapter.checkWorld();
+            const column = await adapter.column(x, y, needed);
+            await adapter.checkWorld();
+            if (
+              requestedLevel !== level ||
+              requestedMode !== mode ||
+              requestedFocus !== focus
+            )
+              break;
+            const updates = column.filter((chunk) =>
+              cache.store(chunk, performance.now()),
+            );
+            if (updates.length) {
+              publish({
+                type: "chunks",
+                session,
+                sequence: ++sequence,
+                chunks: updates,
+                pollMs: Math.round(performance.now() - t),
+              });
+              changed += updates.length;
+            }
+            reads++;
           }
-          if (performance.now() - lastCreaturePoll >= 1000) {
+          if (performance.now() - lastCreaturePoll >= 250) {
+            const tickStarted = performance.now();
             const snapshot = await creatures.snapshot(b, level, chunks);
             await adapter.checkWorld();
             if (requestedMode === mode && requestedLevel === level)
@@ -368,17 +426,51 @@ async function run() {
                 tick: ++creatureTick,
                 creatures: snapshot,
               });
-            lastCreaturePoll = performance.now();
+            lastCreaturePoll = tickStarted;
           }
-          completed++;
+          if (performance.now() - lastItemPoll >= 1000) {
+            const tickStarted = performance.now();
+            const [cx, cy] = order[0];
+            const nearby = [...chunks.values()].filter(
+              (c) =>
+                Math.abs(c.x - cx) <= 16 &&
+                Math.abs(c.y - cy) <= 16 &&
+                Math.abs(c.z - level) <= 1,
+            );
+            await adapter.checkWorld();
+            const items = await adapter.items(nearby);
+            await adapter.checkWorld();
+            if (
+              requestedMode === mode &&
+              requestedLevel === level &&
+              requestedFocus === focus
+            ) {
+              const updates = items.filter((c) => cache.updateItems(c));
+              if (updates.length)
+                publish({
+                  type: "chunks",
+                  session,
+                  sequence: ++sequence,
+                  chunks: updates,
+                  pollMs: 0,
+                });
+            }
+            lastItemPoll = tickStarted;
+          }
+          completed += levels.length;
           if (completed % 12 === 0)
             setStatus(
               `Streaming Z ${level} · ${completed}/${order.length} blocks · sweep ${sweep + 1}`,
             );
           // Yield during initial loading; throttle batches rather than tiles.
-          await pause(completed % 16 === 0 ? pollMs : 0);
+          await streamPause(needed.length && reads % 4 === 0 ? pollMs : 0);
         }
-        if (requestedLevel !== level) continue;
+        if (
+          requestedLevel !== level ||
+          requestedMode !== mode ||
+          requestedFocus !== focus
+        )
+          continue;
         setStatus(
           `Live · ${adapter.world} · ${chunks.size} blocks · sweep ${++sweep}`,
         );
@@ -390,10 +482,11 @@ async function run() {
             heapMB: Math.round(process.memoryUsage().heapUsed / 1048576),
           }),
         );
+        await streamPause(pollMs);
       }
     } catch (e) {
       reset = undefined;
-      chunks.clear();
+      cache.clear();
       session = randomUUID();
       publish({
         type: "reset",

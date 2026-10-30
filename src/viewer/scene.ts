@@ -27,6 +27,7 @@ export class FortressScene {
   controls: OrbitControls;
   meshes = new Map<string, THREE.Mesh>();
   dirty = new Set<string>();
+  private emptyChunks = new WeakSet<Chunk>();
   cut = 0;
   bounds?: Bounds;
   terrainAtlas = new TerrainAtlas();
@@ -278,6 +279,7 @@ export class FortressScene {
       if (
         (oldCut !== this.cut && (c.z === oldTop || c.z === top)) ||
         ((!mesh || mesh.userData.stale) &&
+          !this.emptyChunks.has(c) &&
           c.z <= top &&
           c.z >= this.cut - LEVELS_BELOW)
       )
@@ -397,6 +399,9 @@ export class FortressScene {
       this.dirty.delete(k);
       const c = this.state.chunks.get(k);
       if (!c) continue;
+      // Pure air cannot gain geometry through neighbour changes. Do not spend
+      // the mesh budget rebuilding the same sky after every z-level step.
+      if (this.emptyChunks.has(c)) continue;
       if (
         c.z >
           this.cut + (this.navigation === "firstPerson" ? LEVELS_ABOVE : 0) ||
@@ -430,6 +435,11 @@ export class FortressScene {
         this.terrainAtlas.uv,
         this.navigation === "firstPerson",
       );
+      if (
+        !c.objects?.length &&
+        c.tiles.every((t) => t.shape === "empty" && !t.liquid && !t.treeGraphic)
+      )
+        this.emptyChunks.add(c);
       if (!data.positions.length) continue;
       const g = new THREE.BufferGeometry();
       g.setAttribute(

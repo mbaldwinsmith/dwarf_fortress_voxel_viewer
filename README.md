@@ -18,6 +18,10 @@ It does not issue gameplay commands or modify your game files and saves.
 
 - **Live fortress terrain:** progressively loaded walls, floors, ramps, stairs
   and excavations, with updates while the game runs.
+- **Prioritised streaming:** batched vertical columns, nearby walking terrain
+  first, and a reserve cache for returning between levels. Creatures target
+  250 ms polls; nearby ground items target 1 s polls independently of terrain.
+  Actual update intervals depend on DFHack and rendering load.
 - **Orbit and cutaway views:** pan, zoom and inspect tiles across the map's
   Z-levels, or follow the area currently visible in DF.
 - **First-person exploration:** choose a starting point and walk through revealed
