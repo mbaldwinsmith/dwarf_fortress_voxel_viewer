@@ -6,6 +6,7 @@ import {
 } from "../src/viewer/traversal.js";
 import { canWalk } from "../src/viewer/first-person.js";
 import { chunkKey, type Chunk } from "../src/shared/model.js";
+import { buildMesh } from "../src/viewer/mesh.js";
 const block = (
   z: number,
   shape: "floor" | "wall" | "empty" = "empty",
@@ -48,6 +49,19 @@ it("samples a ramp slope and walks onto its upper landing and back down", () => 
   expect(canWalk(world, 3.02, 2.5, 5)).toBe(true);
   expect(rampDestination(world, 3.02, 2.5, 2.98, 2.5, 5)).toBe(4);
   expect(canWalk(world, 2.98, 2.5, 4)).toBe(true);
+  // The slope reaches the actual upper floor's surface, including slab thickness.
+  expect(surfaceHeight(world, 2.999999, 2.5, 4)).toBeCloseTo(
+    surfaceHeight(world, 3, 2.5, 5)!,
+    5,
+  );
+  const rampMesh = buildMesh(a, world, 5, undefined, true);
+  const rampEdgeHeights = rampMesh.positions.filter(
+    (v, i) =>
+      i % 3 === 1 &&
+      rampMesh.positions[i - 1] === 3 &&
+      [2, 3].includes(rampMesh.positions[i + 1]),
+  );
+  expect(Math.max(...rampEdgeHeights)).toBeCloseTo(5.12);
   b.tiles[34] = { shape: "wall", material: 2, name: "Low ceiling" };
   expect(canWalk(world, 2.9, 2.5, 4)).toBe(false);
 });

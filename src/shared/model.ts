@@ -76,6 +76,13 @@ export interface Bounds {
   height: number;
 }
 export type ServerMessage =
+  | {
+      type: "view";
+      session: string;
+      bounds: Bounds;
+      level: number;
+      mode: "screen" | "map";
+    }
   | { type: "creatures"; session: string; tick: number; creatures: Creature[] }
   | { type: "status"; message: string }
   | {
@@ -122,6 +129,25 @@ export class WorldState {
     for (const c of message.chunks) this.chunks.set(chunkKey(c), c);
     this.sequence = message.sequence;
     return true;
+  }
+}
+// A view change keeps the overlapping four levels; only the departing fringe
+// leaves memory. A world/session reset remains a full invalidation.
+export function retainChunks(
+  chunks: Map<string, Chunk>,
+  bounds: Bounds,
+  level: number,
+) {
+  for (const [k, c] of chunks) {
+    if (
+      c.z < level - 2 ||
+      c.z > level + 2 ||
+      c.x < bounds.x ||
+      c.y < bounds.y ||
+      c.x >= bounds.x + bounds.width ||
+      c.y >= bounds.y + bounds.depth
+    )
+      chunks.delete(k);
   }
 }
 export function affected(c: Chunk): string[] {

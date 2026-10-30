@@ -9,7 +9,12 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import { FortressAdapter } from "./adapter.js";
-import { chunkKey, type Chunk, type ServerMessage } from "../shared/model.js";
+import {
+  chunkKey,
+  retainChunks,
+  type Chunk,
+  type ServerMessage,
+} from "../shared/model.js";
 import { inspectInstallation } from "./installation.js";
 import { blockOrder, parseLevel, parseMode, screenRegion } from "./region.js";
 import { publicFile } from "./public-files.js";
@@ -257,7 +262,13 @@ async function run() {
       let creatureTick = 0,
         lastCreaturePoll = 0;
       let sweep = 0;
-      while (!stopping && wss.clients.size) {
+      while (!stopping) {
+        // Keep a warm read-only connection/cache through preview reloads.
+        // Do not poll the game while no viewer is connected.
+        if (!wss.clients.size) {
+          await pause(500);
+          continue;
+        }
         const mode = requestedMode;
         const region =
           mode === "screen"
@@ -274,23 +285,28 @@ async function run() {
           reset.mode !== mode ||
           JSON.stringify(reset.bounds) !== JSON.stringify(b)
         ) {
-          session = randomUUID();
-          chunks.clear();
-          sequence = 0;
-          reset = { ...reset, session, level, bounds: b, mode };
-          publish(reset);
+          retainChunks(chunks, b, level);
+          reset = { ...reset, level, bounds: b, mode };
+          publish({ type: "view", session, level, bounds: b, mode });
         }
         const started = performance.now();
         await adapter.checkWorld();
         let changed = 0,
           completed = 0;
-        const order = blockOrder(b, level, requestedFocus);
+        const focus = requestedFocus;
+        const order = blockOrder(b, level, focus);
+        // New terrain is needed before refreshes of already cached blocks.
+        order.sort(
+          (a, b) =>
+            Number(chunks.has(a.join(","))) - Number(chunks.has(b.join(","))),
+        );
         for (const [x, y, z] of order) {
           if (
             stopping ||
             !wss.clients.size ||
             requestedLevel !== level ||
-            requestedMode !== mode
+            requestedMode !== mode ||
+            requestedFocus !== focus
           )
             break;
           if (mode === "screen" && completed % 12 === 0) {
@@ -304,11 +320,13 @@ async function run() {
             )
               break;
           }
-          await adapter.checkWorld();
+          // World identity is checked around each bounded batch, instead of
+          // making two additional RPC round trips for every single block.
+          if (completed % 16 === 0) await adapter.checkWorld();
           const t = performance.now(),
             chunk = await adapter.block(x, y, z),
             k = chunkKey(chunk);
-          await adapter.checkWorld();
+          if (completed % 16 === 15) await adapter.checkWorld();
           if (requestedLevel !== level) break;
           if (JSON.stringify(chunks.get(k)) !== JSON.stringify(chunk)) {
             chunks.set(k, chunk);
@@ -338,7 +356,8 @@ async function run() {
             setStatus(
               `Streaming Z ${level} · ${completed}/${order.length} blocks · sweep ${sweep + 1}`,
             );
-          await pause(pollMs);
+          // Yield during initial loading; throttle batches rather than tiles.
+          await pause(completed % 16 === 0 ? pollMs : 0);
         }
         if (requestedLevel !== level) continue;
         setStatus(

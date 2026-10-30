@@ -5,7 +5,7 @@ import {
   type SpriteRef,
 } from "../shared/model.js";
 import type { TerrainUV } from "./terrain-atlas.js";
-import { rampSurface } from "./ramps.js";
+import { rampSurface, FLOOR_HEIGHT } from "./ramps.js";
 export interface MeshData {
   positions: number[];
   colors: number[];
@@ -258,7 +258,7 @@ export function buildMesh(
         ],
         color,
       );
-    } else box(0.12);
+    } else box(FLOOR_HEIGHT);
   }
   return out;
 }

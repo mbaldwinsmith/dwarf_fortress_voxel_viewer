@@ -306,6 +306,10 @@ export class ScenerySprites {
     for (const key of [...this.blocks.keys()]) this.remove(key);
     this.visibleCount = 0;
   }
+  prune(chunks: Map<string, Chunk>) {
+    for (const key of this.blocks.keys())
+      if (!chunks.has(key)) this.remove(key);
+  }
   dispose() {
     this.disposed = true;
     this.clear();

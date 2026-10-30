@@ -87,7 +87,6 @@ export class FortressScene {
     );
     this.firstPerson.onLevelChange = (z) => {
       this.followWalkingCut(z);
-      this.firstPerson.waitingForTerrain = !!this.onWalkLevel;
       this.onWalkLevel?.(z);
     };
     this.selector.rotation.x = -Math.PI / 2;
@@ -228,9 +227,44 @@ export class FortressScene {
   }
   private followWalkingCut(z: number) {
     if (z === this.cut) return;
+    const old = this.cut;
     this.cut = z;
-    this.update([...this.state.chunks.values()]);
-    this.refreshRoofs();
+    this.updateVisibility(old);
+  }
+  private updateVisibility(oldCut: number) {
+    const firstPerson = this.navigation === "firstPerson";
+    const top = this.cut + (firstPerson ? 2 : 0);
+    const oldTop = oldCut + (firstPerson ? 2 : 0);
+    for (const [k, c] of this.state.chunks) {
+      const mesh = this.meshes.get(k);
+      if (mesh) mesh.visible = c.z <= top && c.z >= this.cut - 2;
+      if (
+        (oldCut !== this.cut && (c.z === oldTop || c.z === top)) ||
+        ((!mesh || mesh.userData.stale) && c.z <= top && c.z >= this.cut - 2)
+      )
+        this.dirty.add(k);
+    }
+  }
+  changeView(bounds: Bounds, level: number, keepWalking: boolean) {
+    if (this.navigation === "firstPerson" && !keepWalking)
+      this.setFirstPerson(true);
+    const old = this.cut;
+    if (!keepWalking) {
+      this.camera.position.y += level - old;
+      this.controls.target.y += level - old;
+    }
+    this.bounds = bounds;
+    this.cut = level;
+    for (const [k, mesh] of this.meshes) {
+      if (!this.state.chunks.has(k)) {
+        this.scene.remove(mesh);
+        mesh.geometry.dispose();
+        this.meshes.delete(k);
+        this.dirty.delete(k);
+      }
+    }
+    this.scenery.prune(this.state.chunks);
+    this.updateVisibility(old);
   }
   reset(
     bounds: Bounds,
@@ -295,30 +329,38 @@ export class FortressScene {
     const delta = z - this.cut;
     this.camera.position.y += delta;
     this.controls.target.y += delta;
+    const old = this.cut;
     this.cut = z;
-    for (const k of this.state.chunks.keys()) this.dirty.add(k);
+    this.updateVisibility(old);
   }
   animate = () => {
     this.frameId = requestAnimationFrame(this.animate);
     const start = performance.now();
     this.firstPerson.update((start - this.lastFrame) / 1000);
-    if (this.navigation === "firstPerson")
-      this.followWalkingCut(Math.floor(this.camera.position.y));
     this.lastFrame = start;
     if (this.selector.visible)
       this.selector.material.opacity = 0.3 + Math.sin(start / 180) * 0.12;
     let count = 0;
     for (const k of this.dirty) {
-      if (count++ >= 3 || performance.now() - start > 8) break;
+      if (count >= 3 || performance.now() - start > 8) break;
       this.dirty.delete(k);
+      const c = this.state.chunks.get(k);
+      if (!c) continue;
+      if (
+        c.z > this.cut + (this.navigation === "firstPerson" ? 2 : 0) ||
+        c.z < this.cut - 2
+      ) {
+        const hidden = this.meshes.get(k);
+        if (hidden) hidden.userData.stale = true;
+        continue;
+      }
+      count++;
       const old = this.meshes.get(k);
       if (old) {
         this.scene.remove(old);
         old.geometry.dispose();
         this.meshes.delete(k);
       }
-      const c = this.state.chunks.get(k);
-      if (!c) continue;
       this.scenery.update(
         [c],
         this.state.chunks,
@@ -339,7 +381,6 @@ export class FortressScene {
       );
       g.setAttribute("color", new THREE.Float32BufferAttribute(data.colors, 3));
       g.setAttribute("uv", new THREE.Float32BufferAttribute(data.uvs, 2));
-      g.computeVertexNormals();
       const m = new THREE.Mesh(g, this.material);
       this.meshes.set(k, m);
       this.scene.add(m);

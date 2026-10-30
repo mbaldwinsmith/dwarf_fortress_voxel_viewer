@@ -484,3 +484,31 @@ directions, with diagonal uphill corners on both sides of the lower exit.
 Read-only terrain checks against the running fortress also verified descent at
 X54/Y67 from Z174 onto the lower grass at Z173. These checks sample the actual
 navigation/collision functions against DFHack terrain, without moving game units.
+
+## Streaming continuity and ramp crest seam
+
+View changes now use an incremental message within the same world session. Both
+ends retain overlapping chunks within the five-level window and evict only the
+departing levels/columns. True world changes still invalidate the entire session.
+Overlapping meshes and scenery remain in place. First-person walking no longer
+waits for a remote reset after every Z transition; unloaded terrain continues to
+block movement through the existing collision checks. The cut follows the support
+level, rather than oscillating when eye height crosses an integer Z on a slope.
+
+Missing blocks load before cached refreshes, with the polling delay applied per
+16-block batch instead of per block. World checks bracket each bounded batch.
+Idle preview reloads reuse the companion's warm connection/cache without polling
+the game while there are no clients. Mesh rebuilding skips absent/invisible keys
+without consuming its per-frame work allowance; unused normal computation is
+removed from the unlit terrain material.
+
+Ramp crests now reach Z+1.12, exactly matching the upper floor slab. Rendering and
+navigation share that height, removing the 0.12-tile vertical lip.
+
+Validation: 118 tests and production TypeScript/Vite build passed. Live browser
+checks against the fortress loaded 100 chunks in 3.013 seconds (the previous
+per-block sleeps alone required 20 seconds). Z acknowledgements took 54–130 ms;
+the first check preserved all 52 existing meshes. A live WASD crossing at X54/Y67
+descended from Z174 onto Z173 grass and returned to Z174, with controls active,
+no terrain-wait flag and no page errors. These are loading/navigation timings,
+not an FPS benchmark. Installer builds were not run.

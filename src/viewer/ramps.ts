@@ -1,4 +1,6 @@
 import { tileAt, type Chunk } from "../shared/model.js";
+export const FLOOR_HEIGHT = 0.12;
+export const RAMP_HIGH = 1 + FLOOR_HEIGHT;
 
 // DF ramps have no intrinsic uphill heading. Shape a height field against the
 // surrounding walls. Unknown tiles use only their redacted opaque shape.
@@ -51,12 +53,15 @@ export function rampSurface(
     return wall(dx, 0) ||
       wall(0, dy) ||
       (wall(dx, dy) && (!lowExit || !cardinalUphill))
-      ? 1
-      : 0.12;
+      ? RAMP_HIGH
+      : FLOOR_HEIGHT;
   });
   // Multiple uphill exits form a shallow basin rather than arbitrarily choosing
   // one direction or filling the entire tile to wall height.
-  const center = Math.min(0.56, corners.reduce((sum, h) => sum + h, 0) / 4);
+  const center = Math.min(
+    (RAMP_HIGH + FLOOR_HEIGHT) / 2,
+    corners.reduce((sum, h) => sum + h, 0) / 4,
+  );
   return { corners, center };
 }
 

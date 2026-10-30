@@ -1,5 +1,5 @@
 import { tileAt, type Chunk } from "../shared/model.js";
-import { rampHeight } from "./ramps.js";
+import { rampHeight, FLOOR_HEIGHT } from "./ramps.js";
 export function surfaceHeight(
   chunks: Map<string, Chunk>,
   x: number,
@@ -8,7 +8,7 @@ export function surfaceHeight(
 ) {
   const t = tileAt(chunks, Math.floor(x), Math.floor(y), z);
   if (!t || !["floor", "stairs", "ramp"].includes(t.shape)) return;
-  return z + (t.shape === "ramp" ? rampHeight(chunks, x, y, z) : 0.12);
+  return z + (t.shape === "ramp" ? rampHeight(chunks, x, y, z) : FLOOR_HEIGHT);
 }
 export function stairDestination(
   chunks: Map<string, Chunk>,

@@ -11,7 +11,15 @@ export function parseServerMessage(value: unknown): ServerMessage {
   if (value.type === "status" && text(value.message))
     return value as ServerMessage;
   if (!text(value.session) || !value.session) throw Error("Missing session");
-  if (value.type === "reset" && text(value.world) && object(value.bounds)) {
+  if (
+    (value.type === "view" || (value.type === "reset" && text(value.world))) &&
+    object(value.bounds)
+  ) {
+    if (
+      value.type === "view" &&
+      (!int(value.level) || !["screen", "map"].includes(String(value.mode)))
+    )
+      throw Error("Invalid view");
     if (
       value.mode !== undefined &&
       value.mode !== "screen" &&

@@ -1,5 +1,5 @@
 import "./style.css";
-import { WorldState, tileAt } from "../shared/model.js";
+import { WorldState, tileAt, retainChunks } from "../shared/model.js";
 import { FortressScene } from "./scene.js";
 import { connect } from "./connection.js";
 const el = <T extends HTMLElement>(id: string) =>
@@ -47,6 +47,12 @@ function cut() {
 slider.addEventListener("input", cut);
 el("frame").addEventListener("click", () => scene.frame());
 scene.onNavigationChange = (mode) => {
+  if (mode === "firstPerson")
+    disconnect.setLevel(
+      scene.cut,
+      Math.floor(scene.camera.position.x),
+      Math.floor(scene.camera.position.z),
+    );
   const enabled = mode !== "orbit";
   el("first-person").setAttribute("aria-pressed", String(enabled));
   el("first-person").textContent = enabled ? "Orbit view" : "1st person";
@@ -88,16 +94,22 @@ const disconnect = connect((m) => {
     setStatus(m.message);
     return;
   }
-  if (m.type === "reset") {
+  if (m.type === "reset" || m.type === "view") {
+    if (m.type === "view" && m.session !== state.session) return;
     const keepWalking =
       scene.navigation === "firstPerson" &&
-      walkingRequest === m.level &&
-      m.world === world.textContent &&
+      m.type === "view" &&
+      (walkingRequest === m.level || scene.cut === m.level) &&
       JSON.stringify(m.bounds) === JSON.stringify(scene.bounds);
-    walkingRequest = undefined;
-    state.reset(m.session);
-    scene.reset(m.bounds, m.level, keepWalking);
-    world.textContent = m.world || "Awaiting a fortress";
+    if (walkingRequest === m.level) walkingRequest = undefined;
+    if (m.type === "reset") {
+      state.reset(m.session);
+      scene.reset(m.bounds, m.level);
+      world.textContent = m.world || "Awaiting a fortress";
+    } else {
+      retainChunks(state.chunks, m.bounds, m.level);
+      scene.changeView(m.bounds, m.level, keepWalking);
+    }
     slider.min = String(m.bounds.z);
     slider.max = String(m.bounds.z + Math.max(0, m.bounds.height - 1));
     slider.value = String(m.level ?? slider.max);
@@ -109,7 +121,7 @@ const disconnect = connect((m) => {
         ? "Read-only · Following DF screen and Z · Five neighbouring levels"
         : "Read-only · Full local map · Five neighbouring levels";
     level.textContent = m.bounds.height ? `Z ${slider.value}` : "—";
-    empty.hidden = keepWalking;
+    empty.hidden = keepWalking || state.chunks.size > 0;
     selection.textContent = "Click a visible tile to inspect it.";
     return;
   }
