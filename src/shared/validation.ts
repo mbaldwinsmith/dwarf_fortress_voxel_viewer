@@ -1,5 +1,5 @@
 import type { ServerMessage, Shape } from "./model.js";
-import { FURNITURE_TYPES } from "./model.js";
+import { FURNITURE_TYPES, WORKSHOP_MODELS } from "./model.js";
 const object = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 const int = (v: unknown): v is number =>
@@ -339,6 +339,33 @@ export function parseServerMessage(value: unknown): ServerMessage {
           )
             throw Error("Invalid scenery object");
           ids.add(o.id);
+          if (o.workshop !== undefined) {
+            const w = o.workshop;
+            if (
+              !object(w) ||
+              !(WORKSHOP_MODELS as readonly string[]).includes(
+                String(w.type),
+              ) ||
+              !int(w.col) ||
+              !int(w.row) ||
+              !int(w.width) ||
+              !int(w.depth) ||
+              w.width < 1 ||
+              w.width > 5 ||
+              w.depth < 1 ||
+              w.depth > 5 ||
+              w.col < 0 ||
+              w.row < 0 ||
+              w.col >= w.width ||
+              w.row >= w.depth ||
+              o.kind !== "ground" ||
+              !o.id.startsWith("b:") ||
+              o.furniture !== undefined
+            )
+              throw Error("Invalid workshop model");
+            for (const ref of [w.wood, w.stone, w.metal])
+              if (ref !== undefined) validateSprite(ref);
+          }
           if (
             o.furniture !== undefined &&
             (!object(o.furniture) ||

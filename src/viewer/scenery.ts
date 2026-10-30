@@ -4,6 +4,7 @@ import { recolor } from "./composite-sprites.js";
 import { SpriteFeet } from "./sprite-ground.js";
 import { surfaceHeight } from "./traversal.js";
 import { furnitureFaces } from "./furniture.js";
+import { workshopFaces } from "./workshop-models.js";
 import {
   LEVELS_BELOW,
   chunkKey,
@@ -200,7 +201,7 @@ export class ScenerySprites {
         if (!tile || tile.shape === "unknown") continue;
         group.userData.count++;
         const coords = o.sprite ? uv(o.sprite) : [0, 1, 0, 0, 1, 0, 1, 1];
-        if (o.furniture && o.sprite) {
+        if ((o.furniture || o.workshop) && o.sprite) {
           const ground =
             surfaceHeight(all, o.x + 0.5, o.y + 0.5, o.z) ?? o.z + 0.12;
           const wall = (x: number, y: number) =>
@@ -208,7 +209,9 @@ export class ScenerySprites {
           const axisZ =
             (wall(o.x, o.y - 1) || wall(o.x, o.y + 1)) &&
             !(wall(o.x - 1, o.y) || wall(o.x + 1, o.y));
-          for (const face of furnitureFaces(o, ground, axisZ)) {
+          for (const face of o.workshop
+            ? workshopFaces(o, ground)
+            : furnitureFaces(o, ground, axisZ)) {
             const k = JSON.stringify([
               face.sprite?.asset ?? "solid",
               face.sprite ? face.palette : undefined,

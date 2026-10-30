@@ -6,6 +6,7 @@ import { groundItems, materialFamily } from "./ground-items.js";
 import { flowTokens } from "./flows.js";
 import type { Graphics } from "./graphics.js";
 import type { SpriteLayer } from "../shared/model.js";
+import { WORKSHOP_MODELS, type WorkshopModel } from "../shared/model.js";
 const records = (v: unknown): Record<string, unknown>[] =>
   Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : [];
 export const buildingKey = (t: Record<string, unknown>) =>
@@ -20,6 +21,8 @@ const workshop: Record<string, string> = {
   MagmaForge: "MAGMAFORGE",
   Bowyers: "BOWYER",
   Mechanics: "MECHANIC",
+  Siege: "SIEGE",
+  Kennels: "KENNEL",
   Butchers: "BUTCHER",
   Leatherworks: "LEATHER",
   Tanners: "TANNER",
@@ -220,6 +223,11 @@ export function buildingObjects(
             graphics.get(`${token}_${material}`) ??
             graphics.get(token);
         }
+        if (isShop && prefix && right === left && bottom === top)
+          sprite =
+            graphics.get(`${prefix}:1:1`) ??
+            graphics.get(`${prefix}:1:0:1`) ??
+            sprite;
         const tint =
           isShop && mat
             ? materialDefinitions?.get(`${mat.matType},${mat.matIndex}`)?.color
@@ -227,7 +235,7 @@ export function buildingObjects(
         const matDef =
           mat && materialDefinitions?.get(`${mat.matType},${mat.matIndex}`);
         const palette =
-          meshFurniture.has(category) && matDef
+          (meshFurniture.has(category) || isShop) && matDef
             ? (graphics as SceneryGraphics).materialPalettes?.get(matDef.id)
             : undefined;
         const details: NonNullable<SceneryObject["details"]> = [];
@@ -266,6 +274,24 @@ export function buildingObjects(
           y,
           z: chunk.z,
           name: id,
+          ...(isShop &&
+          prefix &&
+          (WORKSHOP_MODELS as readonly string[]).includes(prefix) &&
+          right - left < 5 &&
+          bottom - top < 5
+            ? {
+                workshop: {
+                  type: prefix as WorkshopModel,
+                  col: x - left,
+                  row: y - top,
+                  width: right - left + 1,
+                  depth: bottom - top + 1,
+                  wood: graphics.get("ITEM_TABLE_WOOD:1"),
+                  stone: graphics.get("ITEM_TABLE_STONE:1"),
+                  metal: graphics.get("ITEM_TABLE_METAL:1"),
+                },
+              }
+            : {}),
           ...(meshFurniture.has(category)
             ? {
                 furniture: {

@@ -207,14 +207,14 @@ The current graphics profile is explicitly **vanilla**. Installation inspection
 can list available modules, but does not resolve the loaded world's active mod
 order or graphics overrides.
 
-| Element                 | Current representation                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| Terrain                 | Generated 3D geometry with installed wall/floor artwork, native edge variants and material information. |
-| Dwarves                 | Camera-facing sprites with a partial layered appearance compositor.                                     |
-| Other creatures         | Supported local sprites; markers for unsupported creatures.                                             |
-| Workshops and furniture | Mostly artwork laid on the ground; doors use upright open/closed sprites.                               |
-| Vegetation              | Species sprites for supported plants and tree parts; fallback geometry where needed.                    |
-| Ground items            | One supported item sprite per occupied tile.                                                            |
+| Element                 | Current representation                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Terrain                 | Generated 3D geometry with installed wall/floor artwork, native edge variants and material information.                      |
+| Dwarves                 | Camera-facing sprites with a partial layered appearance compositor.                                                          |
+| Other creatures         | Supported local sprites; markers for unsupported creatures.                                                                  |
+| Workshops and furniture | 33 vanilla workshop/furnace/depot layouts and supported furniture use textured 3D models; barriers follow open/closed state. |
+| Vegetation              | Species sprites for supported plants and tree parts; fallback geometry where needed.                                         |
+| Ground items            | One supported item per occupied tile; containers use 3D models and corpses use native species artwork where supported.       |
 
 Hidden tiles remain opaque and undiscovered. Their actual shapes, materials and
 names are removed before data reaches the viewer. Enclosed natural rock is also

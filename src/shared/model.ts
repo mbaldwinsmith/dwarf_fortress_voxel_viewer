@@ -110,7 +110,53 @@ export const FURNITURE_TYPES = [
   "floodgate",
 ] as const;
 export type FurnitureType = (typeof FURNITURE_TYPES)[number];
+export const WORKSHOP_MODELS = [
+  "WORKSHOP_CARPENTER",
+  "WORKSHOP_FARMER",
+  "WORKSHOP_MASON",
+  "WORKSHOP_CRAFTS",
+  "WORKSHOP_JEWELER",
+  "WORKSHOP_METALSMITH",
+  "WORKSHOP_MAGMAFORGE",
+  "WORKSHOP_BOWYER",
+  "WORKSHOP_MECHANIC",
+  "WORKSHOP_BUTCHER",
+  "WORKSHOP_LEATHER",
+  "WORKSHOP_TANNER",
+  "WORKSHOP_CLOTHES",
+  "WORKSHOP_FISHERY",
+  "WORKSHOP_STILL",
+  "WORKSHOP_LOOM",
+  "WORKSHOP_KITCHEN",
+  "WORKSHOP_ASHERY",
+  "WORKSHOP_DYER",
+  "WORKSHOP_QUERN",
+  "WORKSHOP_MILLSTONE",
+  "WORKSHOP_CUSTOM:SOAP_MAKER",
+  "WORKSHOP_CUSTOM:SCREW_PRESS",
+  "WORKSHOP_SIEGE",
+  "WORKSHOP_KENNEL",
+  "FURNACE_WOOD",
+  "FURNACE_SMELTER",
+  "FURNACE_GLASS",
+  "FURNACE_KILN",
+  "FURNACE_SMELTER_LAVA",
+  "FURNACE_GLASS_LAVA",
+  "FURNACE_KILN_LAVA",
+  "TRADE_DEPOT",
+] as const;
+export type WorkshopModel = (typeof WORKSHOP_MODELS)[number];
 export interface SceneryObject {
+  workshop?: {
+    type: WorkshopModel;
+    col: number;
+    row: number;
+    width: number;
+    depth: number;
+    wood?: SpriteRef;
+    stone?: SpriteRef;
+    metal?: SpriteRef;
+  };
   furniture?: {
     type: FurnitureType;
     heavy?: true;
