@@ -605,3 +605,18 @@ reference is constant and independent of hidden ore/material data. Dark wall
 caps and discovery masking remain intact. A controlled underside view using
 native fungiwood and stone artwork verifies textured ceilings and clean branch
 joins without browser errors.
+
+## Creature sprite coverage
+
+Camel sprites were missing because layered body extraction was restricted to
+yaks. It now handles the shared body rules across pack animals, and large-image
+parsing covers large/giant animals and megabeasts. Living animation frames supply
+static fallbacks for template-based animal people and trolls. Native child
+variants, caste lookup and large sprite scale are preserved. The installed
+profile increased from 204 to 1028 artwork keys; both live two-humped camels and
+all 20 creatures in the loaded window now have sprite/layer artwork.
+
+The audit and remaining layered-humanoid limitations are documented in
+[creature-rendering.md](creature-rendering.md). A controlled WebGL lineup of
+eleven native animals loaded successfully with no browser errors. No installer
+build was run.

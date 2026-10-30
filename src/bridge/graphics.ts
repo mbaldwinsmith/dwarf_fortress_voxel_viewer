@@ -15,9 +15,35 @@ interface Page {
   tileWidth: number;
   tileHeight: number;
 }
+export interface SpriteDefinition {
+  page: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+}
+function spriteDefinition(args: string[]): SpriteDefinition | undefined {
+  const large = args[1] === "LARGE_IMAGE";
+  const n = large ? 2 : 1,
+    count = large ? 6 : 3;
+  if (
+    args.length !== count &&
+    !(args.length === count + 1 && args[count] === "AS_IS")
+  )
+    return;
+  if (!args.slice(n, count).every((v) => /^\d+$/.test(v))) return;
+  const x = Number(args[n]),
+    y = Number(args[n + 1]);
+  if (!large) return { page: args[0], x, y };
+  const width = Number(args[4]) - x + 1,
+    height = Number(args[5]) - y + 1;
+  if (width < 1 || height < 1) return;
+  return { page: args[0], x, y, width, height };
+}
 export function parseGraphics(text: string) {
   const pages = new Map<string, Page>(),
-    sprites = new Map<string, { page: string; x: number; y: number }>();
+    sprites = new Map<string, SpriteDefinition>();
+  const priorities = new Map<string, number>();
   let page: Page | undefined,
     creature = "",
     layered = false;
@@ -34,6 +60,10 @@ export function parseGraphics(text: string) {
       creature = a.join(":");
       layered = false;
       page = undefined;
+    } else if (tag.startsWith("STATUE_") && tag.endsWith("_GRAPHICS")) {
+      creature = "";
+      page = undefined;
+      layered = false;
     } else if (tag === "LAYER_SET") layered = true;
     else if (page) {
       if (tag === "FILE") page.file = a[0];
@@ -49,43 +79,71 @@ export function parseGraphics(text: string) {
         page.width = Number(a[0]) * page.tileWidth;
         page.height = Number(a[1]) * page.tileHeight;
       }
-    } else if (
-      creature &&
-      !layered &&
-      tag === "DEFAULT" &&
-      a.length === 4 &&
-      a[3] === "AS_IS" &&
-      a.slice(1, 3).every((v) => /^\d+$/.test(v))
-    )
-      sprites.set(creature, { page: a[0], x: Number(a[1]), y: Number(a[2]) });
+    } else if (creature && !layered) {
+      const child = tag === "CHILD";
+      const parent = child ? a.at(-1) : tag;
+      const priority =
+        parent === "DEFAULT"
+          ? 3
+          : parent === "VERMIN"
+            ? 2
+            : parent === "ANIMATED"
+              ? 1
+              : 0;
+      if (
+        !priority ||
+        !(child || ["DEFAULT", "VERMIN", "ANIMATED"].includes(tag))
+      )
+        continue;
+      const sprite = spriteDefinition(child ? a.slice(0, -1) : a);
+      const id = creature + (child ? ":CHILD" : "");
+      if (sprite && priority > (priorities.get(id) ?? 0)) {
+        sprites.set(id, sprite);
+        priorities.set(id, priority);
+      }
+    }
   }
   return { pages, sprites };
 }
-export function parseYakBodies(text: string) {
-  const block = text.match(
-    /\[CREATURE_GRAPHICS:YAK\]([\s\S]*?)(?=\[CREATURE(?:_CASTE)?_GRAPHICS:|$)/,
-  )?.[1];
-  const out = new Map<string, { page: string; x: number; y: number }>();
-  if (!block) return out;
-  const set = parseDwarfLayers(block).find((s) => s.state === "DEFAULT");
-  for (const l of set?.groups.flat() ?? []) {
-    const child = l.name === "CBODY";
-    if (
-      (!child && l.name !== "BODY") ||
-      l.width !== 1 ||
-      l.height !== 1 ||
-      l.conditions.length !== 1 ||
-      l.conditions[0].length !== 1 ||
-      l.conditions[0][0] !== (child ? "CONDITION_CHILD" : "CONDITION_NOT_CHILD")
-    )
-      continue;
-    out.set(`YAK:${child ? "CHILD" : "ADULT"}`, {
-      page: l.page,
-      x: l.x,
-      y: l.y,
-    });
+export function parseCreatureBodies(text: string) {
+  const out = new Map<string, SpriteDefinition>();
+  const headers = [
+    ...text.matchAll(/\[CREATURE(?:_CASTE)?_GRAPHICS:([^\]]+)\]/g),
+  ];
+  for (const [i, header] of headers.entries()) {
+    const block = text.slice(
+      header.index! + header[0].length,
+      headers[i + 1]?.index ?? text.length,
+    );
+    const set = parseDwarfLayers(block).find((s) => s.state === "DEFAULT");
+    for (const layer of set?.groups.flat() ?? []) {
+      const child = layer.name === "CBODY";
+      if (
+        (!child && layer.name !== "BODY") ||
+        layer.palette ||
+        layer.itemPalette ||
+        layer.conditions.length !== 1 ||
+        layer.conditions[0].length !== 1 ||
+        layer.conditions[0][0] !==
+          (child ? "CONDITION_CHILD" : "CONDITION_NOT_CHILD")
+      )
+        continue;
+      out.set(`${header[1]}:${child ? "CHILD" : "ADULT"}`, {
+        page: layer.page,
+        x: layer.x,
+        y: layer.y,
+        ...(layer.width !== 1 || layer.height !== 1
+          ? { width: layer.width, height: layer.height }
+          : {}),
+      });
+    }
   }
   return out;
+}
+export function parseYakBodies(text: string) {
+  return new Map(
+    [...parseCreatureBodies(text)].filter(([id]) => id.startsWith("YAK:")),
+  );
 }
 export async function permittedImage(root: string, relative: string) {
   if (
@@ -114,14 +172,14 @@ export class Graphics {
       "data/vanilla/vanilla_creatures_graphics/graphics",
     );
     const pages = new Map<string, Page>(),
-      sprites = new Map<string, { page: string; x: number; y: number }>();
+      sprites = new Map<string, SpriteDefinition>();
     const duplicatePages = new Set<string>(),
       duplicateSprites = new Set<string>();
     for (const file of await readdir(root)) {
       if (!file.endsWith(".txt")) continue;
       const source = await readFile(path.join(root, file), "utf8");
       const parsed = parseGraphics(source);
-      for (const [id, body] of parseYakBodies(source))
+      for (const [id, body] of parseCreatureBodies(source))
         parsed.sprites.set(id, body);
       for (const [id, p] of parsed.pages) {
         if (pages.has(id)) duplicatePages.add(id);
@@ -140,8 +198,13 @@ export class Graphics {
         ![p.width, p.height, p.tileWidth, p.tileHeight].every(
           (n) => Number.isInteger(n) && n > 0 && n <= 16384,
         ) ||
-        s.x * p.tileWidth + p.tileWidth > p.width ||
-        s.y * p.tileHeight + p.tileHeight > p.height
+        ![s.x, s.y, s.width ?? 1, s.height ?? 1].every(Number.isInteger) ||
+        s.x < 0 ||
+        s.y < 0 ||
+        (s.width ?? 1) < 1 ||
+        (s.height ?? 1) < 1 ||
+        (s.x + (s.width ?? 1)) * p.tileWidth > p.width ||
+        (s.y + (s.height ?? 1)) * p.tileHeight > p.height
       )
         continue;
       const file = await permittedImage(root, p.file),
@@ -151,8 +214,8 @@ export class Graphics {
         asset,
         x: s.x * p.tileWidth,
         y: s.y * p.tileHeight,
-        width: p.tileWidth,
-        height: p.tileHeight,
+        width: p.tileWidth * (s.width ?? 1),
+        height: p.tileHeight * (s.height ?? 1),
         pageWidth: p.width,
         pageHeight: p.height,
       });
@@ -216,11 +279,15 @@ export class Graphics {
     );
   }
   resolve(race: string, caste: string, age?: number) {
-    // Vanilla yak CHILD:1; pack equipment is not part of this body fallback.
-    if (race === "YAK")
-      return this.refs.get(
-        `YAK:${age !== undefined && age < 1 ? "CHILD" : "ADULT"}`,
-      );
-    return this.refs.get(`${race}:${caste}`) ?? this.refs.get(race);
+    const keys = [`${race}:${caste}`, race];
+    if (age !== undefined && age < 1)
+      for (const id of keys) {
+        const child = this.refs.get(`${id}:CHILD`);
+        if (child) return child;
+      }
+    for (const id of keys) {
+      const adult = this.refs.get(`${id}:ADULT`) ?? this.refs.get(id);
+      if (adult) return adult;
+    }
   }
 }

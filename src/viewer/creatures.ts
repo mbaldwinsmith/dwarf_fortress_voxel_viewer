@@ -134,7 +134,13 @@ export class CreatureSprites {
       }
       s.unit = unit;
       s.object.material = material;
-      const height = unit.sprite || unit.layers?.length ? 1.2 : 0.45,
+      // Native large images span several 32px game tiles, including their
+      // transparent padding. Keep their scale as well as their aspect ratio.
+      const height = unit.sprite
+          ? (1.2 * unit.sprite.height) / 32
+          : unit.layers?.length
+            ? 1.2
+            : 0.45,
         width = unit.sprite
           ? (height * unit.sprite.width) / unit.sprite.height
           : 0.45;
