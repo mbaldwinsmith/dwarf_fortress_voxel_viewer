@@ -1,8 +1,12 @@
 import { CompositeSprites, compositionBounds } from "./composite-sprites.js";
 import * as THREE from "three";
-import { bottomPadding, SpriteFeet } from "./sprite-ground.js";
+import { bottomPadding, topPadding, SpriteFeet } from "./sprite-ground.js";
 import { surfaceHeight } from "./traversal.js";
-import { creatureScale } from "./creature-scale.js";
+import {
+  creatureScale,
+  creatureCeilingFit,
+  smoothCreatureFit,
+} from "./creature-scale.js";
 import {
   LEVELS_BELOW,
   tileAt,
@@ -15,7 +19,19 @@ export class CreatureSprites {
   group = new THREE.Group();
   private composites = new CompositeSprites();
   visibleCount = 0;
-  private sprites = new Map<number, { object: THREE.Sprite; unit: Creature }>();
+  private sprites = new Map<
+    number,
+    {
+      object: THREE.Sprite;
+      unit: Creature;
+      width: number;
+      height: number;
+      fit: number;
+      fitted: boolean;
+    }
+  >();
+  animating = false;
+  private lastUpdate: number | undefined;
   private materials = new Map<string, THREE.SpriteMaterial>();
   private sheets = new Map<string, THREE.Texture>();
   private textures: THREE.Texture[] = [];
@@ -46,6 +62,7 @@ export class CreatureSprites {
       depthWrite: true,
     });
     this.marker.userData.bottomPadding = bottomPadding(pixels, 8, 8);
+    this.marker.userData.topPadding = topPadding(pixels, 8, 8);
   }
   private material(r: SpriteRef) {
     const key = JSON.stringify(r);
@@ -65,6 +82,10 @@ export class CreatureSprites {
                 texture.needsUpdate = true;
                 m.map = texture;
                 m.userData.bottomPadding = this.feet.get(
+                  texture.image as HTMLImageElement,
+                  JSON.parse(k) as SpriteRef,
+                );
+                m.userData.topPadding = this.feet.getTop(
                   texture.image as HTMLImageElement,
                   JSON.parse(k) as SpriteRef,
                 );
@@ -104,6 +125,7 @@ export class CreatureSprites {
       depthWrite: true,
     });
     material.userData.bottomPadding = this.marker.userData.bottomPadding;
+    material.userData.topPadding = this.marker.userData.topPadding;
     this.materials.set(key, material);
     return material;
   }
@@ -131,7 +153,14 @@ export class CreatureSprites {
           ? this.material(unit.sprite)
           : this.marker;
       if (!s) {
-        s = { object: new THREE.Sprite(material), unit };
+        s = {
+          object: new THREE.Sprite(material),
+          unit,
+          width: 0,
+          height: 0,
+          fit: 1,
+          fitted: false,
+        };
         s.object.center.set(0.5, 0);
         this.sprites.set(unit.id, s);
         this.group.add(s.object);
@@ -156,11 +185,9 @@ export class CreatureSprites {
         bounds ? bounds.footFromBottom / bounds.height : 0,
       );
       const size = creatureScale(unit.bodySize);
-      s.object.scale.set(
-        size * (bounds ? (1.2 * bounds.width) / 32 : width),
-        size * (bounds ? (1.2 * bounds.height) / 32 : height),
-        1,
-      );
+      s.width = size * (bounds ? (1.2 * bounds.width) / 32 : width);
+      s.height = size * (bounds ? (1.2 * bounds.height) / 32 : height);
+      s.object.scale.set(s.width * s.fit, s.height * s.fit, 1);
       s.object.position.set(unit.x + 0.5, unit.z + 0.12, unit.y + 0.5);
     }
   }
@@ -168,7 +195,12 @@ export class CreatureSprites {
     chunks: Map<string, Chunk>,
     cut: number,
     minLevel = cut - LEVELS_BELOW,
+    now = performance.now(),
   ) {
+    const seconds =
+      this.lastUpdate === undefined ? 0 : (now - this.lastUpdate) / 1000;
+    this.lastUpdate = now;
+    this.animating = false;
     this.visibleCount = 0;
     for (const s of this.sprites.values()) {
       const u = s.unit,
@@ -182,10 +214,31 @@ export class CreatureSprites {
         );
         s.object.position.y =
           surfaceHeight(chunks, u.x + 0.5, u.y + 0.5, u.z) ?? u.z + 0.12;
+        const visibleHeight =
+          s.height *
+          Math.max(
+            0,
+            1 -
+              s.object.center.y -
+              Number(s.object.material.userData.topPadding ?? 0),
+          );
+        const target = creatureCeilingFit(
+          chunks,
+          u.x,
+          u.y,
+          s.object.position.y,
+          visibleHeight,
+        );
+        s.fit = s.fitted ? smoothCreatureFit(s.fit, target, seconds) : target;
+        s.fitted = true;
+        s.object.scale.set(s.width * s.fit, s.height * s.fit, 1);
+        this.animating ||= Math.abs(s.fit - target) > 0.001;
       }
     }
   }
   clear() {
+    this.animating = false;
+    this.lastUpdate = undefined;
     this.group.clear();
     this.sprites.clear();
     this.composites.retain([]);

@@ -38,6 +38,8 @@ single-tile actions to the loaded fortress through DFHack.
 - **Creature sizes:** raw-derived current body volumes drive logarithmic sprite
   scaling, including growth. An adult dwarf is the reference; display multipliers
   stay between 0.35 and 3. Clothing/equipment scale together and feet stay grounded.
+  Solid overhead terrain caps visible sprite height, even when cut away; creatures
+  smoothly return to their natural size outside. Transparent padding is excluded.
 - **Layered peoples:** native body, clothing, armour, held weapons and shields
   for dwarves, humans, elves, goblins, kobolds, ogres, trolls and compatible
   animal/underground peoples, with appearance drawn from live game data.

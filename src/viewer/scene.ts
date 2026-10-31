@@ -758,6 +758,7 @@ export class FortressScene {
           this.miningPressed ||
           this.selector.visible ||
           this.flows.visibleCount > 0 ||
+          this.creatures.animating ||
           this.projectiles.animating(start) ||
           this.atlasVersion !== this.terrainAtlas.texture.version,
       )

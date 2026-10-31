@@ -1,7 +1,7 @@
 import { paletteRow } from "./palette-row.js";
 import * as THREE from "three";
 import type { SpriteLayer } from "../shared/model.js";
-import { imageBottomPadding } from "./sprite-ground.js";
+import { imageVerticalPadding } from "./sprite-ground.js";
 export function compositionBounds(layers: SpriteLayer[]) {
   const minX = Math.min(
       0,
@@ -113,11 +113,13 @@ export class CompositeSprites {
         texture.generateMipmaps = false;
         entry.texture = texture;
         entry.material.map = texture;
-        entry.material.userData.bottomPadding = imageBottomPadding(
+        const padding = imageVerticalPadding(
           canvas,
           canvas.width,
           canvas.height,
         );
+        entry.material.userData.bottomPadding = padding.bottom;
+        entry.material.userData.topPadding = padding.top;
         entry.material.needsUpdate = true;
       })
       .catch((e) =>
