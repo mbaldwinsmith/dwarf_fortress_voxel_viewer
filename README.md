@@ -35,6 +35,9 @@ single-tile actions to the loaded fortress through DFHack.
   icons, or click in Designation mode to give your dwarves a mining job.
 - **Authentic local artwork:** installed vanilla terrain textures, creature
   sprites, workshops, furniture, plants and supported ground items.
+- **Creature sizes:** raw-derived current body volumes drive logarithmic sprite
+  scaling, including growth. An adult dwarf is the reference; display multipliers
+  stay between 0.35 and 3. Clothing/equipment scale together and feet stay grounded.
 - **Layered peoples:** native body, clothing, armour, held weapons and shields
   for dwarves, humans, elves, goblins, kobolds, ogres, trolls and compatible
   animal/underground peoples, with appearance drawn from live game data.

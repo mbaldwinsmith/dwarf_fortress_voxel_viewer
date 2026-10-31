@@ -16,6 +16,20 @@ import type { Graphics } from "./graphics.js";
 // inactive, left, incoming, hidden_in_ambush, hidden_ambusher, caged.
 const invisible =
   (1 << 1) | (1 << 8) | (1 << 10) | (1 << 18) | (1 << 21) | (1 << 25);
+export function unitBodySize(u: Record<string, unknown>): number | undefined {
+  const size = u.sizeInfo as Record<string, unknown> | undefined;
+  for (const value of [size?.sizeCur, size?.sizeBase])
+    if (
+      typeof value === "number" &&
+      Number.isSafeInteger(value) &&
+      value > 0 &&
+      value <= 2147483647
+    )
+      // DF's internal volume is raw cubic centimetres / 10 (also documented
+      // by DFHack gui/unit-info-viewer's format_size_in_cc).
+      return value * 10;
+  return undefined;
+}
 export function visibleUnit(
   u: Record<string, unknown>,
   b: Bounds,
@@ -143,6 +157,7 @@ export class CreatureReader {
           });
       }
       const raw = this.raws.get(race.matType),
+        bodySize = unitBodySize(u),
         sprite = raw
           ? this.graphics.resolve(
               raw.id,
@@ -236,9 +251,7 @@ export class CreatureReader {
           items,
           state,
           professionCategories: categories,
-          bodySize: Number(
-            (u.sizeInfo as Record<string, unknown> | undefined)?.sizeCur ?? 0,
-          ),
+          bodySize: bodySize ?? 0,
           haulCount: items.filter((i) => i.mode === 0).length,
           ghost: (Number(u.flags3) & (1 << 12)) !== 0,
         });
@@ -248,6 +261,7 @@ export class CreatureReader {
         x: Number(u.posX),
         y: Number(u.posY),
         z: Number(u.posZ),
+        ...(bodySize !== undefined ? { bodySize } : {}),
         name:
           typeof u.name === "string"
             ? u.name.slice(0, 120)

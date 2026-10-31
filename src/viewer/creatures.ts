@@ -2,6 +2,7 @@ import { CompositeSprites, compositionBounds } from "./composite-sprites.js";
 import * as THREE from "three";
 import { bottomPadding, SpriteFeet } from "./sprite-ground.js";
 import { surfaceHeight } from "./traversal.js";
+import { creatureScale } from "./creature-scale.js";
 import {
   LEVELS_BELOW,
   tileAt,
@@ -154,9 +155,10 @@ export class CreatureSprites {
         bounds ? bounds.anchorX / bounds.width : 0.5,
         bounds ? bounds.footFromBottom / bounds.height : 0,
       );
+      const size = creatureScale(unit.bodySize);
       s.object.scale.set(
-        bounds ? (1.2 * bounds.width) / 32 : width,
-        bounds ? (1.2 * bounds.height) / 32 : height,
+        size * (bounds ? (1.2 * bounds.width) / 32 : width),
+        size * (bounds ? (1.2 * bounds.height) / 32 : height),
         1,
       );
       s.object.position.set(unit.x + 0.5, unit.z + 0.12, unit.y + 0.5);

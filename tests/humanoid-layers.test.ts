@@ -46,7 +46,7 @@ it("passes live non-dwarf anatomy, held/worn/hauling inventory and material flag
     race: { matType: 7, matIndex: 0 },
     age: 3,
     professionId: 2,
-    sizeInfo: { sizeCur: 60000 },
+    sizeInfo: { sizeCur: 6000 },
     appearance: { colors: [0] },
     inventory: [
       {
@@ -156,6 +156,7 @@ it("passes live non-dwarf anatomy, held/worn/hauling inventory and material flag
     new Map([["0,0,4", chunk]]),
   );
   expect(result[0].layers).toHaveLength(2);
+  expect(result[0].bodySize).toBe(60000);
   const [, evaluated] = layered.mock.calls[0] as unknown as [
     string,
     DwarfAppearance,

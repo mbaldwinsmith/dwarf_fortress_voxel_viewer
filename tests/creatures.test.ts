@@ -1,6 +1,8 @@
-import { it, expect } from "vitest";
+import { it, expect, vi } from "vitest";
 import { parseGraphics, permittedImage } from "../src/bridge/graphics.js";
-import { visibleUnit } from "../src/bridge/creatures.js";
+import { visibleUnit, unitBodySize } from "../src/bridge/creatures.js";
+import { creatureScale } from "../src/viewer/creature-scale.js";
+import { CompositeSprites } from "../src/viewer/composite-sprites.js";
 import { CreatureSprites } from "../src/viewer/creatures.js";
 import * as THREE from "three";
 import { parseServerMessage } from "../src/shared/validation.js";
@@ -8,6 +10,113 @@ import { type Chunk } from "../src/shared/model.js";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+it("uses raw-derived current size, with base size only as a fallback", () => {
+  expect(unitBodySize({ sizeInfo: { sizeCur: 300, sizeBase: 70000 } })).toBe(
+    3000,
+  );
+  expect(unitBodySize({ sizeInfo: { sizeCur: 0, sizeBase: 70000 } })).toBe(
+    700000,
+  );
+  expect(unitBodySize({ sizeInfo: { sizeCur: NaN, sizeBase: 6000 } })).toBe(
+    60000,
+  );
+  for (const sizeCur of [undefined, 0, -1, "3000", Infinity, 2147483648])
+    expect(unitBodySize({ sizeInfo: { sizeCur } })).toBeUndefined();
+});
+it("logarithmically distinguishes chickens, dwarves and yaks with bounded extremes", () => {
+  // Adult sizes from the installed vanilla creature raws.
+  expect(creatureScale(3000)).toBe(0.35);
+  expect(creatureScale(60000)).toBe(1);
+  expect(creatureScale(700000)).toBeCloseTo(1.988);
+  expect(creatureScale(700000) / creatureScale(3000)).toBeLessThan(6);
+  expect(creatureScale(1)).toBe(0.35);
+  expect(creatureScale(2147483647)).toBe(3);
+  for (const size of [undefined, 0, -1, NaN, Infinity])
+    expect(creatureScale(size)).toBe(1);
+});
+it("scales whole sprites and their equipment uniformly while retaining ground contact", () => {
+  const texture = new THREE.Texture<HTMLImageElement>();
+  const load = vi
+    .spyOn(THREE.TextureLoader.prototype, "load")
+    .mockReturnValue(texture);
+  const material = new THREE.SpriteMaterial();
+  material.userData.bottomPadding = 0.125;
+  const composite = vi
+    .spyOn(CompositeSprites.prototype, "material")
+    .mockReturnValue(material);
+  const view = new CreatureSprites();
+  const sprite = {
+    asset: "a".repeat(24),
+    x: 0,
+    y: 0,
+    width: 32,
+    height: 32,
+    pageWidth: 64,
+    pageHeight: 64,
+  };
+  try {
+    const base = { id: 1, x: 2, y: 2, z: 3, name: "Animal", sprite };
+    view.snapshot({
+      type: "creatures",
+      session: "size",
+      tick: 1,
+      creatures: [
+        { ...base, bodySize: 3000 },
+        { ...base, id: 2, bodySize: 700000 },
+        {
+          ...base,
+          id: 3,
+          bodySize: 700000,
+          layers: [
+            { sprite },
+            { sprite: { ...sprite, width: 64, height: 64 } },
+          ],
+        },
+      ],
+    });
+    view.update(chunks, 3);
+    const [chicken, yak, layered] = view.group.children as THREE.Sprite[];
+    expect(chicken.scale.x).toBeCloseTo(1.2 * 0.35);
+    expect(yak.scale.y / chicken.scale.y).toBeCloseTo(
+      creatureScale(700000) / 0.35,
+    );
+    expect(layered.scale.x).toBeCloseTo(2 * yak.scale.x);
+    expect(layered.scale.y).toBeCloseTo(2 * yak.scale.y);
+    expect(layered.center.y).toBe(0.125);
+    for (const s of [chicken, yak, layered]) expect(s.position.y).toBe(3.12);
+    view.snapshot({
+      type: "creatures",
+      session: "size",
+      tick: 2,
+      creatures: [{ ...base, bodySize: 60000 }],
+    });
+    view.update(chunks, 3);
+    expect(view.group.children[0]).toBe(chicken);
+    expect(chicken.scale.y).toBeCloseTo(1.2);
+    expect(chicken.position.y).toBe(3.12);
+  } finally {
+    view.dispose();
+    composite.mockRestore();
+    load.mockRestore();
+    material.dispose();
+  }
+});
+it("validates optional creature volume at the browser boundary", () => {
+  const message = {
+    type: "creatures",
+    session: "size",
+    tick: 1,
+    creatures: [{ id: 1, x: 0, y: 0, z: 0, name: "Yak", bodySize: 700000 }],
+  };
+  expect(parseServerMessage(message)).toEqual(message);
+  for (const bodySize of [0, -1, 0.5, NaN, Infinity, "700000", 21474836471])
+    expect(() =>
+      parseServerMessage({
+        ...message,
+        creatures: [{ ...message.creatures[0], bodySize }],
+      }),
+    ).toThrow("Invalid creature body size");
+});
 it("writes opaque sprite pixels to depth so water cannot paint over foreground creatures", () => {
   const sprites = new CreatureSprites();
   try {

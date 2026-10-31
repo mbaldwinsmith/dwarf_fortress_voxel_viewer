@@ -22,6 +22,8 @@ export interface Creature {
   y: number;
   z: number;
   name: string;
+  // Raw-derived current body volume from DFHack, including age/size modifiers.
+  bodySize?: number;
   sprite?: SpriteRef;
   layers?: SpriteLayer[];
 }

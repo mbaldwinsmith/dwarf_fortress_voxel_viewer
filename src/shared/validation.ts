@@ -119,6 +119,13 @@ export function parseServerMessage(value: unknown): ServerMessage {
         !text(c.name)
       )
         throw Error("Invalid creature");
+      if (
+        c.bodySize !== undefined &&
+        (!Number.isSafeInteger(c.bodySize) ||
+          Number(c.bodySize) <= 0 ||
+          Number(c.bodySize) > 21474836470)
+      )
+        throw Error("Invalid creature body size");
       if (c.layers !== undefined) {
         if (!Array.isArray(c.layers) || c.layers.length > 64)
           throw Error("Invalid layer count");
