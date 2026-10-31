@@ -10,6 +10,7 @@ import {
 } from "../src/viewer/projectiles.js";
 import type { TerrainAtlas } from "../src/viewer/terrain-atlas.js";
 import { parseServerMessage } from "../src/shared/validation.js";
+import { RenderScheduler } from "../src/viewer/render-scheduler.js";
 import {
   chunkKey,
   type Chunk,
@@ -270,6 +271,27 @@ it("settles stationary samples, rejects old ticks and removes landings and stale
   expect(m.group.children).toHaveLength(1);
   m.clear();
   expect(m.group.children).toHaveLength(0);
+  m.dispose();
+});
+it("renders the final flight position before idling, even when a frame misses its deadline", () => {
+  const m = models(),
+    scheduler = new RenderScheduler();
+  const render = (now: number) => {
+    if (!scheduler.take(now, m.animating(now))) return false;
+    m.frame(chunks, now, 4, 0);
+    return true;
+  };
+  m.snapshot(message(1, [projectile()]), 0);
+  expect(render(0)).toBe(true);
+  m.snapshot(message(2, [projectile({ x: 6.37 })]), 100);
+  expect(render(197)).toBe(true);
+  expect(m.group.children[0].position.x).toBeLessThan(6.87);
+  expect(render(205)).toBe(true);
+  expect(m.group.children[0].position.x).toBe(6.87);
+  expect(render(206)).toBe(false);
+  expect(render(101 + PROJECTILE_EXPIRY_MS)).toBe(true);
+  expect(m.group.children).toHaveLength(0);
+  expect(render(102 + PROJECTILE_EXPIRY_MS)).toBe(false);
   m.dispose();
 });
 it("does not draw an interpolated flight through hidden terrain or outside the cut", () => {

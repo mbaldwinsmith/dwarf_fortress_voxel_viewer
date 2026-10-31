@@ -1,12 +1,18 @@
 # Astra handover: native scenery fidelity
 
-Updated 2026-10-30 after continuing the original handover. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
+Updated 2026-10-31 after the live optimisation follow-up. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
+
+## Live follow-up checkpoint
+
+The user reopened DF/DFHack on 2026-10-31. A roughly five-minute read-only audit loaded 2,304 blocks and 56 creatures, exercised first-person walking/ramp traversal and repeated cutaway changes, and recorded no browser errors. Initial terrain sweep: 24.6 s; settled unchanged sweeps: about 20 s. Projectile snapshot cadence: 126 ms median / 173 ms p95. Returning to the same surface view retained about 31 MiB page JS heap after GC and the same 598 renderer geometries / 15 textures. Companion working set remained substantial at about 512 MiB. See [performance-review.md](performance-review.md) for scope and measurement limits.
+
+DF was paused throughout, so actual moving-unit/combat/effect performance remains unverified. A separate native-art replay exposed and verified a fix for the idle scheduler skipping the final projectile interpolation frame. Flights now render through the exact endpoint before idling. Fire/smoke, landing removal and stale expiry also passed the isolated replay. **264 tests in 46 files and production build passed.** No fortress changes, game camera changes, mining requests or installer build. Next: normal unpaused play, actual projectiles/effects, and an extended memory soak. Dev preview/companion remain available on ports 5173/4174; the automated browser was closed.
 
 ## Resource optimisation checkpoint
 
 The user's optimisation pass is implemented and validated; see [performance-review.md](performance-review.md). Controlled grove measurements: geometry buffers 40.94 to 16.35 MiB, main-page JS heap 26.10 to 13.65 MiB, and 868 to 24 renders over six idle seconds, preserving 351,242 rendered triangles. Improvements cover chunk palettes/digests, lossless vertex indexing, worker cache/buffer ownership, idle scheduling, palette rows, an 8 MiB smaller atlas, linear-time RPC reassembly and production bundling. Future desktop packages omit 47.7 MiB of unused locales. Existing release artifacts and critic evidence are preserved.
 
-**263 tests in 46 files and production build passed.** The isolated production bundle passed a controlled RFR exchange without `node_modules`. DFHack was offline for the final live attempt. The user explicitly requested wrapping up and checking live performance tomorrow: resume with live stream cadence, populated-fortress walking, effects/projectiles and longer memory monitoring. No installer or full fresh critic gallery was built/run during this pass.
+**263 tests in 46 files and production build passed at this checkpoint.** The isolated production bundle passed a controlled RFR exchange without `node_modules`. DFHack was offline then; the subsequent live follow-up is recorded above. No installer or full fresh critic gallery was built/run during this pass.
 
 ## Completed physical projectiles follow-on
 

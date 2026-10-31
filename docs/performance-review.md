@@ -86,10 +86,9 @@ in 252 of 1,024,000 pixels (0.025%), scattered along rasterised edges; the geome
 round-trip test verifies exact vertex attribute bits. The authored tree/workshop
 model source was not changed. A fresh full critic gallery was not run in this pass.
 
-The user requested wrapping up and checking **live DFHack performance tomorrow**.
-DFHack was offline during the final integration attempt. Actual live sweep rate,
-walking through a populated fortress, projectile/fire animation and long-session
-memory behaviour remain the next checks. No fortress data was changed.
+DFHack was offline during the original optimisation pass. The live follow-up
+below covers streaming, navigation and a short memory observation; actual combat
+and an extended unpaused session remain unverified. No fortress data was changed.
 
 Ignored local evidence and reproduction scripts: `artifacts/performance-browser.mjs`,
 `performance-before.json`, `performance-final.json`, corresponding PNGs,
@@ -100,3 +99,58 @@ Ignored local evidence and reproduction scripts: `artifacts/performance-browser.
 Use the bundled Node runtime and the existing dev preview. Freeze production
 source while taking comparisons. The bundle smoke uses a mock RFR server and
 does not connect to the game.
+
+## Live follow-up — 2026-10-31
+
+The user reopened DF with DFHack. A roughly five-minute read-only audit used the
+actual dev viewer, native artwork and bridge, with headless Edge at 1280×800.
+The handshake reported DF **53.16**, DFHack **53.16-r3** and RemoteFortressReader
+**0.21.0**. `GetPauseState` confirmed the fortress was paused before and after;
+its native screen coordinates also remained unchanged. The viewer sent no mining
+requests. Changing the viewer camera/cutaway does not move the game's camera.
+
+| Live measurement                                                   |                           Result |
+| ------------------------------------------------------------------ | -------------------------------: |
+| Loaded map window                                                  |       2,304 blocks; 56 creatures |
+| Initial complete terrain sweep                                     |                           24.6 s |
+| Two settled sweeps with no changed terrain                         |                    19.9 / 20.4 s |
+| Projectile snapshots                                               | 2,104; median 126 ms, p95 173 ms |
+| Creature snapshots                                                 |   801; median 301 ms, p95 517 ms |
+| Four-second walking sample: scene-loop CPU                         |        mean 7.36 ms, p95 12.1 ms |
+| Walking sample: animation-callback interval                        |       median 7.9 ms, p95 14.1 ms |
+| Same surface view after repeated level changes: page heap after GC |                    30.6–31.1 MiB |
+| Same surface view: renderer resources                              |     598 geometries / 15 textures |
+| Browser errors / warnings                                          |                            0 / 0 |
+
+The audit exercised spawn selection, WASD movement across a ramp, returning to
+orbit, and cut levels 175, 173, 169 and 174, including repeated returns. Full-map
+terrain sweeps remain much slower than near-camera creature/projectile polling.
+Initial loading and level changes still cause transient frame-time spikes. CPU
+submission times are not measurements of GPU completion or native game FPS.
+
+The bounded tree cache stayed below 32 MiB. Returning to the same surface view
+did not increase the renderer's geometry/texture counts on the repeated cycle.
+The companion ended around 512 MiB working set / 530 MiB private memory with its
+warm block/art caches; it is still a substantial part of the total footprint.
+These observations do not establish long-session leak freedom. Page heap figures
+exclude workers, external typed-array backing stores and browser overhead.
+
+No live flights or fire flows occurred while DF was paused. A separate isolated
+browser replay, using local native-art references and no game connection, checked
+all five projectile forms, interpolation, stationary samples, landing removal,
+stale expiry, fire/smoke animation and return to idle rendering.
+
+That replay exposed a scheduling regression: interpolation could stop just short
+of its endpoint when the next animation callback arrived after its deadline. The
+projectile renderer now requests work until the displayed position reaches the
+latest sample, and copies the endpoint exactly on the final frame. The new test
+failed before the fix and passes afterwards. The browser replay reached the
+exact endpoint, removed landed/stale objects, animated both flows, then returned
+to four renders in one idle second. **264 tests in 46 files and the production
+build passed.** No installer was built.
+
+Remaining checks: moving units during normal unpaused play, actual shots and
+siege ammunition, naturally occurring effects, and a longer memory soak.
+Ignored reproduction/evidence: `artifacts/live-performance-20261031.mjs`,
+`live-performance-20261031.json`, `live-performance-*.png`, `read-pause.ts`,
+`effects-scheduler-20261031.mjs` and `effects-scheduler-20261031.json`.

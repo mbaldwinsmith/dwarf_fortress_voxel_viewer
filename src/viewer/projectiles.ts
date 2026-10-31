@@ -233,7 +233,8 @@ export class ProjectileModels {
       const t = f.duration
         ? Math.min(1, Math.max(0, (now - f.at) / f.duration))
         : 1;
-      f.object.position.lerpVectors(f.from, f.to, t);
+      if (t === 1) f.object.position.copy(f.to);
+      else f.object.position.lerpVectors(f.from, f.to, t);
       if (t < 1 && !revealedFlight(chunks, f.from, f.to))
         f.object.position.copy(f.to);
       const p = f.object.position,
@@ -246,7 +247,9 @@ export class ProjectileModels {
     for (const f of this.flights.values())
       if (
         now - this.received > PROJECTILE_EXPIRY_MS ||
-        (f.duration > 0 && now < f.at + f.duration && !f.from.equals(f.to))
+        // The first frame after the deadline still has to commit the endpoint.
+        // Comparing the rendered position also settles stationary snapshots.
+        !f.object.position.equals(f.to)
       )
         return true;
     return false;
