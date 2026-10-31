@@ -1,6 +1,45 @@
 # Astra handover: native scenery fidelity
 
-Updated 2026-10-31 after the live optimisation follow-up. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
+Updated 2026-10-31 after the freestanding furniture critic pass. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
+
+## Completed freestanding furniture follow-on
+
+The user reported over-tall tables/chairs and requested a new furniture critic,
+all freestanding furniture rebuilt, and separate model/texture scores of at least
+4.8. The user explicitly accepted a textured 3D statue pedestal with a vertical
+camera-facing sprite and actual displayed-item sprites on stands/in cases.
+
+**Complete: all 23 families independently pass both model and texture at 4.80/5
+or higher.** The new `/root/freestanding_furniture_critic` inspected all 62 native
+material variants, four extra sword/amulet display fixtures, the final ten
+statue/display billboard checks and the actual fortress view. See
+[furniture-critic-review.md](furniture-critic-review.md) for the final matrix and
+detailed iteration feedback, and [furniture-rendering.md](furniture-rendering.md)
+for implementation, protocol boundaries and limitations.
+
+Tables are .40 high and chair/throne seats .24, calibrated against current dwarf
+sprite sizes. Clean native material crops retain grain density; intentional
+highlights, doors, shelf details and bedding are placed once. Storage has real
+openings, slabs retain their peaked shoulders, and traction benches have attached
+ropes/rollers/cranks. Glass panes and native statue/item billboards share the
+existing lifecycle and cutaway handling. Display contents use bounded read-only
+DFHack assignment/holder checks plus RFR item records; no inventory is invented.
+Unknown statue subjects use native covered-statue artwork.
+
+**283 tests across 48 files and production build passed.** The read-only live
+viewer audit loaded 2,304 chunks and 57 creatures with zero browser errors or
+warnings. It included 21 tables, 21 chairs, 14 beds, six nest boxes, 12 barrels
+and nine pots. No occupied display was available in the queried live viewport;
+its rendering/fit is verified with crown, sword and amulet fixtures, and the
+fixed Lua transport/missing-building guard passed separately. No fortress changes
+or installer build.
+
+Preserve `artifacts/furniture-review-final1/` (66 boards),
+`artifacts/furniture-review-final3/` (10 billboard boards) and
+`artifacts/furniture-live-final.png/json`. The four statue boards in `final2`
+are invalid loading-marker captures. The harness now preloads local artwork
+and waits for actual scenery sheet images rather than placeholders. Existing
+workshop `runtime20` and tree `runtime10` evidence remains unchanged.
 
 ## Live follow-up checkpoint
 

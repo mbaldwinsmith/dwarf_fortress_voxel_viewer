@@ -144,6 +144,9 @@ export function groundItems(
         ? {
             furniture: {
               type: model,
+              material: family.toLowerCase() as NonNullable<
+                SceneryObject["furniture"]
+              >["material"],
               ...(material?.color ? { color: material.color } : {}),
             },
           }
@@ -181,4 +184,46 @@ export function groundItems(
     if (!previous || item.id < Number(previous.id.slice(2))) cells.set(cell, o);
   }
   return [...cells.values()];
+}
+
+/** Resolve a real displayed item without treating it as loose ground furniture. */
+export function displayItemLayers(
+  item: Record<string, unknown>,
+  definitions: Map<string, string>,
+  materials: Map<string, TerrainMaterial>,
+  graphics: Pick<SceneryGraphics, "get"> &
+    Partial<Pick<SceneryGraphics, "materialPalettes" | "metalIds">>,
+): SpriteLayer[] {
+  const type = item.type as Record<string, unknown> | undefined,
+    mat = item.material as Record<string, unknown> | undefined;
+  if (!type) return [];
+  const id =
+    definitions.get(key(type)) ?? definitions.get(`${type.matType},-1`);
+  if (!id) return [];
+  const [category, subtype] = id.split("/"),
+    material = mat ? materials.get(key(mat)) : undefined;
+  const token =
+      category === "STATUE" ? "STATUE" : (itemAliases[category] ?? category),
+    family = materialFamily(material?.id, graphics.metalIds);
+  const override = (
+    {
+      BOULDER: "BOULDER_GRAPHICS",
+      ROUGH: "ROUGH_GEM_GRAPHICS",
+      BAR: "BARS_GRAPHICS",
+    } as Record<string, string>
+  )[category];
+  const sprite =
+    (override && material && graphics.get(`${override}:${material.id}`)) ||
+    (subtype && graphics.get(`${subtype}:${family}`)) ||
+    (subtype &&
+      graphics.get(`${subtype}:${family === "WOOD" ? "WOOD" : "DEFAULT"}`)) ||
+    (subtype && graphics.get(`${subtype}:DEFAULT`)) ||
+    (subtype && graphics.get(`${subtype}_${family}`)) ||
+    (subtype && graphics.get(subtype)) ||
+    graphics.get(`ITEM_${token}`) ||
+    graphics.get(`ITEM_${token}_${family}:1`) ||
+    graphics.get(`ITEM_${token}_${family}`);
+  if (!sprite) return [];
+  const palette = material && graphics.materialPalettes?.get(material.id);
+  return [{ sprite, ...(palette ? { palette } : {}) }];
 }

@@ -122,6 +122,12 @@ export const FURNITURE_TYPES = [
   "armorstand",
   "nestbox",
   "hive",
+  "slab",
+  "tractionbench",
+  "statue",
+  "altar",
+  "pedestal",
+  "displaycase",
   "door",
   "hatch",
   "gratefloor",
@@ -180,6 +186,9 @@ export interface SceneryObject {
   };
   furniture?: {
     type: FurnitureType;
+    material?: "wood" | "stone" | "metal" | "glass";
+    statue?: SpriteRef;
+    display?: SpriteLayer[];
     heavy?: true;
     color?: [number, number, number];
     open?: boolean;

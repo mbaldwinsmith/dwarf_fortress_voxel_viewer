@@ -125,6 +125,7 @@ it("transmits explicit furniture types only for installed visible furniture", ()
     expect(c.objects[0].furniture).toEqual({
       type: type === "Box" ? "chest" : type.toLowerCase(),
       heavy: true,
+      material: "stone",
     });
     const message = () => ({
       type: "chunks",
@@ -145,23 +146,50 @@ it("transmits explicit furniture types only for installed visible furniture", ()
   ).toEqual([]);
 });
 it("closes the tapered coffin and keeps lid UVs continuous across the shoulders", () => {
-  const faces = furnitureFaces(object("coffin"), 4.12),
-    edges = new Map<string, number>();
-  for (const f of faces) {
-    const points = Array.from({ length: 4 }, (_, i) =>
-      f.positions
-        .slice(i * 3, i * 3 + 3)
-        .map((n) => n.toFixed(6))
-        .join(","),
-    );
-    for (let i = 0; i < 4; i++) {
-      const key = [points[i], points[(i + 1) % 4]].sort().join("/");
-      edges.set(key, (edges.get(key) ?? 0) + 1);
+  const faces = furnitureFaces(object("coffin"), 4.12);
+  // Texture tiling introduces collinear T-junctions. Test the closed surface
+  // with rays rather than requiring identical tessellation on every face.
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      faces.flatMap((f) => [
+        ...f.positions.slice(0, 9),
+        ...f.positions.slice(0, 3),
+        ...f.positions.slice(6, 12),
+      ]),
+      3,
+    ),
+  );
+  const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+    mesh = new THREE.Mesh(geometry, material);
+  for (const y of [4.15, 4.3, 4.36])
+    for (let i = 0; i < 48; i++) {
+      const a = (i * Math.PI) / 24,
+        direction = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+      const hits = new THREE.Raycaster(
+        new THREE.Vector3(2.5, y, 3.5),
+        direction,
+      ).intersectObject(mesh);
+      expect(hits.length).toBeGreaterThan(0);
     }
-  }
-  expect([...edges.values()].every((count) => count === 2)).toBe(true);
+  for (const direction of [-1, 1])
+    expect(
+      new THREE.Raycaster(
+        new THREE.Vector3(2.5, 4.2, 3.5),
+        new THREE.Vector3(0, direction, 0),
+      ).intersectObject(mesh).length,
+    ).toBeGreaterThan(0);
+  geometry.dispose();
+  material.dispose();
   const shared = new Map<string, string>();
-  for (const f of faces.filter((f) => f.uvs))
+  for (const f of faces.filter(
+    (f) =>
+      f.uvs &&
+      f.positions
+        .filter((_, i) => i % 3 === 1)
+        .every((y) => Math.abs(y - 4.39) < 0.0001),
+  ))
     for (let i = 0; i < 4; i++) {
       const point = f.positions.slice(i * 3, i * 3 + 3).join(","),
         uv = f.uvs!.slice(i * 2, i * 2 + 2).join(",");
@@ -190,16 +218,42 @@ it("keeps smaller backless chairs and thrones symmetric in every facing directio
     const points = Array.from({ length: p.length / 3 }, (_, i) =>
       p.slice(i * 3, i * 3 + 3),
     );
-    const key = ([x, y, z]: number[]) =>
-      [x, y, z].map((v) => v.toFixed(6)).join(",");
-    expect(
-      new Set(
-        points.map(([x, y, z]) =>
-          key([o.x + 0.5 - (z - o.y - 0.5), y, o.y + 0.5 + (x - o.x - 0.5)]),
-        ),
+    const geometry = new THREE.BufferGeometry();
+    const faces = furnitureFaces(o, 4.12);
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(
+        faces.flatMap((f) => [
+          ...f.positions.slice(0, 9),
+          ...f.positions.slice(0, 3),
+          ...f.positions.slice(6, 12),
+        ]),
+        3,
       ),
-    ).toEqual(new Set(points.map(key)));
-    expect(Math.max(...points.map((p) => p[1])) - 4.12).toBeCloseTo(0.35);
+    );
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+      mesh = new THREE.Mesh(geometry, material);
+    for (const y of [4.17, 4.33, 4.355])
+      for (const offset of [-0.19, -0.04, 0, 0.04, 0.19]) {
+        const samples = [];
+        for (let quarter = 0; quarter < 4; quarter++) {
+          const a = (quarter * Math.PI) / 2,
+            origin = new THREE.Vector3(
+              2.5 + Math.cos(a) * 2 - Math.sin(a) * offset,
+              y,
+              3.5 + Math.sin(a) * 2 + Math.cos(a) * offset,
+            ),
+            direction = new THREE.Vector3(-Math.cos(a), 0, -Math.sin(a));
+          const hits = new THREE.Raycaster(origin, direction).intersectObject(
+            mesh,
+          );
+          samples.push(hits.length ? hits[0].distance : 0);
+        }
+        for (const sample of samples) expect(sample).toBeCloseTo(samples[0], 5);
+      }
+    geometry.dispose();
+    material.dispose();
+    expect(Math.max(...points.map((p) => p[1])) - 4.12).toBeCloseTo(0.24);
     expect(
       Math.max(...points.map((p) => p[0])) -
         Math.min(...points.map((p) => p[0])),

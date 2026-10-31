@@ -61,7 +61,7 @@ it("leaves real openings down to the interior bottoms of containers", () => {
     ).intersectObject(mesh);
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0].point.y).toBeCloseTo(
-      4.12 + (type === "bucket" ? 0.06 : 0.07),
+      4.12 + { bucket: 0.04, bin: 0.045, barrel: 0.05, pot: 0.05 }[type],
       4,
     );
     geometry.dispose();

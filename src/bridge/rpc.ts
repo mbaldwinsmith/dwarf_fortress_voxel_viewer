@@ -3,6 +3,7 @@ import { Frames, frame } from "./framing.js";
 import { methods, type, type Method } from "./protocol.js";
 import { miningLua } from "./mining-lua.js";
 import { corpseIdentityLua, parseCorpseIdentities } from "./corpse-identity.js";
+import { displayItemsLua, parseDisplayItems } from "./display-items.js";
 export class Rpc {
   private socket: net.Socket;
   private frames = new Frames();
@@ -158,6 +159,35 @@ export class Rpc {
         ),
       );
       return parseCorpseIdentities(this.miningText.join(""), ids);
+    } finally {
+      this.miningText = undefined;
+    }
+  }
+  async displayItems(ids: number[]) {
+    if (
+      ids.length > 64 ||
+      ids.some((id) => !Number.isSafeInteger(id) || id < 0)
+    )
+      throw Error("Invalid display building IDs");
+    if (!ids.length) return [];
+    if (this.busy) throw Error("Concurrent DFHack requests forbidden");
+    this.miningText = [];
+    try {
+      const request = type("dfproto.CoreRunCommandRequest");
+      await this.wait(() =>
+        this.socket.write(
+          frame(
+            1,
+            request
+              .encode({
+                command: "lua",
+                arguments: [displayItemsLua, ...ids.map(String)],
+              })
+              .finish(),
+          ),
+        ),
+      );
+      return parseDisplayItems(this.miningText.join(""), ids);
     } finally {
       this.miningText = undefined;
     }

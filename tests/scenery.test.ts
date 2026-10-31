@@ -135,7 +135,7 @@ it("selects species shrubs, dead plants and saplings without exposing hidden veg
   c.tiles[17].shape = "wall";
   expect(plantObjects(c, [p], plants, art)).toEqual([]);
 });
-it("loads native tool art and distinguishes 3D furnishings from upright sprites", () => {
+it("loads native tool art for the complete freestanding furniture set", () => {
   const mappings = sceneryMappings(
     "[TOOL_GRAPHICS:TOOLS:0:10:ITEM_TOOL_NEST_BOX]" +
       "[TOOL_GRAPHICS:TOOLS:2:11:ITEM_TOOL_HIVE]",
@@ -151,7 +151,7 @@ it("loads native tool art and distinguishes 3D furnishings from upright sprites"
     ["Weaponrack", "ITEM_WEAPON_RACK_WOOD_EMPTY"],
     ["Cage", "ITEM_CAGE_WOOD"],
     ["AnimalTrap", "ITEM_ANIMAL_TRAP_WOOD"],
-    ["Statue", "ITEM_STATUE_ITEM"],
+    ["Statue", "ITEM_STATUE_WOOD:1"],
     ["OfferingPlace", "ITEM_TOOL_ALTAR"],
     ["DisplayFurniture", "ITEM_TOOL_PEDESTAL"],
   ]) {
@@ -160,22 +160,8 @@ it("loads native tool art and distinguishes 3D furnishings from upright sprites"
     const objects = buildingObjects(c, [b], new Map([["13,0,-1", category]]), {
       get: (key) => (key === token ? sprite : undefined),
     });
-    const model = [
-      "NestBox",
-      "Hive",
-      "Armorstand",
-      "Weaponrack",
-      "Cage",
-      "AnimalTrap",
-    ].includes(category);
-    expect(objects).toMatchObject([
-      { kind: model ? "ground" : "upright", sprite },
-    ]);
-    if (model) expect(objects[0].furniture).toBeDefined();
-    else {
-      const heights = objectQuad(objects[0]).filter((_, i) => i % 3 === 1);
-      expect(Math.max(...heights) - Math.min(...heights)).toBeCloseTo(1);
-    }
+    expect(objects).toMatchObject([{ kind: "ground", sprite }]);
+    expect(objects[0].furniture).toBeDefined();
     c.objects = objects;
     expect(() =>
       parseServerMessage({

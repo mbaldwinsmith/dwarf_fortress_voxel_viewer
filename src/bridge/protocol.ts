@@ -1,6 +1,7 @@
 import protobuf from "protobufjs";
 // Deliberately restricted wire-compatible subset; field numbers verified against
-// DFHack 0bf381cc. Command transport is used only by the fixed single-tile miner.
+// DFHack 0bf381cc. Commands are limited to the fixed miner and bounded read-only
+// artwork identity lookups.
 const schema = `syntax="proto2";package dfproto;
 message EmptyMessage {} message CoreBindRequest {required string method=1;required string input_msg=2;required string output_msg=3;optional string plugin=4;} message CoreBindReply {required int32 assigned_id=1;}
 message CoreRunCommandRequest {required string command=1;repeated string arguments=2;}

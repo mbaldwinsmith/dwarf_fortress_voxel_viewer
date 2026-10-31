@@ -3,7 +3,11 @@ import type { Rpc } from "./rpc.js";
 import type { SceneryGraphics } from "./scenery-graphics.js";
 import { textureTerrain, terrainMaterials } from "./terrain-art.js";
 import { visibleProjectiles } from "./projectiles.js";
-import { groundItems, materialFamily } from "./ground-items.js";
+import {
+  groundItems,
+  materialFamily,
+  displayItemLayers,
+} from "./ground-items.js";
 import { flowTokens } from "./flows.js";
 import type { Graphics } from "./graphics.js";
 import type { SpriteLayer } from "../shared/model.js";
@@ -60,7 +64,7 @@ const furniture: Record<string, string> = {
   Hatch: "HATCH_COVER",
   GrateFloor: "GRATE",
   GrateWall: "GRATE",
-  Slab: "SLAB",
+  Slab: "SLAB_BLANK",
   Bookcase: "TOOL_BOOKCASE",
   TractionBench: "TRACTION_BENCH",
   NestBox: "TOOL_NEST_BOX",
@@ -69,7 +73,7 @@ const furniture: Record<string, string> = {
   Weaponrack: "WEAPON_RACK",
   Cage: "CAGE",
   AnimalTrap: "ANIMAL_TRAP",
-  Statue: "STATUE_ITEM",
+  Statue: "STATUE",
   OfferingPlace: "TOOL_ALTAR",
   DisplayFurniture: "TOOL_PEDESTAL",
 };
@@ -79,6 +83,11 @@ const uprightFurniture = new Set([
   "DisplayFurniture",
 ]);
 const meshFurniture = new Set([
+  "Slab",
+  "TractionBench",
+  "Statue",
+  "OfferingPlace",
+  "DisplayFurniture",
   "Table",
   "Chair",
   "Bed",
@@ -111,6 +120,8 @@ export function buildingObjects(
   definitions: Map<string, string>,
   graphics: Pick<SceneryGraphics, "get">,
   materialDefinitions?: ReturnType<typeof terrainMaterials>,
+  displayIds: ReadonlyMap<number, { items: number[] }> = new Map(),
+  itemDefinitions: Map<string, string> = new Map(),
 ): SceneryObject[] {
   const out: SceneryObject[] = [];
   for (const b of records(buildings)) {
@@ -157,6 +168,45 @@ export function buildingObjects(
         : mat?.matType === 0
           ? "STONE"
           : "WOOD";
+    const contained = records(b.items).flatMap((v) =>
+      v.item && typeof v.item === "object"
+        ? [v.item as Record<string, unknown>]
+        : [],
+    );
+    const displayCase =
+      category === "DisplayFurniture" &&
+      contained.some((item) => {
+        const t = item.type as Record<string, unknown> | undefined;
+        return (
+          t &&
+          itemDefinitions
+            .get(`${t.matType},${t.matIndex}`)
+            ?.includes("ITEM_TOOL_DISPLAY_CASE")
+        );
+      });
+    const displayed =
+      category === "DisplayFurniture"
+        ? contained
+            .filter((item) =>
+              displayIds.get(Number(b.index))?.items.includes(Number(item.id)),
+            )
+            .slice(0, 1)
+            .flatMap((item) =>
+              displayItemLayers(
+                item,
+                itemDefinitions,
+                materialDefinitions ?? new Map(),
+                graphics,
+              ),
+            )
+        : [];
+    // RFR omits the depicted art-image subject. Native covered statue is an
+    // explicit generic fallback, rather than inventing a person or scene.
+    const statueSource =
+      category === "Statue" ? graphics.get("ITEM_STATUE") : undefined;
+    const statue = statueSource
+      ? { ...statueSource, height: (statueSource.height * 27) / 32 }
+      : undefined;
     const prefix =
       category === "Workshop"
         ? workshop[subtype]
@@ -204,7 +254,7 @@ export function buildingObjects(
               `${overlayPrefix}:1:${x - left}:${y - top + extraRow}`,
             );
         } else if (!isShop) {
-          const token = `ITEM_${furniture[category]}`;
+          const token = `ITEM_${displayCase ? "TOOL_DISPLAY_CASE" : furniture[category]}`;
           sprite =
             category === "Hive"
               ? graphics.get("ITEM_TOOL_HIVE_BUILDING")
@@ -216,6 +266,11 @@ export function buildingObjects(
                   : (graphics.get(`${token}_${material}_CLOSED:ALL`) ??
                     graphics.get(`${token}_${material}_CLOSED:1`))
                 : undefined;
+          if (category === "TractionBench")
+            sprite =
+              graphics.get(
+                `${token}_${material === "WOOD" ? "WOODEN" : material}_CHAIN`,
+              ) ?? graphics.get(`${token}_WOODEN_CHAIN`);
           sprite ??=
             (["Armorstand", "Weaponrack"].includes(category)
               ? graphics.get(`${token}_${material}_EMPTY`)
@@ -329,9 +384,20 @@ export function buildingObjects(
                 furniture: {
                   type: (category === "Box"
                     ? "chest"
-                    : category.toLowerCase()) as NonNullable<
+                    : category === "OfferingPlace"
+                      ? "altar"
+                      : category === "DisplayFurniture"
+                        ? displayCase
+                          ? "displaycase"
+                          : "pedestal"
+                        : category.toLowerCase()) as NonNullable<
                     SceneryObject["furniture"]
                   >["type"],
+                  material: material.toLowerCase() as NonNullable<
+                    SceneryObject["furniture"]
+                  >["material"],
+                  ...(statue ? { statue } : {}),
+                  ...(displayed.length ? { display: displayed } : {}),
                   ...(material === "STONE" ? { heavy: true as const } : {}),
                   ...(definition?.color ? { color: definition.color } : {}),
                   ...(barriers.has(category) ? { open: b.active === 0 } : {}),
@@ -475,6 +541,48 @@ export function plantObjects(
   return out;
 }
 export class SceneryReader {
+  private displays = new Map<number, { items: number[]; time: number }>();
+  async prepareDisplays(chunks: Chunk[], buildings: unknown) {
+    const now = performance.now(),
+      ids: number[] = [];
+    for (const b of records(buildings)) {
+      const t = b.buildingType as Record<string, unknown> | undefined,
+        id = Number(b.index);
+      if (
+        !t ||
+        !Number.isSafeInteger(id) ||
+        id < 0 ||
+        (this.definitions.get(buildingKey(t)) ??
+          this.definitions.get(`${t.buildingType},-1,-1`)) !==
+          "DisplayFurniture" ||
+        now - (this.displays.get(id)?.time ?? -Infinity) < 1000
+      )
+        continue;
+      if (
+        chunks.some(
+          (c) =>
+            Number(b.posZMax) === c.z &&
+            Number(b.posXMin) >= c.x &&
+            Number(b.posXMin) < c.x + 16 &&
+            Number(b.posYMin) >= c.y &&
+            Number(b.posYMin) < c.y + 16 &&
+            ["floor", "ramp", "stairs"].includes(
+              c.tiles[(Number(b.posYMin) - c.y) * 16 + Number(b.posXMin) - c.x]
+                ?.shape,
+            ),
+        )
+      )
+        ids.push(id);
+    }
+    const batch = [...new Set(ids)].slice(0, 64);
+    if (!batch.length) return;
+    const result = await this.rpc.displayItems(batch);
+    for (const id of batch) this.displays.set(id, { items: [], time: now });
+    for (const v of result)
+      this.displays.set(v.id, { items: v.items, time: now });
+    while (this.displays.size > 8192)
+      this.displays.delete(this.displays.keys().next().value!);
+  }
   private corpses = new Map<number, SpriteLayer[]>();
   private itemDefinitions = new Map<string, string>();
   private materialDefinitions = terrainMaterials([]);
@@ -587,12 +695,15 @@ export class SceneryReader {
           this.definitions,
           this.graphics,
           this.materialDefinitions,
+          this.displays,
+          this.itemDefinitions,
         ),
         ...objects,
       ].slice(0, 512),
     };
   }
   async decorate(chunk: Chunk, raw?: Record<string, unknown>) {
+    await this.prepareDisplays([chunk], raw?.buildings);
     // Constant artwork, independent of hidden tile materials and ore veins.
     chunk.ceilingTexture = this.graphics.get("STONE_FLOOR_5");
     for (const flow of chunk.flows ?? []) {
@@ -631,6 +742,8 @@ export class SceneryReader {
         this.definitions,
         this.graphics,
         this.materialDefinitions,
+        this.displays,
+        this.itemDefinitions,
       ),
       ...plantObjects(
         chunk,

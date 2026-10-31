@@ -436,6 +436,25 @@ export function parseServerMessage(value: unknown): ServerMessage {
               !(o.id.startsWith("b:") || o.id.startsWith("i:")))
           )
             throw Error("Invalid furniture mesh");
+          if (object(o.furniture)) {
+            const f = o.furniture;
+            if (
+              f.material !== undefined &&
+              !["wood", "stone", "metal", "glass"].includes(String(f.material))
+            )
+              throw Error("Invalid furniture material");
+            if (f.statue !== undefined) {
+              if (f.type !== "statue") throw Error("Invalid statue figure");
+              validateSprite(f.statue);
+            }
+            if (
+              f.display !== undefined &&
+              (!["pedestal", "displaycase"].includes(String(f.type)) ||
+                !Array.isArray(f.display) ||
+                f.display.length > 1)
+            )
+              throw Error("Invalid furniture display");
+          }
           if (o.tint !== undefined && !rgb(o.tint))
             throw Error("Invalid scenery tint");
           if (o.palette !== undefined) {
@@ -453,14 +472,21 @@ export function parseServerMessage(value: unknown): ServerMessage {
             )
               throw Error("Invalid scenery palette");
           }
-          if (o.details !== undefined) {
+          const display =
+            object(o.furniture) && Array.isArray(o.furniture.display)
+              ? o.furniture.display
+              : [];
+          if (o.details !== undefined || display.length) {
             if (
-              !Array.isArray(o.details) ||
-              o.details.length > 63 ||
+              (o.details !== undefined && !Array.isArray(o.details)) ||
+              (Array.isArray(o.details) && o.details.length > 63) ||
               o.kind !== "ground"
             )
               throw Error("Invalid scenery detail layers");
-            for (const d of o.details) {
+            for (const d of [
+              ...(Array.isArray(o.details) ? o.details : []),
+              ...display,
+            ]) {
               if (!object(d)) throw Error("Invalid scenery detail");
               validateSprite(d.sprite);
               if (d.palette !== undefined) {

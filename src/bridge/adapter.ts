@@ -233,6 +233,7 @@ export class FortressAdapter {
     const buildings = records.flatMap((raw) =>
       Array.isArray(raw.buildings) ? raw.buildings : [],
     );
+    await this.scenery!.prepareDisplays?.(chunks, buildings);
     return chunks.map((c) =>
       this.scenery!.withItems(
         records.length ? (this.scenery!.withBuildings?.(c, buildings) ?? c) : c,

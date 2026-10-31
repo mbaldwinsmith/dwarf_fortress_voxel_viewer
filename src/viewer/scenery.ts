@@ -101,8 +101,9 @@ export class ScenerySprites {
   private material(
     asset?: string,
     palette?: SceneryObject["palette"],
+    opacity = 1,
   ): THREE.MeshBasicMaterial {
-    const key = JSON.stringify([asset ?? "marker", palette]);
+    const key = JSON.stringify([asset ?? "marker", palette, opacity]);
     let m = this.materials.get(key);
     if (m) return m;
     if (asset && this.materials.size >= 512) return this.material();
@@ -110,7 +111,10 @@ export class ScenerySprites {
       vertexColors: true,
       map: this.marker,
       side: THREE.DoubleSide,
-      alphaTest: 0.3,
+      alphaTest: opacity < 1 ? 0.01 : 0.3,
+      opacity,
+      transparent: opacity < 1,
+      depthWrite: opacity === 1,
     });
     this.materials.set(key, m);
     if (asset) {
@@ -165,6 +169,43 @@ export class ScenerySprites {
       this.sheets.set(key, texture);
     }
     return m;
+  }
+  private furnitureBillboard(
+    group: THREE.Group,
+    o: SceneryObject,
+    ref: SpriteRef,
+    ground: number,
+    height: number,
+    width: number,
+    palette?: SceneryObject["palette"],
+    tint?: [number, number, number],
+  ) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(
+        [-0.5, 1, 0, -0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0],
+        3,
+      ),
+    );
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uv(ref), 2));
+    geometry.setAttribute(
+      "color",
+      new THREE.Float32BufferAttribute(
+        Array.from({ length: 4 }, () =>
+          tint ? linearMaterialColor(tint) : [1, 1, 1],
+        ).flat(),
+        3,
+      ),
+    );
+    geometry.setIndex([0, 1, 2, 0, 2, 3]);
+    const mesh = new THREE.Mesh(geometry, this.material(ref.asset, palette));
+    mesh.position.set(o.x + 0.5, ground, o.y + 0.5);
+    mesh.userData.sprite = ref;
+    mesh.userData.furniture = { height, width };
+    mesh.visible = false;
+    this.billboards.add(mesh);
+    group.add(mesh);
   }
   private remove(key: string) {
     const group = this.blocks.get(key);
@@ -234,6 +275,7 @@ export class ScenerySprites {
             const k = JSON.stringify([
               face.sprite?.asset ?? "solid",
               face.sprite ? face.palette : undefined,
+              face.opacity ?? 1,
             ]);
             let batch = batches.get(k);
             if (!batch) {
@@ -243,7 +285,7 @@ export class ScenerySprites {
                 uvs: [],
                 indices: [],
                 material: face.sprite
-                  ? this.material(face.sprite.asset, face.palette)
+                  ? this.material(face.sprite.asset, face.palette, face.opacity)
                   : this.furnitureSolid,
               };
               batches.set(k, batch);
@@ -266,6 +308,29 @@ export class ScenerySprites {
               base,
               base + 2,
               base + 3,
+            );
+          }
+          if (o.furniture?.statue)
+            this.furnitureBillboard(
+              group,
+              o,
+              o.furniture.statue,
+              ground + 0.2,
+              0.62,
+              0.46,
+              o.palette,
+            );
+          for (const layer of o.furniture?.display ?? []) {
+            const enclosed = o.furniture?.type === "displaycase";
+            this.furnitureBillboard(
+              group,
+              o,
+              layer.sprite,
+              ground + (enclosed ? 0.123 : 0.4),
+              enclosed ? 0.19 : 0.3,
+              enclosed ? 0.42 : 0.46,
+              layer.palette,
+              layer.tint,
             );
           }
           continue;
@@ -402,15 +467,50 @@ export class ScenerySprites {
         ) {
           const padding = this.feet.get(image, mesh.userData.sprite);
           const positions = mesh.geometry.getAttribute("position");
-          for (let i = 0; i < 4; i++)
-            positions.setY(i, (i === 0 || i === 3 ? 1 : 0) - padding);
+          const fit = mesh.userData.furniture;
+          const ref = mesh.userData.sprite as SpriteRef;
+          const [left, right] = fit
+            ? this.feet.getHorizontal(image, ref)
+            : [0, 0];
+          const scale = fit
+            ? Math.min(
+                fit.height /
+                  Math.max(
+                    1 / ref.height,
+                    1 - padding - this.feet.getTop(image, ref),
+                  ),
+                fit.width /
+                  ((ref.width / ref.height) *
+                    Math.max(1 / ref.width, 1 - left - right)),
+              )
+            : 1;
+          for (let i = 0; i < 4; i++) {
+            positions.setY(i, ((i === 0 || i === 3 ? 1 : 0) - padding) * scale);
+            if (fit)
+              positions.setX(
+                i,
+                ((i < 2 ? 0 : 1) - (left + 1 - right) / 2) *
+                  (ref.width / ref.height) *
+                  scale,
+              );
+          }
+          mesh.visible = true;
           positions.needsUpdate = true;
           mesh.geometry.computeBoundingSphere();
           mesh.userData.anchored = true;
           mesh.userData.bottomPadding = padding;
         }
       }
-      mesh.quaternion.copy(camera.quaternion);
+      if (mesh.userData.furniture)
+        mesh.rotation.set(
+          0,
+          Math.atan2(
+            camera.position.x - mesh.position.x,
+            camera.position.z - mesh.position.z,
+          ),
+          0,
+        );
+      else mesh.quaternion.copy(camera.quaternion);
     }
   }
   clear() {

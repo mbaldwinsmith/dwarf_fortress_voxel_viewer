@@ -56,3 +56,13 @@ it("places feet on the sampled slope instead of a fixed tile-height offset", () 
     sprites.dispose();
   }
 });
+
+it("measures visible horizontal bounds using the same alpha cutoff as the renderer", async () => {
+  const { horizontalPadding } = await import("../src/viewer/sprite-ground.js");
+  const pixels = new Uint8Array(8 * 4 * 4);
+  pixels[(1 * 8 + 2) * 4 + 3] = 255;
+  pixels[(2 * 8 + 5) * 4 + 3] = 77;
+  pixels[(3 * 8 + 7) * 4 + 3] = 76;
+  expect(horizontalPadding(pixels, 8, 4)).toEqual([0.25, 0.25]);
+  expect(horizontalPadding(new Uint8Array(8 * 4 * 4), 8, 4)).toEqual([0, 0]);
+});
