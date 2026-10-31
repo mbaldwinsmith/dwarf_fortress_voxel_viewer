@@ -9,6 +9,7 @@ import {
   atlasRect,
   ATLAS_HEIGHT,
   ATLAS_WIDTH,
+  ATLAS_CAPACITY,
 } from "../src/viewer/terrain-atlas.js";
 import type { Chunk, ServerMessage } from "../src/shared/model.js";
 
@@ -174,7 +175,7 @@ it("reassembles a fragmented large frame once and continues through subsequent r
 });
 it("keeps every atlas cell inside the reduced texture with half-texel gutters", () => {
   expect(ATLAS_WIDTH * ATLAS_HEIGHT * 4).toBe(8 * 1024 * 1024);
-  for (let i = 0; i < 1024; i++) {
+  for (let i = 0; i <= ATLAS_CAPACITY; i++) {
     const [l, b, r, t] = atlasRect(i);
     expect(l).toBeGreaterThan(0);
     expect(b).toBeGreaterThan(0);

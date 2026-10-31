@@ -145,6 +145,7 @@ export function sceneryMappings(text: string) {
 }
 export class SceneryGraphics {
   materialPalettes = new Map<string, NonNullable<SpriteLayer["palette"]>>();
+  colorPalettes = new Map<string, NonNullable<SpriteLayer["palette"]>>();
   gemIds = new Set<string>();
   oreIds = new Set<string>();
   metalIds = new Set<string>();
@@ -177,6 +178,35 @@ export class SceneryGraphics {
       installation,
       "data/vanilla/vanilla_materials/objects",
     );
+    const colors = await readFile(
+      path.join(
+        installation,
+        "data/vanilla/vanilla_descriptors/objects/descriptor_color_standard.txt",
+      ),
+      "utf8",
+    );
+    for (const m of colors.matchAll(
+      /\[COLOR:([^\]]+)\]([\s\S]*?)(?=\[COLOR:|$)/g,
+    )) {
+      const rgb = /\[RGB:(\d+):(\d+):(\d+)\]/.exec(m[2]),
+        row = rows.get(m[1]);
+      if (rgb && row !== undefined)
+        this.colorPalettes.set(rgb.slice(1).join(","), {
+          asset,
+          sourceRow: 0,
+          row,
+        });
+    }
+    const templates = new Map<string, string>();
+    for (const name of (await readdir(rawRoot)).filter(
+      (n) => n.startsWith("material_template_") && n.endsWith(".txt"),
+    )) {
+      const source = await readFile(path.join(rawRoot, name), "utf8");
+      for (const m of source.matchAll(
+        /\[MATERIAL_TEMPLATE:([^\]]+)\]([\s\S]*?)(?=\[MATERIAL_TEMPLATE:|$)/g,
+      ))
+        templates.set(m[1], m[2]);
+    }
     for (const name of (await readdir(rawRoot)).filter(
       (n) => n.startsWith("inorganic_") && n.endsWith(".txt"),
     )) {
@@ -196,7 +226,13 @@ export class SceneryGraphics {
           });
         if (/\[IS_GEM:/.test(m[2])) this.gemIds.add(`INORGANIC:${m[1]}`);
         if (/\[METAL_ORE:/.test(m[2])) this.oreIds.add(`INORGANIC:${m[1]}`);
-        if (/\[IS_METAL\]/.test(m[2])) this.metalIds.add(`INORGANIC:${m[1]}`);
+        const inherited = [
+          ...m[2].matchAll(/\[USE_MATERIAL_TEMPLATE:([^\]]+)\]/g),
+        ]
+          .map((t) => templates.get(t[1]) ?? "")
+          .join("");
+        if (/\[IS_METAL\]/.test(inherited + m[2]))
+          this.metalIds.add(`INORGANIC:${m[1]}`);
       }
     }
     for (const module of [

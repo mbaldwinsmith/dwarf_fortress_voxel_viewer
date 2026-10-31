@@ -64,11 +64,22 @@ export interface Tile {
   color?: [number, number, number];
   materialName?: string;
   smooth?: boolean;
+  // N,S,W,E,NW,NE,SW,SE bits 0..7; floor bit 8. Actual visible DF carvings only.
+  engraving?: number;
   surfaces?: {
     top: SpriteRef;
     side: SpriteRef;
     topTint?: [number, number, number];
+    sideTint?: [number, number, number];
+    palette?: SpriteLayer["palette"];
+    engraving?: SpriteRef;
+    engravingPalette?: SpriteLayer["palette"];
+    topTone?: SpriteRef;
+    engravingTone?: SpriteRef;
+    darkBacking?: true;
   };
+  wallRimPalette?: SpriteLayer["palette"];
+  wallRimTone?: SpriteRef;
   treeGraphic?: string;
   shape: Shape;
   material: number;

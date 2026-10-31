@@ -4,6 +4,7 @@ import type { SceneryReader } from "./scenery.js";
 import { maskEnclosedWalls, openTile } from "./wall-visibility.js";
 import { key } from "../shared/model.js";
 import { visibleFlows } from "./flows.js";
+import { applyEngravings } from "./engravings.js";
 function integer(v: unknown, name: string): number {
   if (typeof v !== "number" || !Number.isSafeInteger(v))
     throw Error(`Invalid ${name}`);
@@ -318,6 +319,16 @@ export class FortressAdapter {
     const chunks = levels.map((z) =>
       convertBlock(byZ.get(z), x, y, z, this.defs),
     );
+    if (
+      chunks.some((c) =>
+        c.tiles.some(
+          (t) =>
+            (t.smooth || t.material === 7) &&
+            (t.shape === "floor" || t.shape === "wall"),
+        ),
+      )
+    )
+      applyEngravings(chunks, await this.rpc.engravings(x, y, minZ, maxZ));
     for (const chunk of chunks) {
       const { z } = chunk;
       const cacheKey = key(x, y, z);

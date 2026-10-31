@@ -271,7 +271,7 @@ export function parseServerMessage(value: unknown): ServerMessage {
             t.shape !== "wall" ||
             !t.wallMask ||
             !Array.isArray(t.wallRim) ||
-            t.wallRim.length > 5
+            t.wallRim.length > 10
           )
             throw Error("Invalid wall rim");
           for (const r of t.wallRim) validateSprite(r);
@@ -295,6 +295,9 @@ export function parseServerMessage(value: unknown): ServerMessage {
             t.wallMask !== undefined ||
             t.wallRim !== undefined ||
             t.wallRimTint !== undefined ||
+            t.wallRimPalette !== undefined ||
+            t.wallRimTone !== undefined ||
+            t.engraving !== undefined ||
             t.variant !== undefined)
         )
           throw Error("Unredacted enclosed wall");
@@ -315,9 +318,55 @@ export function parseServerMessage(value: unknown): ServerMessage {
             throw Error("Invalid terrain surfaces");
           validateSprite(t.surfaces.top);
           validateSprite(t.surfaces.side);
+          if (
+            t.surfaces.darkBacking !== undefined &&
+            t.surfaces.darkBacking !== true
+          )
+            throw Error("Invalid surface backing");
           if (t.surfaces.topTint !== undefined && !rgb(t.surfaces.topTint))
             throw Error("Invalid surface colour");
+          if (t.surfaces.sideTint !== undefined && !rgb(t.surfaces.sideTint))
+            throw Error("Invalid side colour");
+          if (t.surfaces.palette !== undefined)
+            validateTerrainPalette(t.surfaces.palette);
+          if (t.surfaces.topTone !== undefined) {
+            if (t.shape !== "floor" || t.engraving !== 256)
+              throw Error("Unexpected floor tone");
+            validateSprite(t.surfaces.topTone);
+          }
+          if (t.surfaces.engravingTone !== undefined) {
+            if (!t.surfaces.engraving) throw Error("Unexpected carving tone");
+            validateSprite(t.surfaces.engravingTone);
+          }
+          if (t.surfaces.engraving !== undefined) {
+            if (t.shape !== "wall" || !t.engraving)
+              throw Error("Invalid engraving surface");
+            validateSprite(t.surfaces.engraving);
+          }
+          if (t.surfaces.engravingPalette !== undefined) {
+            if (!t.surfaces.engraving)
+              throw Error("Unexpected engraving palette");
+            validateTerrainPalette(t.surfaces.engravingPalette);
+          }
         }
+        if (t.wallRimPalette !== undefined) {
+          if (!t.wallRim) throw Error("Unexpected rim palette");
+          validateTerrainPalette(t.wallRimPalette);
+        }
+        if (t.wallRimTone !== undefined) {
+          if (!t.wallRim) throw Error("Unexpected rim tone");
+          validateSprite(t.wallRimTone);
+        }
+        if (
+          t.engraving !== undefined &&
+          (!int(t.engraving) ||
+            t.engraving < 1 ||
+            (!t.smooth && t.material !== 7) ||
+            (t.shape === "floor"
+              ? t.engraving !== 256
+              : t.shape !== "wall" || t.engraving > 255))
+        )
+          throw Error("Invalid engraving mask");
       }
       if (c.flows !== undefined) {
         if (!Array.isArray(c.flows) || c.flows.length > 256)
@@ -555,4 +604,18 @@ function rgb(v: unknown) {
     v.length === 3 &&
     v.every((n) => int(n) && n >= 0 && n <= 255)
   );
+}
+function validateTerrainPalette(p: unknown) {
+  if (
+    !object(p) ||
+    typeof p.asset !== "string" ||
+    !/^[a-f0-9]{24}$/.test(p.asset) ||
+    !int(p.row) ||
+    !int(p.sourceRow) ||
+    p.row < 0 ||
+    p.row > 16384 ||
+    p.sourceRow < 0 ||
+    p.sourceRow > 16384
+  )
+    throw Error("Invalid terrain palette");
 }

@@ -717,6 +717,11 @@ export class SceneryReader {
       plants: this.plantDefinitions,
       gems: this.graphics.gemIds,
       ores: this.graphics.oreIds,
+      metals: this.graphics.metalIds,
+      palettes: this.graphics.materialPalettes,
+      colorPalettes: this.graphics.colorPalettes,
+      constructionItems: raw?.constructionItems,
+      itemDefinitions: this.itemDefinitions,
       layerMaterials: raw?.layerMaterials,
       baseMaterials: raw?.baseMaterials,
     });

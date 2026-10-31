@@ -2,6 +2,7 @@ import { it, expect, vi, beforeEach } from "vitest";
 vi.mock("../src/bridge/rpc.js", () => ({
   Rpc: class {
     call = vi.fn();
+    engravings = vi.fn().mockResolvedValue([]);
     close = vi.fn();
   },
 }));
@@ -239,4 +240,27 @@ it("loads the 3x3 walking core before distant columns and covers the full window
   expect(batches.flatMap((b) => b.levels.map((z) => [b.x, b.y, z]))).toEqual(
     order,
   );
+});
+it("refreshes carvings independently of RFR hashes and clears removed or hidden records", async () => {
+  adapter.defs.set(1, {
+    shape: 1,
+    material: 2,
+    name: "Smooth floor",
+    smooth: true,
+  });
+  const r = raw(10);
+  r.hidden[1] = true;
+  vi.mocked(adapter.rpc.call).mockResolvedValue({ mapBlocks: [r] });
+  vi.mocked(adapter.rpc.engravings)
+    .mockResolvedValueOnce([
+      [16, 32, 10, 256],
+      [17, 32, 10, 256],
+    ])
+    .mockResolvedValue([]);
+  let c = (await adapter.column(16, 32, [10]))[0];
+  expect(adapter.rpc.engravings).toHaveBeenCalledWith(16, 32, 10, 11);
+  expect(c.tiles[0].engraving).toBe(256);
+  expect(c.tiles[1].engraving).toBeUndefined();
+  c = (await adapter.column(16, 32, [10]))[0];
+  expect(c.tiles[0].engraving).toBeUndefined();
 });

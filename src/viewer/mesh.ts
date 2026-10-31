@@ -5,6 +5,7 @@ import {
   type Chunk,
   type Tile,
   type SpriteRef,
+  type SpriteLayer,
 } from "../shared/model.js";
 import type { TerrainUV } from "./terrain-atlas.js";
 import { rampSurface, FLOOR_HEIGHT } from "./ramps.js";
@@ -45,9 +46,13 @@ export function buildMesh(
   c: Chunk,
   chunks: Map<string, Chunk>,
   cut: number,
-  textureUV: (ref?: SpriteRef, transparent?: boolean) => TerrainUV = () => [
-    0, 0, 1, 1,
-  ],
+  textureUV: (
+    ref?: SpriteRef,
+    transparent?: boolean,
+    palette?: SpriteLayer["palette"],
+    tone?: SpriteRef,
+    darkBacking?: boolean,
+  ) => TerrainUV = () => [0, 0, 1, 1],
   firstPerson = false,
   deferFungi = false,
   deferTrees = false,
@@ -58,6 +63,8 @@ export function buildMesh(
   let capTexture: SpriteRef | undefined;
   let capRim: SpriteRef[] = [];
   let rimTint: number[] | undefined;
+  let rimPalette: SpriteLayer["palette"];
+  let rimTone: SpriteRef | undefined;
   const visibleCut = firstPerson ? cut + LEVELS_ABOVE : cut;
   if (c.z > visibleCut || c.z < cut - LEVELS_BELOW) return out;
 
@@ -67,23 +74,44 @@ export function buildMesh(
     wallCap = false,
     rim?: SpriteRef,
     crop?: [number, number, number, number],
+    carving = false,
   ) {
     const horizontal =
       v.every((p) => p[1] === v[0][1]) ||
       !(v.every((p) => p[0] === v[0][0]) || v.every((p) => p[2] === v[0][2]));
-    const faceColor = rim
-      ? (rimTint ?? color)
-      : wallCap
-        ? capTexture
-          ? [1, 1, 1]
-          : wallCapColor
-        : horizontal && surfaces?.topTint
-          ? linearMaterialColor(surfaces.topTint)
-          : color;
+    const faceColor = carving
+      ? [1, 1, 1]
+      : rim
+        ? (rimTint ?? color)
+        : wallCap
+          ? capTexture
+            ? [1, 1, 1]
+            : wallCapColor
+          : horizontal && surfaces?.topTint
+            ? linearMaterialColor(surfaces.topTint)
+            : !horizontal && surfaces?.sideTint
+              ? linearMaterialColor(surfaces.sideTint)
+              : color;
     const [left, bottom, right, top] = textureUV(
-      rim ??
+      (carving ? surfaces?.engraving : undefined) ??
+        rim ??
         (wallCap ? capTexture : horizontal ? surfaces?.top : surfaces?.side),
       !!rim,
+      carving
+        ? surfaces?.engravingPalette
+        : rim
+          ? rimPalette
+          : wallCap
+            ? undefined
+            : surfaces?.palette,
+      carving
+        ? surfaces?.engravingTone
+        : rim
+          ? rimTone
+          : !wallCap && horizontal
+            ? surfaces?.topTone
+            : undefined,
+      surfaces?.darkBacking,
     );
     let uv = horizontal
       ? [
@@ -133,6 +161,8 @@ export function buildMesh(
     capTexture = t.wallCap;
     capRim = t.wallRim ?? [];
     rimTint = t.wallRimTint ? linearMaterialColor(t.wallRimTint) : undefined;
+    rimPalette = t.wallRimPalette;
+    rimTone = t.wallRimTone;
     const x = c.x + (i % 16),
       y = c.y + Math.floor(i / 16),
       z = c.z;
@@ -157,45 +187,75 @@ export function buildMesh(
         u = l + h;
       const neighbour = (nx: number, ny: number, nz: number) =>
         nz <= visibleCut && solid(tileAt(chunks, nx, ny, nz));
-      if (!cull || !neighbour(x + 1, y, z))
+      const face = (vertices: number[][], bit: number) => {
+        quad(vertices, color);
+        if (!cull || !surfaces?.engraving || !((t.engraving ?? 0) & bit))
+          return;
+        // A native carved panel on its actual wall face. Inset preserves the
+        // surrounding construction material; all faces stay in the terrain batch.
+        const centre = vertices[0].map(
+          (_, k) => vertices.reduce((s, v) => s + v[k], 0) / 4,
+        );
+        const normal =
+          bit === 1
+            ? [0, 0, -1]
+            : bit === 2
+              ? [0, 0, 1]
+              : bit === 4
+                ? [-1, 0, 0]
+                : [1, 0, 0];
         quad(
+          vertices.map((v) =>
+            v.map(
+              (n, k) => centre[k] + (n - centre[k]) * 0.78 + normal[k] * 0.002,
+            ),
+          ),
+          color,
+          false,
+          undefined,
+          undefined,
+          true,
+        );
+      };
+      if (!cull || !neighbour(x + 1, y, z))
+        face(
           [
             [a + w, l, b],
             [a + w, u, b],
             [a + w, u, b + d],
             [a + w, l, b + d],
           ],
-          color,
+          8,
         );
       if (!cull || !neighbour(x - 1, y, z))
-        quad(
+        face(
           [
             [a, l, b + d],
             [a, u, b + d],
             [a, u, b],
             [a, l, b],
           ],
-          color,
+          4,
         );
       if (!cull || !neighbour(x, y + 1, z))
-        quad(
+        face(
           [
             [a + w, l, b + d],
             [a + w, u, b + d],
             [a, u, b + d],
             [a, l, b + d],
           ],
-          color,
+          2,
         );
       if (!cull || !neighbour(x, y - 1, z))
-        quad(
+        face(
           [
             [a, l, b],
             [a, u, b],
             [a + w, u, b],
             [a + w, l, b],
           ],
-          color,
+          1,
         );
       if (!cull || !neighbour(x, y, z + 1)) {
         quad(

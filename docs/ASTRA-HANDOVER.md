@@ -1,6 +1,49 @@
 # Astra handover: native scenery fidelity
 
-Updated 2026-10-31 after the freestanding furniture critic pass. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
+Updated 2026-10-31 after the wall/floor surface critic pass. The earlier checkpoint remains in commit `b763e54`; intermediate verified work is saved in `9c52ea0` on `wip/workshop-fidelity-handover`.
+
+## Completed wall/floor surface follow-on
+
+The user requested wall/floor engravings and smoothed/constructed finishes for
+all materials, using vanilla art and a new detailed critic with a 4.8/5 pass bar.
+**Complete: all 116 supplied cases pass both model/placement and texture at
+4.85/5 or higher.** `/root/surface_critic` independently reviewed every final
+case, nine material sheets covering 387 IDs, directional/adjacency controls,
+and the actual fortress image. See [surface-critic-review.md](surface-critic-review.md)
+for individual scores/iterations and [surface-rendering.md](surface-rendering.md)
+for implementation, limitations and source routing.
+
+Stone blocks, boulders, wood, metal, all three glasses and constructed ice retain
+their native finishes. Smooth mineral/ore/gem/ice rims use finished art. Native
+carved floor motifs form floor tiles and inset vertical wall panels only on
+DF-recorded faces; the generic motif does not recreate each historical art
+subject. Material palettes, dark-stone contrast, glass alpha backing and native
+wood/ice/glass carving tones are coherent across faces and cut edges.
+
+RFR construction-item field 18 is decoded. Engravings use fresh bounded read-only
+Lua column snapshots because RFR engraving novelty hashes are global even under
+force_reload. Hidden/sealed records remain redacted; refresh/removal/reconnect
+cannot retain a stale local engraving list. The lookup scans the world's current
+engraving vector; very large engraved fortresses still need live timing checks.
+
+**308 tests across 50 files and production build passed.** The read-only live
+viewer loaded 2,304 chunks, 57 creatures and 1,395 smooth tiles with zero browser
+errors/warnings. Atlas usage settled at 787 slots/zero pending loads; its GPU
+allocation remains 8 MiB, with 1,799 available artwork slots. No visible engraving
+or construction was present in that live snapshot; those use controlled render
+fixtures plus live read-only lookup transport verification. No fortress changes
+or installer build.
+
+Preserve `artifacts/surface-review-final1/` (112 boards),
+`surface-review-final3/` (four constructed-ice boards),
+`surface-material-swatches-final/` (nine sheets), the material manifest and
+`surface-live-final.png/json`. The four final2 boards had a transient 500 during
+bridge-restart preload; use final3 as clean acceptance evidence. Source was
+frozen during each capture. Existing furniture/workshop/tree model code remains
+unchanged. Resolving inherited native metal flags also correctly routes actual
+metal furniture to its previously reviewed METAL profiles; 18 native integration
+checks cover iron/gold/copper tables, chairs, cabinets, bookcases, statues and
+pedestals.
 
 ## Completed freestanding furniture follow-on
 

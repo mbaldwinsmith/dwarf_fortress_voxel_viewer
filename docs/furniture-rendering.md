@@ -41,7 +41,7 @@ those fixtures and immutable review rounds.
 The user's accepted statue design is a textured 3D pedestal with an upright
 camera-facing native sprite. Its billboard rotates around the vertical axis,
 stays grounded on the cap, and fits the visible artwork within a bounded size.
-RFR does not export a statue's depicted art-image subject. The native covered
+The current bridge does not decode a statue's depicted art-image subject. The native covered
 statue is an explicit generic fallback; no historical person, creature or event
 is inferred from the building's material.
 

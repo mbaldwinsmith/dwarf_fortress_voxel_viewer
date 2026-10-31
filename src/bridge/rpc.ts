@@ -4,6 +4,7 @@ import { methods, type, type Method } from "./protocol.js";
 import { miningLua } from "./mining-lua.js";
 import { corpseIdentityLua, parseCorpseIdentities } from "./corpse-identity.js";
 import { displayItemsLua, parseDisplayItems } from "./display-items.js";
+import { engravingsLua, parseEngravings } from "./engravings.js";
 export class Rpc {
   private socket: net.Socket;
   private frames = new Frames();
@@ -188,6 +189,39 @@ export class Rpc {
         ),
       );
       return parseDisplayItems(this.miningText.join(""), ids);
+    } finally {
+      this.miningText = undefined;
+    }
+  }
+  async engravings(x: number, y: number, z0: number, z1: number) {
+    if (
+      ![x, y, z0, z1].every(
+        (v) => Number.isSafeInteger(v) && v >= 0 && v < 1000000,
+      ) ||
+      x % 16 ||
+      y % 16 ||
+      z1 <= z0 ||
+      z1 - z0 > 16
+    )
+      throw Error("Invalid engraving bounds");
+    if (this.busy) throw Error("Concurrent DFHack requests forbidden");
+    this.miningText = [];
+    try {
+      const request = type("dfproto.CoreRunCommandRequest");
+      await this.wait(() =>
+        this.socket.write(
+          frame(
+            1,
+            request
+              .encode({
+                command: "lua",
+                arguments: [engravingsLua, ...[x, y, z0, z1].map(String)],
+              })
+              .finish(),
+          ),
+        ),
+      );
+      return parseEngravings(this.miningText.join(""), x, y, z0, z1);
     } finally {
       this.miningText = undefined;
     }
