@@ -683,8 +683,19 @@ export class SceneryReader {
           ["empty", "unknown"].includes(tile.shape)
         )
           continue;
+        // Default is overloaded by DF: on shrubs it gathers plants, on trees
+        // it chops wood, and on terrain it mines. The enum alone is not enough.
+        const gather = designation === 1 && /shrub/i.test(tile.name),
+          chop =
+            designation === 1 &&
+            !gather &&
+            (!!tile.treeGraphic || /sapling|tree/i.test(tile.name));
         const sprite = this.graphics.get(
-          `DESIGNATION_DIG_${tokens[designation]}`,
+          gather
+            ? "DESIGNATION_GATHER"
+            : chop
+              ? "DESIGNATION_CHOP"
+              : `DESIGNATION_DIG_${tokens[designation]}`,
         );
         if (sprite)
           chunk.objects.push({
@@ -693,7 +704,11 @@ export class SceneryReader {
             y: chunk.y + Math.floor(i / 16),
             z: chunk.z,
             kind: "ground",
-            name: "Mining designation",
+            name: gather
+              ? "Plant gathering designation"
+              : chop
+                ? "Tree chopping designation"
+                : "Mining designation",
             sprite,
           });
       }

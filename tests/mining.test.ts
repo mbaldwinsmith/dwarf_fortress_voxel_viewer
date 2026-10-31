@@ -440,6 +440,62 @@ it("renders only revealed native designations and keeps them through item-only u
       .map((o) => o.id),
   ).toEqual(ids);
 });
+it("distinguishes gathering and chopping from mining despite their shared Default designation", async () => {
+  const c = block();
+  c.tiles[0] = { shape: "floor", material: 12, name: "Shrub" };
+  c.tiles[1] = { shape: "floor", material: 12, name: "ShrubDead" };
+  c.tiles[2] = {
+    shape: "wall",
+    material: 12,
+    name: "TreeTrunkPillar",
+    treeGraphic: "TREE_TRUNK_PILLAR",
+  };
+  c.tiles[3] = { shape: "wall", material: 2, name: "Stone wall" };
+  c.tiles[4] = { shape: "floor", material: 2, name: "Stone floor" };
+  c.tiles[5] = { shape: "unknown", material: 0, name: "Undiscovered" };
+  const tokens = new Map<string, string>(),
+    get = vi.fn((token: string) => {
+      const asset = String(tokens.size).padStart(24, "0");
+      tokens.set(asset, token);
+      return {
+        asset,
+        x: 0,
+        y: 0,
+        width: 32,
+        height: 32,
+        pageWidth: 32,
+        pageHeight: 32,
+      };
+    });
+  const reader = new SceneryReader(
+    { call: vi.fn(async () => ({ plantList: [] })) } as unknown as Rpc,
+    { get } as never,
+    bounds,
+  );
+  const dig = Array(256).fill(0);
+  for (let i = 0; i < 6; i++) dig[i] = i === 4 ? 3 : 1;
+  await reader.decorate(c, { tileDigDesignation: dig });
+  const designations = c.objects!.filter((o) => o.id.startsWith("d:"));
+  expect(designations.map((o) => tokens.get(o.sprite!.asset))).toEqual([
+    "DESIGNATION_GATHER",
+    "DESIGNATION_GATHER",
+    "DESIGNATION_CHOP",
+    "DESIGNATION_DIG_STANDARD",
+    "DESIGNATION_DIG_CHANNEL",
+  ]);
+  expect(designations.map((o) => o.name)).toEqual([
+    "Plant gathering designation",
+    "Plant gathering designation",
+    "Tree chopping designation",
+    "Mining designation",
+    "Mining designation",
+  ]);
+  expect(
+    reader
+      .withItems(c, undefined)
+      .objects!.filter((o) => o.id.startsWith("d:")),
+  ).toEqual(designations);
+});
 it("settles the first-person camera onto loaded ground after its supporting floor is channeled", async () => {
   const win = new EventTarget(),
     doc = Object.assign(new EventTarget(), {
